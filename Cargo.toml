@@ -11,7 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 ratatui       = "0.29"
-crossterm     = "0.28"
+crossterm     = { version = "0.28", features = ["use-dev-tty"] }
 pulldown-cmark = "0.12"
 syntect       = "5.2"
 anyhow        = "1.0"

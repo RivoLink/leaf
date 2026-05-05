@@ -113,12 +113,23 @@ if [ -z "$tag_name" ]; then
     exit 1
 fi
 
-download_url="https://github.com/$REPO/releases/download/$tag_name/$asset_name"
+base_url="https://github.com/$REPO/releases/download/$tag_name"
 tmp_file="$(mktemp)"
-trap 'rm -f "$tmp_file"' EXIT
+tmp_checksums="$(mktemp)"
+trap 'rm -f "$tmp_file" "$tmp_checksums"' EXIT
 
 mkdir -p "$DEST_DIR"
-download_to "$download_url" "$tmp_file"
+download_to "$base_url/$asset_name" "$tmp_file"
+download_to "$base_url/checksums.txt" "$tmp_checksums"
+
+expected="$(grep "[[:space:]]${asset_name}$" "$tmp_checksums" | awk '{print $1}')"
+if command -v sha256sum >/dev/null 2>&1; then
+    actual="$(sha256sum "$tmp_file" | awk '{print $1}')"
+else
+    actual="$(shasum -a 256 "$tmp_file" | awk '{print $1}')"
+fi
+[ "$actual" = "$expected" ] || { echo "Checksum mismatch for $asset_name" >&2; exit 1; }
+
 cp "$tmp_file" "$DEST_BIN"
 chmod 755 "$DEST_BIN"
 

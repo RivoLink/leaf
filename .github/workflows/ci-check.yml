@@ -52,6 +52,12 @@ jobs:
             exit 1
           fi
 
+      - name: Install bats
+        run: sudo apt-get install -y bats
+
+      - name: Test install script
+        run: bats scripts/tests/install.bats
+
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:

@@ -33,7 +33,7 @@ pub(crate) fn usage_text() -> &'static str {
      \x20     --render               Render Markdown to stdout and exit\n\
      \x20     --ansi                 Force ANSI styling in --render output\n\
      \x20     --plain                Force plain text in --render output\n\
-     \x20     --width <COLS>         Set render output width\n\
+     \x20     --width <COLS>         Set --render output width\n\
      \x20     --theme <NAME>         Set color theme preset or custom config theme\n\
      \x20 -e, --editor <NAME>        Set external editor (nano|vim|code|subl|emacs)\n\
      \x20     --picker               Open the file browser picker\n\

@@ -222,6 +222,9 @@ fn main() -> Result<()> {
 
     let at = app_theme();
     if render {
+        if let Some(warning) = config_warning.as_deref() {
+            eprintln!("leaf: {warning}");
+        }
         let mode = if ansi {
             ColorMode::Ansi
         } else if plain || !io::stdout().is_terminal() {

@@ -1,7 +1,11 @@
 use super::{find_symbol, render_buffer, test_assets, test_md_theme};
 use crate::markdown::parse_markdown;
+use crate::one_shot::{write_lines, ColorMode};
 use crate::wrap_path_lines;
-use ratatui::style::Style;
+use ratatui::{
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
+};
 
 #[test]
 fn code_block_box_renders_right_border_in_one_column() {
@@ -132,4 +136,45 @@ fn wrap_path_lines_one_char_over_wraps() {
     let path = "x".repeat(74 - label.len() + 1);
     let lines = wrap_path_lines(label, &path, 74, s, s);
     assert_eq!(lines.len(), 2);
+}
+
+#[test]
+fn one_shot_plain_output_writes_text_without_ansi() {
+    let lines = vec![Line::from(vec![
+        Span::raw("hello "),
+        Span::styled("world", Style::default().fg(Color::Red)),
+    ])];
+    let mut output = Vec::new();
+
+    write_lines(&mut output, &lines, ColorMode::Plain).unwrap();
+
+    assert_eq!(String::from_utf8(output).unwrap(), "hello world\n");
+}
+
+#[test]
+fn one_shot_ansi_output_writes_styles_and_resets() {
+    let lines = vec![Line::from(vec![Span::styled(
+        "hello",
+        Style::default()
+            .fg(Color::Rgb(1, 2, 3))
+            .add_modifier(Modifier::BOLD | Modifier::UNDERLINED),
+    )])];
+    let mut output = Vec::new();
+
+    write_lines(&mut output, &lines, ColorMode::Ansi).unwrap();
+
+    assert_eq!(
+        String::from_utf8(output).unwrap(),
+        "\x1b[38;2;1;2;3;1;4mhello\x1b[0m\n"
+    );
+}
+
+#[test]
+fn one_shot_output_trims_trailing_empty_lines() {
+    let lines = vec![Line::from("hello"), Line::from(""), Line::from("")];
+    let mut output = Vec::new();
+
+    write_lines(&mut output, &lines, ColorMode::Plain).unwrap();
+
+    assert_eq!(String::from_utf8(output).unwrap(), "hello\n");
 }

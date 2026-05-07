@@ -4,6 +4,9 @@ use anyhow::Result;
 pub(crate) struct CliOptions {
     pub(crate) picker: bool,
     pub(crate) watch: bool,
+    pub(crate) render: bool,
+    pub(crate) ansi: bool,
+    pub(crate) plain: bool,
     pub(crate) update: bool,
     pub(crate) config: bool,
     pub(crate) debug_input: bool,
@@ -17,13 +20,18 @@ pub(crate) struct CliOptions {
 pub(crate) fn usage_text() -> &'static str {
     "Usage:  leaf [OPTIONS] [file.md]\n\
      \x20       leaf [--watch] --picker\n\
+     \x20       leaf --render [file.md]\n\
      \x20       leaf --update\n\
      \x20       echo '# Hello' | leaf\n\
+     \x20       echo '# Hello' | leaf --render\n\
      \n\
      Options:\n\
      \x20 -h, --help                 Show this help message and exit\n\
      \x20 -V, --version              Show version information and exit\n\
      \x20 -w, --watch                Watch the file for changes and reload automatically\n\
+     \x20     --render               Render Markdown to stdout and exit\n\
+     \x20     --ansi                 Force ANSI styling in --render output\n\
+     \x20     --plain                Force plain text in --render output\n\
      \x20     --theme <NAME>         Set color theme preset or custom config theme\n\
      \x20 -e, --editor <NAME>        Set external editor (nano|vim|code|subl|emacs)\n\
      \x20     --picker               Open the file browser picker\n\
@@ -61,6 +69,9 @@ pub(crate) fn parse_cli(args: &[String]) -> Result<CliOptions> {
         match arg.as_str() {
             "--picker" => options.picker = true,
             "--watch" | "-w" => options.watch = true,
+            "--render" => options.render = true,
+            "--ansi" => options.ansi = true,
+            "--plain" => options.plain = true,
             "--update" => options.update = true,
             "--config" => options.config = true,
             "--debug-input" => options.debug_input = true,
@@ -95,6 +106,9 @@ pub(crate) fn parse_cli(args: &[String]) -> Result<CliOptions> {
     if options.update {
         let has_non_update_flags = options.watch
             || options.picker
+            || options.render
+            || options.ansi
+            || options.plain
             || options.debug_input
             || options.config
             || options.file_arg.is_some()
@@ -108,6 +122,9 @@ pub(crate) fn parse_cli(args: &[String]) -> Result<CliOptions> {
     if options.config {
         let has_non_config_flags = options.watch
             || options.picker
+            || options.render
+            || options.ansi
+            || options.plain
             || options.debug_input
             || options.update
             || options.file_arg.is_some()
@@ -123,6 +140,25 @@ pub(crate) fn parse_cli(args: &[String]) -> Result<CliOptions> {
         if has_non_picker_flags {
             anyhow::bail!("--picker cannot be combined with a file path");
         }
+    }
+
+    if options.render {
+        if options.watch {
+            anyhow::bail!("--render cannot be combined with --watch");
+        }
+        if options.picker {
+            anyhow::bail!("--render cannot be combined with --picker");
+        }
+    }
+
+    if options.ansi && options.plain {
+        anyhow::bail!("--ansi and --plain cannot be combined");
+    }
+    if options.ansi && !options.render {
+        anyhow::bail!("--ansi requires --render");
+    }
+    if options.plain && !options.render {
+        anyhow::bail!("--plain requires --render");
     }
 
     Ok(options)

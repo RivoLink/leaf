@@ -8,6 +8,7 @@ mod cli;
 mod config;
 mod editor;
 mod markdown;
+mod one_shot;
 mod render;
 mod runtime;
 mod terminal;
@@ -18,7 +19,8 @@ mod update;
 
 use app::{App, AppConfig};
 use cli::{parse_cli, print_usage, print_version, CliOptions};
-use markdown::{hash_str, parse_markdown, read_file_state};
+use markdown::{hash_str, parse_markdown, parse_markdown_with_width, read_file_state};
+use one_shot::{terminal_render_width, write_lines, ColorMode};
 use runtime::run;
 use terminal::{finish_with_restore, TerminalSession};
 use theme::{
@@ -111,6 +113,9 @@ fn main() -> Result<()> {
     let CliOptions {
         picker,
         watch: watch_from_cli,
+        render,
+        ansi,
+        plain,
         debug_input,
         file_arg,
         theme: cli_theme,
@@ -163,6 +168,9 @@ fn main() -> Result<()> {
         (content, name, Some(path))
     } else {
         if io::stdin().is_terminal() {
+            if render {
+                bail!("--render requires a file path or stdin");
+            }
             let cwd = std::env::current_dir().context("Cannot read current directory")?;
             let label = cwd
                 .file_name()
@@ -213,6 +221,20 @@ fn main() -> Result<()> {
     let last_content_hash = hash_str(&src);
 
     let at = app_theme();
+    if render {
+        let mode = if ansi {
+            ColorMode::Ansi
+        } else if plain || !io::stdout().is_terminal() {
+            ColorMode::Plain
+        } else {
+            ColorMode::Ansi
+        };
+        let width = terminal_render_width();
+        let (lines, _) = parse_markdown_with_width(&src, &ss, &theme, width, &at.markdown);
+        let mut stdout = io::stdout().lock();
+        write_lines(&mut stdout, &lines, mode)?;
+        return Ok(());
+    }
     let (lines, toc) = parse_markdown(&src, &ss, &theme, &at.markdown);
     let mut app = App::new_with_source(
         lines,

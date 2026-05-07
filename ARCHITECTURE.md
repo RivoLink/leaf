@@ -56,6 +56,9 @@
 - `src/update.rs`
   - self-update: asset download, SHA256 verification, and binary replacement
 
+- `src/one_shot.rs`
+  - non-interactive stdout rendering for `--render`
+
 - `src/tests/`
   - `app.rs` — app state and mode detection tests
   - `file_picker.rs` — picker opening, fuzzy matching, sorting, truncation
@@ -72,18 +75,20 @@
    - a file argument, or
    - `stdin`, or
    - the file picker if no input is provided interactively.
-3. `markdown/` parses the source into rendered lines + TOC.
-4. `App` stores the state and caches.
-5. `runtime.rs` runs the event loop:
+3. In `--render` mode, `markdown/` parses width-aware content and `one_shot.rs` writes it to stdout before any terminal session starts.
+4. Otherwise, `markdown/` parses the source into rendered lines + TOC.
+5. `App` stores the state and caches.
+6. `runtime.rs` runs the event loop:
    - processes pending picker queue → spawns loading thread
    - polls picker loading → installs results when ready
    - handles input events through mode-aware branching
-6. `render/` draws each frame from `App`.
+7. `render/` draws each frame from `App`.
 
 ## Application modes
 
 - **Initial mode** (`!app.has_content()`): no file loaded, picker is the main view. Quit shortcuts exit the app.
 - **Preview mode** (`app.has_content()`): file loaded via argument, stdin, or picker selection. Quit shortcuts in pickers close the popup and return to the preview.
+- **One-shot render mode** (`--render`): document content is rendered to stdout and the process exits without creating an `App` or entering the terminal runtime.
 
 ## Picker lifecycle
 

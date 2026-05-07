@@ -31,6 +31,13 @@ Open it through stdin:
 cat TESTING.md | leaf
 ```
 
+Render it once to stdout:
+
+```bash
+leaf --render TESTING.md
+cat TESTING.md | leaf --render
+```
+
 ## Manual Coverage
 
 Use the fixture in the `Manual Fixture` section of this file to verify the current feature set.
@@ -77,6 +84,19 @@ While running `cat TESTING.md | leaf`:
 
 - confirm the content matches file-backed rendering
 - confirm watch mode is not available
+
+### One-Shot Render Mode
+
+Run these checks manually:
+
+```bash
+leaf --render TESTING.md
+cat TESTING.md | leaf --render
+leaf --render --ansi TESTING.md
+leaf --render --plain TESTING.md
+```
+
+Confirm the rendered document content is printed directly, no picker opens, and the terminal does not enter raw mode or an alternate screen.
 
 ### Startup And Error Handling
 

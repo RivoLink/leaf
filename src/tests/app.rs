@@ -121,6 +121,127 @@ fn parse_cli_accepts_picker_with_watch() {
 }
 
 #[test]
+fn parse_cli_accepts_render_with_file() {
+    let args = vec![
+        "leaf".to_string(),
+        "--render".to_string(),
+        "README.md".to_string(),
+    ];
+    let options = parse_cli(&args).unwrap();
+
+    assert!(options.render);
+    assert_eq!(options.file_arg.as_deref(), Some("README.md"));
+}
+
+#[test]
+fn parse_cli_accepts_render_on_its_own() {
+    let args = vec!["leaf".to_string(), "--render".to_string()];
+    let options = parse_cli(&args).unwrap();
+
+    assert!(options.render);
+    assert_eq!(options.file_arg, None);
+}
+
+#[test]
+fn parse_cli_accepts_render_with_theme() {
+    let args = vec![
+        "leaf".to_string(),
+        "--render".to_string(),
+        "--theme".to_string(),
+        "ocean".to_string(),
+    ];
+    let options = parse_cli(&args).unwrap();
+
+    assert!(options.render);
+    assert_eq!(options.theme.as_deref(), Some("ocean"));
+}
+
+#[test]
+fn parse_cli_accepts_render_with_ansi() {
+    let args = vec![
+        "leaf".to_string(),
+        "--render".to_string(),
+        "--ansi".to_string(),
+    ];
+    let options = parse_cli(&args).unwrap();
+
+    assert!(options.render);
+    assert!(options.ansi);
+}
+
+#[test]
+fn parse_cli_accepts_render_with_plain() {
+    let args = vec![
+        "leaf".to_string(),
+        "--render".to_string(),
+        "--plain".to_string(),
+    ];
+    let options = parse_cli(&args).unwrap();
+
+    assert!(options.render);
+    assert!(options.plain);
+}
+
+#[test]
+fn parse_cli_rejects_render_with_watch() {
+    let args = vec![
+        "leaf".to_string(),
+        "--render".to_string(),
+        "--watch".to_string(),
+    ];
+
+    let err = parse_cli(&args).unwrap_err();
+    assert!(err
+        .to_string()
+        .contains("--render cannot be combined with --watch"));
+}
+
+#[test]
+fn parse_cli_rejects_render_with_picker() {
+    let args = vec![
+        "leaf".to_string(),
+        "--render".to_string(),
+        "--picker".to_string(),
+    ];
+
+    let err = parse_cli(&args).unwrap_err();
+    assert!(err
+        .to_string()
+        .contains("--render cannot be combined with --picker"));
+}
+
+#[test]
+fn parse_cli_rejects_ansi_without_render() {
+    let args = vec!["leaf".to_string(), "--ansi".to_string()];
+
+    let err = parse_cli(&args).unwrap_err();
+    assert!(err.to_string().contains("--ansi requires --render"));
+}
+
+#[test]
+fn parse_cli_rejects_plain_without_render() {
+    let args = vec!["leaf".to_string(), "--plain".to_string()];
+
+    let err = parse_cli(&args).unwrap_err();
+    assert!(err.to_string().contains("--plain requires --render"));
+}
+
+#[test]
+fn parse_cli_rejects_ansi_with_plain() {
+    let args = vec![
+        "leaf".to_string(),
+        "--render".to_string(),
+        "--ansi".to_string(),
+        "--plain".to_string(),
+    ];
+
+    let err = parse_cli(&args).unwrap_err();
+    assert!(err
+        .to_string()
+        .contains("--ansi and --plain cannot be combined"));
+}
+
+#[test]
 fn parse_cli_accepts_custom_theme_names() {
     let args = vec![
         "leaf".to_string(),

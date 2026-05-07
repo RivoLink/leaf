@@ -126,6 +126,14 @@ claude "explain Rust lifetimes" | leaf
 # Preview a local file through stdin
 cat TESTING.md | leaf
 
+# Render Markdown once and print it to stdout
+leaf --render TESTING.md
+cat TESTING.md | leaf --render
+
+# Force styled or plain one-shot output
+leaf --render --ansi TESTING.md
+leaf --render --plain TESTING.md
+
 ```
 
 ## Configuration
@@ -206,7 +214,7 @@ See [`gruvbox.toml`](gruvbox.toml) for a complete example with all available col
 - **LaTeX support** — Inline, block, and `latex` / `tex` code blocks rendered as formulas.
 - **Navigation** — TOC sidebar, active section tracking, heading jumps, and search.
 - **Terminal UX** — Theme picker, help popup, file path popup, mouse and keyboard support.
-- **CLI friendly** — stdin support and `leaf --update` with SHA256 verification.
+- **CLI friendly** — stdin support, one-shot stdout rendering, and `leaf --update` with SHA256 verification.
 
 ## Typical AI Workflow
 

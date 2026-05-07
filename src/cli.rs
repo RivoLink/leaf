@@ -7,6 +7,7 @@ pub(crate) struct CliOptions {
     pub(crate) render: bool,
     pub(crate) ansi: bool,
     pub(crate) plain: bool,
+    pub(crate) width: Option<usize>,
     pub(crate) update: bool,
     pub(crate) config: bool,
     pub(crate) debug_input: bool,
@@ -32,6 +33,7 @@ pub(crate) fn usage_text() -> &'static str {
      \x20     --render               Render Markdown to stdout and exit\n\
      \x20     --ansi                 Force ANSI styling in --render output\n\
      \x20     --plain                Force plain text in --render output\n\
+     \x20     --width <COLS>         Set render output width\n\
      \x20     --theme <NAME>         Set color theme preset or custom config theme\n\
      \x20 -e, --editor <NAME>        Set external editor (nano|vim|code|subl|emacs)\n\
      \x20     --picker               Open the file browser picker\n\
@@ -72,6 +74,16 @@ pub(crate) fn parse_cli(args: &[String]) -> Result<CliOptions> {
             "--render" => options.render = true,
             "--ansi" => options.ansi = true,
             "--plain" => options.plain = true,
+            "--width" => {
+                let Some(value) = iter.next() else {
+                    anyhow::bail!("Missing value for --width");
+                };
+                options.width = Some(parse_width(value)?);
+            }
+            _ if arg.starts_with("--width=") => {
+                let value = &arg["--width=".len()..];
+                options.width = Some(parse_width(value)?);
+            }
             "--update" => options.update = true,
             "--config" => options.config = true,
             "--debug-input" => options.debug_input = true,
@@ -109,6 +121,7 @@ pub(crate) fn parse_cli(args: &[String]) -> Result<CliOptions> {
             || options.render
             || options.ansi
             || options.plain
+            || options.width.is_some()
             || options.debug_input
             || options.config
             || options.file_arg.is_some()
@@ -125,6 +138,7 @@ pub(crate) fn parse_cli(args: &[String]) -> Result<CliOptions> {
             || options.render
             || options.ansi
             || options.plain
+            || options.width.is_some()
             || options.debug_input
             || options.update
             || options.file_arg.is_some()
@@ -160,8 +174,25 @@ pub(crate) fn parse_cli(args: &[String]) -> Result<CliOptions> {
     if options.plain && !options.render {
         anyhow::bail!("--plain requires --render");
     }
+    if options.width.is_some() && !options.render {
+        anyhow::bail!("--width requires --render");
+    }
 
     Ok(options)
+}
+
+fn parse_width(value: &str) -> Result<usize> {
+    let value = value.trim();
+    if value.is_empty() {
+        anyhow::bail!("Missing value for --width");
+    }
+    let width = value
+        .parse::<usize>()
+        .map_err(|_| anyhow::anyhow!("--width must be a positive integer"))?;
+    if width == 0 {
+        anyhow::bail!("--width must be a positive integer");
+    }
+    Ok(width)
 }
 
 fn parse_theme_name(name: &str) -> Result<String> {

@@ -183,6 +183,33 @@ fn parse_cli_accepts_render_with_plain() {
 }
 
 #[test]
+fn parse_cli_accepts_render_with_width() {
+    let args = vec![
+        "leaf".to_string(),
+        "--render".to_string(),
+        "--width".to_string(),
+        "100".to_string(),
+    ];
+    let options = parse_cli(&args).unwrap();
+
+    assert!(options.render);
+    assert_eq!(options.width, Some(100));
+}
+
+#[test]
+fn parse_cli_accepts_render_with_equals_width() {
+    let args = vec![
+        "leaf".to_string(),
+        "--render".to_string(),
+        "--width=120".to_string(),
+    ];
+    let options = parse_cli(&args).unwrap();
+
+    assert!(options.render);
+    assert_eq!(options.width, Some(120));
+}
+
+#[test]
 fn parse_cli_rejects_render_with_watch() {
     let args = vec![
         "leaf".to_string(),
@@ -239,6 +266,44 @@ fn parse_cli_rejects_ansi_with_plain() {
     assert!(err
         .to_string()
         .contains("--ansi and --plain cannot be combined"));
+}
+
+#[test]
+fn parse_cli_rejects_width_without_render() {
+    let args = vec!["leaf".to_string(), "--width".to_string(), "100".to_string()];
+
+    let err = parse_cli(&args).unwrap_err();
+    assert!(err.to_string().contains("--width requires --render"));
+}
+
+#[test]
+fn parse_cli_rejects_zero_width() {
+    let args = vec![
+        "leaf".to_string(),
+        "--render".to_string(),
+        "--width".to_string(),
+        "0".to_string(),
+    ];
+
+    let err = parse_cli(&args).unwrap_err();
+    assert!(err
+        .to_string()
+        .contains("--width must be a positive integer"));
+}
+
+#[test]
+fn parse_cli_rejects_invalid_width() {
+    let args = vec![
+        "leaf".to_string(),
+        "--render".to_string(),
+        "--width".to_string(),
+        "wide".to_string(),
+    ];
+
+    let err = parse_cli(&args).unwrap_err();
+    assert!(err
+        .to_string()
+        .contains("--width must be a positive integer"));
 }
 
 #[test]

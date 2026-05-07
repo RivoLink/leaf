@@ -134,7 +134,12 @@ cat TESTING.md | leaf --render
 leaf --render --ansi TESTING.md
 leaf --render --plain TESTING.md
 
+# Render at a fixed width, useful for redirects and scripts
+leaf --render --width 100 TESTING.md
+
 ```
+
+In `--render` mode, leaf uses the terminal width when stdout is a terminal and 80 columns when stdout is redirected or piped. Use `--width <COLS>` to override that width explicitly.
 
 ## Configuration
 

@@ -1,6 +1,6 @@
 use super::{find_symbol, render_buffer, test_assets, test_md_theme};
 use crate::markdown::parse_markdown;
-use crate::one_shot::{write_lines, ColorMode};
+use crate::one_shot::{render_width, write_lines, ColorMode, DEFAULT_RENDER_WIDTH};
 use crate::wrap_path_lines;
 use ratatui::{
     style::{Color, Modifier, Style},
@@ -177,4 +177,15 @@ fn one_shot_output_trims_trailing_empty_lines() {
     write_lines(&mut output, &lines, ColorMode::Plain).unwrap();
 
     assert_eq!(String::from_utf8(output).unwrap(), "hello\n");
+}
+
+#[test]
+fn one_shot_render_width_uses_override() {
+    assert_eq!(render_width(false, Some(100)), 100);
+    assert_eq!(render_width(true, Some(120)), 120);
+}
+
+#[test]
+fn one_shot_render_width_defaults_to_80_for_non_tty_stdout() {
+    assert_eq!(render_width(false, None), DEFAULT_RENDER_WIDTH);
 }

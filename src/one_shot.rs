@@ -5,16 +5,24 @@ use ratatui::{
 };
 use std::io::Write;
 
+pub(crate) const DEFAULT_RENDER_WIDTH: usize = 80;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ColorMode {
     Ansi,
     Plain,
 }
 
-pub(crate) fn terminal_render_width() -> usize {
-    crossterm::terminal::size()
-        .map(|(width, _)| usize::from(width).max(1))
-        .unwrap_or(80)
+pub(crate) fn render_width(stdout_is_terminal: bool, width_override: Option<usize>) -> usize {
+    if let Some(width) = width_override {
+        return width;
+    }
+    if stdout_is_terminal {
+        return crossterm::terminal::size()
+            .map(|(width, _)| usize::from(width).max(1))
+            .unwrap_or(DEFAULT_RENDER_WIDTH);
+    }
+    DEFAULT_RENDER_WIDTH
 }
 
 pub(crate) fn write_lines<W: Write>(

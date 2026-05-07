@@ -20,7 +20,7 @@ mod update;
 use app::{App, AppConfig};
 use cli::{parse_cli, print_usage, print_version, CliOptions};
 use markdown::{hash_str, parse_markdown, parse_markdown_with_width, read_file_state};
-use one_shot::{terminal_render_width, write_lines, ColorMode};
+use one_shot::{render_width, write_lines, ColorMode};
 use runtime::run;
 use terminal::{finish_with_restore, TerminalSession};
 use theme::{
@@ -116,6 +116,7 @@ fn main() -> Result<()> {
         render,
         ansi,
         plain,
+        width,
         debug_input,
         file_arg,
         theme: cli_theme,
@@ -225,12 +226,13 @@ fn main() -> Result<()> {
         if let Some(warning) = config_warning.as_deref() {
             eprintln!("leaf: {warning}");
         }
-        let mode = if plain || (!ansi && !io::stdout().is_terminal()) {
+        let stdout_is_terminal = io::stdout().is_terminal();
+        let mode = if plain || (!ansi && !stdout_is_terminal) {
             ColorMode::Plain
         } else {
             ColorMode::Ansi
         };
-        let width = terminal_render_width();
+        let width = render_width(stdout_is_terminal, width);
         let (lines, _) = parse_markdown_with_width(&src, &ss, &theme, width, &at.markdown);
         let mut stdout = io::stdout().lock();
         write_lines(&mut stdout, &lines, mode)?;

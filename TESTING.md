@@ -36,6 +36,7 @@ Render it once to stdout:
 ```bash
 leaf --render TESTING.md
 cat TESTING.md | leaf --render
+leaf --render --width 100 TESTING.md
 ```
 
 ## Manual Coverage
@@ -94,9 +95,11 @@ leaf --render TESTING.md
 cat TESTING.md | leaf --render
 leaf --render --ansi TESTING.md
 leaf --render --plain TESTING.md
+leaf --render --width 100 TESTING.md
 ```
 
 Confirm the rendered document content is printed directly, no picker opens, and the terminal does not enter raw mode or an alternate screen.
+When stdout is redirected or piped, confirm wrapping uses 80 columns unless `--width <COLS>` is provided.
 
 ### Startup And Error Handling
 

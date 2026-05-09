@@ -11,7 +11,7 @@
   <sub>See more screenshots in the <a href="demo/README.md">features</a> demo</sub>
 </p>
 
-## Install
+## Install <img alt="GitHub Downloads (all assets, all releases)" src="https://img.shields.io/github/downloads/RivoLink/leaf/total" >
 
 Install the latest published binary.
 

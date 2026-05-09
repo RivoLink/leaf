@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- next-version -->
 
+## [[1.20.2](https://github.com/RivoLink/leaf/releases/tag/1.20.2)] - 2026-05-09
+
+### Changed
+
+- resolve cargo-audit warnings ([#112](https://github.com/RivoLink/leaf/pull/112))
+- refacto into sub-modules ([#111](https://github.com/RivoLink/leaf/pull/111))
+
 ## [[1.20.1](https://github.com/RivoLink/leaf/releases/tag/1.20.1)] - 2026-05-08
 
 ### Fixed

@@ -153,6 +153,15 @@ find . -name '*.md' | fzf --preview 'leaf --inline ansi {}'
 find . -name '*.md' | fzf --preview 'leaf --inline ansi:$FZF_PREVIEW_COLUMNS {}'
 ```
 
+## Using with VIM
+
+To configure keybindings with `vim` that opens a vertical split and run `leaf -w` to preview current markdown file. The shortcut **\md** (pressing `\` followed by `md`). Pressing `CTRL+w,h` moves the focus back to the main Markdown file for editing. Add the following to your `~/.vimrc` file:
+
+```vim
+" Pressing <Leader>m will open a vertical split on the right and run leaf
+nnoremap <Leader>md :vertical botright terminal leaf -w %<CR>
+```
+
 ## Configuration
 
 Set default values for theme, editor, and watch mode via `config.toml`:

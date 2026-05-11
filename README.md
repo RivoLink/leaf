@@ -41,6 +41,20 @@ Use an [AUR helper](https://wiki.archlinux.org/title/AUR_helpers), such as `yay`
 yay -S leaf-markdown-viewer
 ```
 
+Nix:
+
+Run without installing:
+
+```bash
+nix run github:RivoLink/leaf
+```
+
+Install into your profile:
+
+```bash
+nix profile install github:RivoLink/leaf
+```
+
 Verify the installation:
 
 ```bash
@@ -93,6 +107,28 @@ If `~/.local/bin` is not already on your `PATH`, add it to `~/.bashrc` or `~/.zs
 
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
+```
+
+### Nix
+
+Build with Nix (no Rust toolchain required on the host):
+
+```bash
+nix build
+./result/bin/leaf --version
+```
+
+Enter the development shell — it provides the Rust toolchain, `pkg-config`, `oniguruma`, `cargo-watch`, and `cargo-edit`:
+
+```bash
+nix develop
+cargo build --release
+```
+
+Run the full check suite (build + clippy + rustfmt):
+
+```bash
+nix flake check
 ```
 
 ## Usage

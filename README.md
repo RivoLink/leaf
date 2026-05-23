@@ -27,6 +27,12 @@ curl -fsSL https://raw.githubusercontent.com/RivoLink/leaf/main/scripts/install.
 irm https://raw.githubusercontent.com/RivoLink/leaf/main/scripts/install.ps1 | iex
 ```
 
+**Homebrew:**
+
+```bash
+brew install leaf-md
+```
+
 **npm:**
 
 ```bash

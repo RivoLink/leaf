@@ -118,7 +118,7 @@ pub(super) fn render_help_popup(f: &mut Frame, _app: &App) {
             Span::styled("g/G        ", key_style),
             Span::styled("top/bottom", text_style),
             Span::raw("        "),
-            Span::styled("shift+slct ", key_style),
+            Span::styled("shift/alt  ", key_style),
             Span::styled("select text", text_style),
         ]),
         Line::from(vec![

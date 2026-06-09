@@ -232,7 +232,9 @@ See [`gruvbox.toml`](gruvbox.toml) for a complete example with all available col
 | `Ctrl+F` / `/` | Find | `Ctrl+E` | Open in editor |
 | `n` / `N` | Next / prev match | `Ctrl+Click` | Open link |
 | `r` | Force reload (watch mode) | `Dbl-Click` | Copy link |
-| `q` | Quit | `Shift+Sel` | Select text |
+| `q` | Quit | `Shift/Alt+drag` | Select text |
+
+> **Text selection** depends on your terminal: **Shift+drag** on most terminals (Linux, Alacritty, Kitty, Windows Terminal), **Option/Alt+drag** on iTerm2. macOS Terminal.app does not support bypassing mouse capture — text selection is unavailable there.
 
 ## Features
 

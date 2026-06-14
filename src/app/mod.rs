@@ -1,7 +1,7 @@
 use crate::{
     markdown::{
         build_searchable_lines,
-        toc::{should_hide_single_h1, should_promote_h2_when_no_h1, toc_display_level, TocEntry},
+        toc::{toc_display_level, toc_promotion, TocEntry},
         LinkSpan,
     },
     render::{build_status_bar, build_toc_line_with_index, toc_header_line},
@@ -404,8 +404,8 @@ impl App {
     }
 
     pub(crate) fn active_toc_index(&self) -> Option<usize> {
-        let hide_single_h1 = should_hide_single_h1(&self.toc);
-        let is_visible = |entry: &&TocEntry| !(hide_single_h1 && entry.level == 1);
+        let (shift, hide_root) = toc_promotion(&self.toc);
+        let is_visible = |entry: &&TocEntry| !(hide_root && entry.level <= shift);
 
         let mut first_visible = None;
         let mut active = None;
@@ -463,8 +463,7 @@ impl App {
     }
 
     pub(crate) fn refresh_toc_cache(&mut self) {
-        let hide_single_h1 = should_hide_single_h1(&self.toc);
-        let promote_h2_root = should_promote_h2_when_no_h1(&self.toc);
+        let (shift, hide_root) = toc_promotion(&self.toc);
         let active_idx = self.active_toc_index();
         if self.toc_active_idx == active_idx && !self.toc_display_lines.is_empty() {
             return;
@@ -476,9 +475,9 @@ impl App {
             .toc
             .iter()
             .enumerate()
-            .filter(|(_, entry)| !(hide_single_h1 && entry.level == 1))
+            .filter(|(_, entry)| !(hide_root && entry.level <= shift))
             .map(|(idx, entry)| {
-                let display_level = toc_display_level(entry.level, hide_single_h1, promote_h2_root);
+                let display_level = toc_display_level(entry.level, shift, hide_root);
                 let line = build_toc_line_with_index(
                     entry,
                     display_level,

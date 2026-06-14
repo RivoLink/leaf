@@ -110,9 +110,11 @@ fn toc_hides_single_h1_when_h2_entries_exist() {
         },
     ];
 
-    assert!(should_hide_single_h1(&toc));
-    assert_eq!(toc_display_level(2, true, false), 1);
-    assert_eq!(toc_display_level(3, true, false), 2);
+    let (shift, hide_root) = toc_promotion(&toc);
+    assert!(hide_root);
+    assert_eq!(shift, 1);
+    assert_eq!(toc_display_level(2, shift, hide_root), 1);
+    assert_eq!(toc_display_level(3, shift, hide_root), 2);
 }
 
 #[test]
@@ -123,7 +125,8 @@ fn toc_keeps_single_h1_when_no_h2_entries_exist() {
         line: 0,
     }];
 
-    assert!(!should_hide_single_h1(&toc));
+    let (_shift, hide_root) = toc_promotion(&toc);
+    assert!(!hide_root);
 }
 
 #[test]
@@ -141,11 +144,63 @@ fn toc_promotes_h2_when_document_has_no_h1() {
         },
     ];
 
-    assert!(should_promote_h2_when_no_h1(&toc));
-    assert_eq!(toc_display_level(2, false, true), 1);
-    assert_eq!(toc_display_level(3, false, true), 2);
+    let (shift, hide_root) = toc_promotion(&toc);
+    assert!(!hide_root);
+    assert_eq!(shift, 1);
+    assert_eq!(toc_display_level(2, shift, hide_root), 1);
+    assert_eq!(toc_display_level(3, shift, hide_root), 2);
     let normalized = normalize_toc(toc);
     assert_eq!(normalized.len(), 2);
     assert_eq!(normalized[0].level, 2);
     assert_eq!(normalized[1].level, 3);
+}
+
+#[test]
+fn toc_promotes_h3_when_document_has_no_h1_or_h2() {
+    let toc = vec![
+        TocEntry {
+            level: 3,
+            title: "Section A".to_string(),
+            line: 0,
+        },
+        TocEntry {
+            level: 4,
+            title: "Subsection".to_string(),
+            line: 5,
+        },
+    ];
+
+    let (shift, hide_root) = toc_promotion(&toc);
+    assert!(!hide_root);
+    assert_eq!(shift, 2);
+    assert_eq!(toc_display_level(3, shift, hide_root), 1);
+    assert_eq!(toc_display_level(4, shift, hide_root), 2);
+}
+
+#[test]
+fn toc_promotes_single_h3_to_root_without_hiding() {
+    let toc = vec![
+        TocEntry {
+            level: 3,
+            title: "Only H3".to_string(),
+            line: 0,
+        },
+        TocEntry {
+            level: 4,
+            title: "Child".to_string(),
+            line: 5,
+        },
+        TocEntry {
+            level: 5,
+            title: "Grandchild".to_string(),
+            line: 10,
+        },
+    ];
+
+    let (shift, hide_root) = toc_promotion(&toc);
+    assert!(!hide_root);
+    assert_eq!(shift, 2);
+    assert_eq!(toc_display_level(3, shift, hide_root), 1);
+    assert_eq!(toc_display_level(4, shift, hide_root), 2);
+    assert_eq!(toc_display_level(5, shift, hide_root), 3);
 }

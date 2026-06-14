@@ -1,7 +1,5 @@
 use super::App;
-use crate::markdown::toc::{
-    should_hide_single_h1, should_promote_h2_when_no_h1, toc_display_level,
-};
+use crate::markdown::toc::{toc_display_level, toc_promotion};
 
 pub(super) enum CycleDirection {
     Forward,
@@ -70,17 +68,16 @@ impl App {
     }
 
     fn toc_group_for_numkey(&self, key: u8) -> Vec<usize> {
-        let hide_single_h1 = should_hide_single_h1(&self.toc);
-        let promote_h2_root = should_promote_h2_when_no_h1(&self.toc);
+        let (shift, hide_root) = toc_promotion(&self.toc);
         let mut group = Vec::new();
         let mut top_level_index = 0u8;
         let mut collecting = false;
 
         for (idx, entry) in self.toc.iter().enumerate() {
-            if hide_single_h1 && entry.level == 1 {
+            if hide_root && entry.level <= shift {
                 continue;
             }
-            let display_level = toc_display_level(entry.level, hide_single_h1, promote_h2_root);
+            let display_level = toc_display_level(entry.level, shift, hide_root);
             if display_level == 1 {
                 if collecting {
                     break;

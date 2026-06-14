@@ -40,9 +40,7 @@ pub(crate) use editor::{
     try_new_tab_command, EditorKind, TerminalEmulator,
 };
 #[cfg(test)]
-pub(crate) use markdown::toc::{
-    normalize_toc, should_hide_single_h1, should_promote_h2_when_no_h1, toc_display_level, TocEntry,
-};
+pub(crate) use markdown::toc::{normalize_toc, toc_display_level, toc_promotion, TocEntry};
 #[cfg(test)]
 pub(crate) use markdown::{display_width, line_plain_text};
 #[cfg(test)]

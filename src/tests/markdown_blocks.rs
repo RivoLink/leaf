@@ -174,3 +174,79 @@ fn source_line_map_padding_repeats_last_event_source_line() {
     let last = parsed.source_line_map[total - 1];
     assert_eq!(last, 5);
 }
+
+#[test]
+fn code_blocks_capture_raw_content_with_trailing_newline() {
+    let (ss, theme) = test_assets();
+    let src = "```rust\nfn main() {\n    println!(\"hi\");\n}\n```\n";
+    let parsed = parse_markdown(src, &ss, &theme, &test_md_theme(), false, true);
+    assert_eq!(parsed.code_blocks.len(), 1);
+    let block = &parsed.code_blocks[0];
+    assert_eq!(block.raw_content, "fn main() {\n    println!(\"hi\");\n}\n");
+    assert!(block.rendered_start < block.rendered_end);
+    assert!(block.rendered_end < parsed.lines.len());
+}
+
+#[test]
+fn code_blocks_capture_mermaid_raw_content() {
+    let (ss, theme) = test_assets();
+    let src = "```mermaid\ngraph TD;\nA-->B;\n```\n";
+    let parsed = parse_markdown(src, &ss, &theme, &test_md_theme(), false, true);
+    assert_eq!(parsed.code_blocks.len(), 1);
+    let block = &parsed.code_blocks[0];
+    assert_eq!(block.raw_content, "graph TD;\nA-->B;\n");
+    assert!(block.rendered_end < parsed.lines.len());
+}
+
+#[test]
+fn code_blocks_capture_latex_raw_content() {
+    let (ss, theme) = test_assets();
+    let src = "```latex\nE = mc^2\n```\n";
+    let parsed = parse_markdown(src, &ss, &theme, &test_md_theme(), false, true);
+    assert_eq!(parsed.code_blocks.len(), 1);
+    let block = &parsed.code_blocks[0];
+    assert_eq!(block.raw_content, "E = mc^2\n");
+    assert!(block.rendered_end < parsed.lines.len());
+}
+
+#[test]
+fn code_blocks_multiple_blocks_are_captured_in_order() {
+    let (ss, theme) = test_assets();
+    let src = "```rust\nfirst\n```\n\nsome text\n\n```python\nsecond\n```\n";
+    let parsed = parse_markdown(src, &ss, &theme, &test_md_theme(), false, true);
+    assert_eq!(parsed.code_blocks.len(), 2);
+    assert_eq!(parsed.code_blocks[0].raw_content, "first\n");
+    assert_eq!(parsed.code_blocks[1].raw_content, "second\n");
+    assert!(parsed.code_blocks[0].rendered_end < parsed.code_blocks[1].rendered_start);
+}
+
+#[test]
+fn code_blocks_raw_content_excludes_fences() {
+    let (ss, theme) = test_assets();
+    let src = "```\nplain code\n```\n";
+    let parsed = parse_markdown(src, &ss, &theme, &test_md_theme(), false, true);
+    assert_eq!(parsed.code_blocks.len(), 1);
+    let block = &parsed.code_blocks[0];
+    assert!(!block.raw_content.contains("```"));
+    assert_eq!(block.raw_content, "plain code\n");
+}
+
+#[test]
+fn code_blocks_capture_display_math_dollar_syntax() {
+    let (ss, theme) = test_assets();
+    let src = "$$ E = mc^2 $$\n";
+    let parsed = parse_markdown(src, &ss, &theme, &test_md_theme(), false, true);
+    assert_eq!(parsed.code_blocks.len(), 1);
+    let block = &parsed.code_blocks[0];
+    assert_eq!(block.raw_content, "E = mc^2");
+    assert!(block.rendered_start <= block.rendered_end);
+    assert!(block.rendered_end < parsed.lines.len());
+}
+
+#[test]
+fn code_blocks_ignores_inline_math_dollar_syntax() {
+    let (ss, theme) = test_assets();
+    let src = "Voici une formule inline $a + b$ dans un paragraphe.\n";
+    let parsed = parse_markdown(src, &ss, &theme, &test_md_theme(), false, true);
+    assert_eq!(parsed.code_blocks.len(), 0);
+}

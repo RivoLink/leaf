@@ -2,7 +2,7 @@ use crate::{
     markdown::{
         build_searchable_lines,
         toc::{toc_levels, TocEntry},
-        LinkSpan,
+        CodeBlockInfo, LinkSpan,
     },
     render::{build_status_bar, build_toc_line_with_index, toc_header_line},
     theme::{app_theme, current_theme_selection, theme_preset_index},
@@ -32,12 +32,16 @@ mod content;
 pub(crate) use content::{FileChange, FileState};
 
 mod flash;
-pub(crate) use flash::{EditorFlash, LinkFlash, PathFlash, WatchFlash, FLASH_DURATION_MS};
+pub(crate) use flash::{
+    CodeBlockFlash, EditorFlash, LinkFlash, PathFlash, WatchFlash, FLASH_DURATION_MS,
+};
 
 mod popups;
 pub(crate) use popups::{EditorPickerState, PathKind};
 
 mod links;
+
+mod code_blocks;
 
 mod io_picker;
 
@@ -68,6 +72,7 @@ pub(crate) struct StatusCacheKey {
     config_flash_active: bool,
     link_flash_active: bool,
     path_flash_active: bool,
+    code_block_flash_active: bool,
 }
 
 pub(crate) struct AppConfig {
@@ -128,6 +133,10 @@ pub(crate) struct App {
     config_flash: Option<(String, Instant)>,
     pub(crate) link_spans_by_line: HashMap<usize, Vec<LinkSpan>>,
     pub(crate) hovered_link: Option<(usize, usize)>,
+    pub(crate) code_blocks: Vec<CodeBlockInfo>,
+    pub(crate) code_select: Option<usize>,
+    pub(crate) hovered_code_block: Option<usize>,
+    code_block_flash: Option<(CodeBlockFlash, Instant)>,
     link_flash: Option<(LinkFlash, Instant)>,
     path_flash: Option<(PathFlash, Instant)>,
     pub(crate) last_click: Option<(u16, u16, Instant)>,
@@ -278,6 +287,10 @@ impl App {
             config_flash: None,
             link_spans_by_line: HashMap::new(),
             hovered_link: None,
+            code_blocks: Vec::new(),
+            code_select: None,
+            hovered_code_block: None,
+            code_block_flash: None,
             link_flash: None,
             path_flash: None,
             last_click: None,
@@ -548,6 +561,11 @@ impl App {
                 .unwrap_or(false),
             path_flash_active: self
                 .path_flash
+                .as_ref()
+                .map(|(_, t)| t.elapsed() < Duration::from_millis(FLASH_DURATION_MS))
+                .unwrap_or(false),
+            code_block_flash_active: self
+                .code_block_flash
                 .as_ref()
                 .map(|(_, t)| t.elapsed() < Duration::from_millis(FLASH_DURATION_MS))
                 .unwrap_or(false),

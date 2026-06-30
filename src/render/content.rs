@@ -52,6 +52,18 @@ pub(super) fn render_content_panel(f: &mut Frame, app: &mut App, area: Rect) {
         }
     }
 
+    if let Some(block_idx) = app.highlighted_code_block() {
+        if let Some(block) = app.code_blocks.get(block_idx) {
+            apply_code_block_highlight(
+                &mut visible_lines,
+                block,
+                scroll,
+                visible_end,
+                &theme.markdown,
+            );
+        }
+    }
+
     if app.is_line_number_visible() {
         let digit_width = app.line_number_total().max(1).to_string().len();
         let gutter_style = Style::default().fg(theme.markdown.code_gutter);
@@ -131,6 +143,38 @@ fn inner_content_area(area: Rect) -> Rect {
             .saturating_sub(CONTENT_HORIZONTAL_PADDING.saturating_mul(2))
             .saturating_sub(SCROLLBAR_WIDTH),
         height: area.height,
+    }
+}
+
+fn apply_code_block_highlight(
+    visible_lines: &mut [ratatui::text::Line<'static>],
+    block: &crate::markdown::CodeBlockInfo,
+    scroll: usize,
+    visible_end: usize,
+    theme: &crate::theme::MarkdownTheme,
+) {
+    let start = block.rendered_start.max(scroll);
+    let end = block.rendered_end.min(visible_end.saturating_sub(1));
+    if start > end {
+        return;
+    }
+    let footer_line = block.rendered_end.saturating_sub(1);
+    let focus = theme.link_hover;
+    for line_idx in start..=end {
+        let vis_idx = line_idx - scroll;
+        let Some(line) = visible_lines.get_mut(vis_idx) else {
+            continue;
+        };
+        let target = if line_idx == block.rendered_start || line_idx == footer_line {
+            theme.code_frame
+        } else {
+            theme.code_gutter
+        };
+        for span in &mut line.spans {
+            if span.style.fg == Some(target) {
+                span.style = span.style.fg(focus);
+            }
+        }
     }
 }
 

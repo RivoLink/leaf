@@ -2,6 +2,7 @@ use crate::{
     app::{App, EditorFlash, LinkFlash, PathKind},
     clipboard::{copy_to_clipboard, open_url},
     editor::{self, classify, open_in_editor, split_editor_cmd, EditorResult},
+    markdown::display_width,
     render::{CONTENT_HORIZONTAL_PADDING, SCROLLBAR_WIDTH},
 };
 use anyhow::Result;
@@ -68,12 +69,14 @@ pub(super) fn handle_mouse_event(app: &mut App, mouse: MouseEvent) -> bool {
     } else {
         match mouse.kind {
             MouseEventKind::ScrollUp => {
+                app.exit_code_select_mode();
                 app.scroll_up(super::MOUSE_SCROLL_STEP);
                 app.hovered_link = None;
                 app.hovered_toc_idx = None;
                 true
             }
             MouseEventKind::ScrollDown => {
+                app.exit_code_select_mode();
                 app.scroll_down(super::MOUSE_SCROLL_STEP);
                 app.hovered_link = None;
                 app.hovered_toc_idx = None;
@@ -154,9 +157,19 @@ pub(super) fn handle_mouse_event(app: &mut App, mouse: MouseEvent) -> bool {
                         false
                     }
                 } else if is_on_scrollbar(app.content_area, mouse.column, mouse.row) {
+                    app.exit_code_select_mode();
                     app.scrollbar_dragging = true;
                     scrollbar_scroll_to(app, mouse.row);
                     true
+                } else if is_double_click {
+                    if let Some(line_idx) = line_idx_at(app, mouse.column, mouse.row) {
+                        if let Some(block_idx) = app.code_block_at_line(line_idx) {
+                            app.copy_code_block_at(block_idx);
+                            app.last_click = None;
+                            return true;
+                        }
+                    }
+                    false
                 } else {
                     false
                 }
@@ -164,11 +177,13 @@ pub(super) fn handle_mouse_event(app: &mut App, mouse: MouseEvent) -> bool {
             MouseEventKind::Down(MouseButton::Middle | MouseButton::Right)
                 if is_on_scrollbar(app.content_area, mouse.column, mouse.row) =>
             {
+                app.exit_code_select_mode();
                 app.scrollbar_dragging = true;
                 scrollbar_scroll_to(app, mouse.row);
                 true
             }
             MouseEventKind::Drag(..) if app.scrollbar_dragging => {
+                app.exit_code_select_mode();
                 scrollbar_scroll_to(app, mouse.row);
                 true
             }
@@ -208,7 +223,21 @@ pub(super) fn handle_mouse_event(app: &mut App, mouse: MouseEvent) -> bool {
                     app.hovered_toc_idx = new_toc_hover;
                 }
 
-                scrollbar_changed || hover_changed || toc_hover_changed
+                let new_code_block_hover = line_idx_at(app, mouse.column, mouse.row)
+                    .and_then(|line_idx| app.code_block_at_line(line_idx));
+                let code_block_hover_changed = app.hovered_code_block != new_code_block_hover;
+                if code_block_hover_changed {
+                    app.hovered_code_block = new_code_block_hover;
+                }
+                if app.code_select.is_some() {
+                    if let Some(new_idx) = new_code_block_hover {
+                        if app.code_select != Some(new_idx) {
+                            app.code_select = Some(new_idx);
+                        }
+                    }
+                }
+
+                scrollbar_changed || hover_changed || toc_hover_changed || code_block_hover_changed
             }
             _ => false,
         }
@@ -338,6 +367,45 @@ pub(super) fn scrollbar_scroll_to(app: &mut App, row: u16) {
 
 fn is_in_rect(rect: Rect, col: u16, row: u16) -> bool {
     col >= rect.x && col < rect.x + rect.width && row >= rect.y && row < rect.y + rect.height
+}
+
+fn line_idx_at(app: &App, col: u16, row: u16) -> Option<usize> {
+    let area = app.content_area;
+    let gutter = app.line_number_gutter_width() as u16;
+    let inner_x = area.x + CONTENT_HORIZONTAL_PADDING + gutter;
+    let inner_w = area
+        .width
+        .saturating_sub(CONTENT_HORIZONTAL_PADDING * 2)
+        .saturating_sub(SCROLLBAR_WIDTH)
+        .saturating_sub(gutter);
+    if col < inner_x || col >= inner_x + inner_w || row < area.y || row >= area.y + area.height {
+        return None;
+    }
+    let rel_row = (row - area.y) as usize;
+    let content_width = inner_w.max(1) as usize;
+    let mut visual_row = 0usize;
+    let total = app.lines.len();
+    for line_idx in app.scroll..total {
+        let line = &app.lines[line_idx];
+        let line_width: usize = line
+            .spans
+            .iter()
+            .map(|s| display_width(s.content.as_ref()))
+            .sum();
+        let wrapped_lines = if line_width == 0 {
+            1
+        } else {
+            line_width.div_ceil(content_width)
+        };
+        if rel_row < visual_row + wrapped_lines {
+            return Some(line_idx);
+        }
+        visual_row += wrapped_lines;
+        if visual_row > area.height as usize {
+            break;
+        }
+    }
+    None
 }
 
 fn strip_unc_prefix(path: std::path::PathBuf) -> std::path::PathBuf {

@@ -229,6 +229,16 @@ pub(super) fn handle_key_event(
             _ => state_changed = false,
         }
     } else {
+        let mut mode_exited = false;
+        if app.is_code_select_mode() {
+            let mode_handled = handle_code_select_key(app, &key);
+            if mode_handled {
+                return Ok(HandleResult::Continue { redraw: true });
+            }
+            mode_exited = app.exit_code_select_mode();
+        } else if try_code_select_entry(app, &key) {
+            return Ok(HandleResult::Continue { redraw: true });
+        }
         match key.code {
             KeyCode::Esc if app.has_active_goto_line() => app.clear_active_goto_line(),
             KeyCode::Esc if app.has_active_search() => app.clear_active_search(),
@@ -331,9 +341,60 @@ pub(super) fn handle_key_event(
             }
             _ => state_changed = false,
         }
+        if mode_exited {
+            state_changed = true;
+        }
     }
 
     Ok(HandleResult::Continue {
         redraw: state_changed,
     })
+}
+
+fn handle_code_select_key(app: &mut App, key: &KeyEvent) -> bool {
+    let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
+    match key.code {
+        KeyCode::Char('c') if ctrl => {
+            app.exit_code_select_mode();
+            true
+        }
+        KeyCode::Char('y') if ctrl => {
+            app.copy_selected_code_block();
+            true
+        }
+        KeyCode::Char('c') | KeyCode::Char('y') if !ctrl => {
+            app.code_select_next();
+            true
+        }
+        KeyCode::Char('C') | KeyCode::Char('Y') => {
+            app.code_select_prev();
+            true
+        }
+        KeyCode::Enter => {
+            app.copy_selected_code_block();
+            true
+        }
+        KeyCode::Esc => {
+            app.exit_code_select_mode();
+            true
+        }
+        _ => false,
+    }
+}
+
+fn try_code_select_entry(app: &mut App, key: &KeyEvent) -> bool {
+    let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
+    match key.code {
+        KeyCode::Char('y') if ctrl => {
+            app.copy_first_visible_code_block();
+            true
+        }
+        KeyCode::Char('c') | KeyCode::Char('y') | KeyCode::Char('C') | KeyCode::Char('Y')
+            if !ctrl =>
+        {
+            app.enter_code_select_mode();
+            true
+        }
+        _ => false,
+    }
 }

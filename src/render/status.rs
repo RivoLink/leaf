@@ -1,5 +1,5 @@
 use crate::{
-    app::{App, EditorFlash, LinkFlash, PathFlash, WatchFlash, FLASH_DURATION_MS},
+    app::{App, CodeBlockFlash, EditorFlash, LinkFlash, PathFlash, WatchFlash, FLASH_DURATION_MS},
     theme::app_theme,
 };
 use ratatui::{
@@ -267,6 +267,21 @@ fn link_flash_section(app: &App) -> Option<Vec<Span<'static>>> {
     Some(vec![Span::styled(text, Style::default().fg(fg).bg(bar_bg))])
 }
 
+fn code_block_flash_section(app: &App) -> Option<Vec<Span<'static>>> {
+    let (flash, started) = app.code_block_flash()?;
+    if started.elapsed() >= std::time::Duration::from_millis(FLASH_DURATION_MS) {
+        return None;
+    }
+    let theme = app_theme();
+    let bar_bg = status_bar_bg();
+    let (text, fg) = match flash {
+        CodeBlockFlash::Copied => (" Code copied ", theme.ui.status_success_fg),
+        CodeBlockFlash::CopyFailed => (clipboard_hint(), theme.ui.status_error_fg),
+        CodeBlockFlash::NoneVisible => (" No code block in view ", theme.ui.status_error_fg),
+    };
+    Some(vec![Span::styled(text, Style::default().fg(fg).bg(bar_bg))])
+}
+
 fn path_flash_section(app: &App) -> Option<Vec<Span<'static>>> {
     let (flash, started) = app.path_flash()?;
     if started.elapsed() >= std::time::Duration::from_millis(FLASH_DURATION_MS) {
@@ -311,6 +326,12 @@ pub(crate) fn build_status_bar(app: &App, pct: u16) -> Vec<Span<'static>> {
     }
 
     if let Some(flash_section) = link_flash_section(app) {
+        let mut left = status_brand_section();
+        left.extend(flash_section);
+        return join_span_sections(vec![left], outer_separator);
+    }
+
+    if let Some(flash_section) = code_block_flash_section(app) {
         let mut left = status_brand_section();
         left.extend(flash_section);
         return join_span_sections(vec![left], outer_separator);

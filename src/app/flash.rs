@@ -34,6 +34,13 @@ pub(crate) enum PathFlash {
     CopyFailed,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum CodeBlockFlash {
+    Copied,
+    CopyFailed,
+    NoneVisible,
+}
+
 impl App {
     pub(crate) fn set_editor_flash(&mut self, flash: EditorFlash) {
         self.editor_flash = Some((flash, Instant::now()));
@@ -141,5 +148,13 @@ impl App {
 
     pub(crate) fn reload_flash_started(&self) -> Option<Instant> {
         self.reload_flash
+    }
+
+    pub(crate) fn set_code_block_flash(&mut self, flash: CodeBlockFlash) {
+        self.code_block_flash = Some((flash, Instant::now()));
+    }
+
+    pub(crate) fn code_block_flash(&self) -> Option<(&CodeBlockFlash, &Instant)> {
+        self.code_block_flash.as_ref().map(|(f, t)| (f, t))
     }
 }

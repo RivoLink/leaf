@@ -33,6 +33,7 @@ impl App {
             link_spans,
             line_number_map,
             source_line_map,
+            code_blocks,
         } = parsed;
 
         self.plain_lines = build_searchable_lines(&lines)
@@ -45,6 +46,9 @@ impl App {
         self.toc_header_line = toc_header_line();
         self.link_spans_by_line = super::links::link_spans_to_map(link_spans);
         self.hovered_link = None;
+        self.set_code_blocks(code_blocks);
+        self.code_select = None;
+        self.hovered_code_block = None;
         self.set_line_maps(line_number_map, source_line_map);
         self.refresh_static_caches();
     }

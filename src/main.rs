@@ -343,6 +343,7 @@ fn main() -> Result<()> {
         link_spans,
         line_number_map,
         source_line_map,
+        code_blocks,
     } = parsed;
     let mut app = App::new_with_source(
         lines,
@@ -357,6 +358,7 @@ fn main() -> Result<()> {
         },
     );
     app.set_link_spans(link_spans);
+    app.set_code_blocks(code_blocks);
     app.set_line_maps(line_number_map, source_line_map);
     app.set_last_content_hash(last_content_hash);
     app.set_watch_from_config(watch_from_config);

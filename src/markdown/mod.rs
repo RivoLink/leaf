@@ -220,12 +220,36 @@ fn push_text_event(
     push_custom_marker_spans(text, CUSTOM_MARKERS, fallback, theme, spans);
 }
 
+#[derive(Clone, Debug)]
+pub(crate) struct CodeBlockInfo {
+    pub(crate) rendered_start: usize,
+    pub(crate) rendered_end: usize,
+    pub(crate) raw_content: String,
+}
+
+fn record_code_block(
+    code_blocks: &mut Vec<CodeBlockInfo>,
+    raw_content: String,
+    rendered_start: usize,
+    lines_len_after: usize,
+) {
+    let rendered_end = lines_len_after.saturating_sub(1);
+    if rendered_end >= rendered_start {
+        code_blocks.push(CodeBlockInfo {
+            rendered_start,
+            rendered_end,
+            raw_content,
+        });
+    }
+}
+
 pub(crate) struct ParseResult {
     pub(crate) lines: Vec<Line<'static>>,
     pub(crate) toc: Vec<TocEntry>,
     pub(crate) link_spans: Vec<LinkSpan>,
     pub(crate) line_number_map: Vec<usize>,
     pub(crate) source_line_map: Vec<usize>,
+    pub(crate) code_blocks: Vec<CodeBlockInfo>,
 }
 
 impl ParseResult {
@@ -236,6 +260,7 @@ impl ParseResult {
             link_spans: Vec::new(),
             line_number_map: Vec::new(),
             source_line_map: Vec::new(),
+            code_blocks: Vec::new(),
         }
     }
 }
@@ -297,6 +322,7 @@ pub(crate) fn parse_markdown_with_width(
     let mut in_code = false;
     let mut code_lang = String::new();
     let mut code_buf = String::new();
+    let mut code_blocks: Vec<CodeBlockInfo> = Vec::new();
     let mut blockquote_depth = 0usize;
     let mut inline = InlineStyleState::default();
     let mut list_stack: Vec<ListKind> = Vec::new();
@@ -383,6 +409,8 @@ pub(crate) fn parse_markdown_with_width(
             }
             MdEvent::End(TagEnd::CodeBlock) => {
                 in_code = false;
+                let raw_content = code_buf.clone();
+                let rendered_start = lines.len();
                 if code_lang == "latex" || code_lang == "tex" {
                     push_latex_block_lines(
                         &mut lines,
@@ -433,6 +461,7 @@ pub(crate) fn parse_markdown_with_width(
                     );
                     wraps = true;
                 }
+                record_code_block(&mut code_blocks, raw_content, rendered_start, lines.len());
                 last_block = LastBlock::Other;
             }
             MdEvent::Code(text) => {
@@ -539,6 +568,8 @@ pub(crate) fn parse_markdown_with_width(
                     lines.push(Line::from(std::mem::take(&mut spans)));
                 }
                 trim_paragraph_gap_before_block(&mut lines, last_block);
+                let raw_content = text.as_ref().trim().to_string();
+                let rendered_start = lines.len();
                 push_latex_block_lines(
                     &mut lines,
                     text.as_ref(),
@@ -551,6 +582,7 @@ pub(crate) fn parse_markdown_with_width(
                     },
                     &mut item_stack,
                 );
+                record_code_block(&mut code_blocks, raw_content, rendered_start, lines.len());
                 wraps = true;
                 last_block = LastBlock::Other;
             }
@@ -583,6 +615,7 @@ pub(crate) fn parse_markdown_with_width(
         link_spans,
         line_number_map: state.line_number_map,
         source_line_map: state.source_line_map,
+        code_blocks,
     }
 }
 

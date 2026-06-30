@@ -12,6 +12,7 @@ use syntect::{
 };
 
 mod app;
+mod app_code_blocks;
 mod completions;
 mod config;
 mod editor;

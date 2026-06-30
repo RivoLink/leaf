@@ -22,6 +22,7 @@ const EDITOR_FLASH_DURATION: Duration = Duration::from_millis(FLASH_DURATION_MS)
 const WATCH_FLASH_DURATION: Duration = Duration::from_millis(FLASH_DURATION_MS);
 const CONFIG_FLASH_DURATION: Duration = Duration::from_millis(FLASH_DURATION_MS);
 const LINK_FLASH_DURATION: Duration = Duration::from_millis(FLASH_DURATION_MS);
+const CODE_BLOCK_FLASH_DURATION: Duration = Duration::from_millis(FLASH_DURATION_MS);
 const PATH_FLASH_DURATION: Duration = Duration::from_millis(FLASH_DURATION_MS);
 const DOUBLE_CLICK_THRESHOLD: Duration = Duration::from_millis(400);
 const MOUSE_SCROLL_STEP: usize = 3;
@@ -116,6 +117,9 @@ pub(crate) fn run(
         let link_flash_timeout = app
             .link_flash()
             .and_then(|(_, started)| LINK_FLASH_DURATION.checked_sub(started.elapsed()));
+        let code_block_flash_timeout = app
+            .code_block_flash()
+            .and_then(|(_, started)| CODE_BLOCK_FLASH_DURATION.checked_sub(started.elapsed()));
         let resize_timeout =
             pending_resize.and_then(|started| RESIZE_DEBOUNCE.checked_sub(started.elapsed()));
         let poll_timeout = [
@@ -134,6 +138,7 @@ pub(crate) fn run(
             watch_flash_timeout,
             config_flash_timeout,
             link_flash_timeout,
+            code_block_flash_timeout,
             app.path_flash()
                 .and_then(|(_, started)| PATH_FLASH_DURATION.checked_sub(started.elapsed())),
             resize_timeout,
@@ -196,6 +201,9 @@ pub(crate) fn run(
                     }
                 }
                 Event::Resize(_, _) => {
+                    if app.exit_code_select_mode() {
+                        needs_redraw = true;
+                    }
                     pending_resize = Some(Instant::now());
                 }
                 _ => {}

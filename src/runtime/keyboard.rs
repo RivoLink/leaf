@@ -1,5 +1,6 @@
 use crate::app::{App, WatchFlash};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{DisableMouseCapture, EnableMouseCapture, KeyCode, KeyEvent, KeyModifiers};
+use crossterm::execute;
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io;
 use syntect::{highlighting::ThemeSet, parsing::SyntaxSet};
@@ -18,6 +19,23 @@ pub(super) fn handle_key_event(
     ss: &SyntaxSet,
     themes: &ThemeSet,
 ) -> anyhow::Result<HandleResult> {
+    if matches!(key.code, KeyCode::Char('m') | KeyCode::Char('M'))
+        && !key.modifiers.contains(KeyModifiers::CONTROL)
+    {
+        let in_text_input = app.is_search_mode()
+            || app.is_goto_line_mode()
+            || (app.is_file_picker_open() && app.is_fuzzy_file_picker());
+        if !in_text_input {
+            let now_enabled = app.toggle_mouse_capture();
+            if now_enabled {
+                execute!(terminal.backend_mut(), EnableMouseCapture)?;
+            } else {
+                execute!(terminal.backend_mut(), DisableMouseCapture)?;
+            }
+            return Ok(HandleResult::Continue { redraw: true });
+        }
+    }
+
     let mut state_changed = true;
     if app.is_help_open() {
         match key.code {

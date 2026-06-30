@@ -39,6 +39,36 @@ fn key_release_events_are_ignored() {
 }
 
 #[test]
+fn mouse_capture_is_enabled_by_default_and_toggles() {
+    let (ss, theme) = test_assets();
+    let (lines, toc, _, _) =
+        parse_markdown("body", &ss, &theme, &test_md_theme(), false, true).into();
+    let mut app = App::new(lines, toc, "test".to_string(), false, false, None, None);
+    assert!(app.is_mouse_capture_enabled());
+    assert!(!app.toggle_mouse_capture());
+    assert!(!app.is_mouse_capture_enabled());
+    assert!(app.toggle_mouse_capture());
+    assert!(app.is_mouse_capture_enabled());
+}
+
+#[test]
+fn toggle_mouse_capture_off_resets_hover_and_drag_state() {
+    let (ss, theme) = test_assets();
+    let (lines, toc, _, _) =
+        parse_markdown("body", &ss, &theme, &test_md_theme(), false, true).into();
+    let mut app = App::new(lines, toc, "test".to_string(), false, false, None, None);
+    app.hovered_link = Some((3, 0));
+    app.hovered_code_block = Some(0);
+    app.hovered_toc_idx = Some(2);
+    app.scrollbar_dragging = true;
+    app.toggle_mouse_capture();
+    assert_eq!(app.hovered_link, None);
+    assert_eq!(app.hovered_code_block, None);
+    assert_eq!(app.hovered_toc_idx, None);
+    assert!(!app.scrollbar_dragging);
+}
+
+#[test]
 fn stdin_read_is_rejected_when_over_limit() {
     let mut cursor = std::io::Cursor::new(vec![b'a'; 5]);
     let err = read_stdin_with_limit(&mut cursor, 4).unwrap_err();

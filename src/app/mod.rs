@@ -136,7 +136,6 @@ pub(crate) struct App {
     pub(crate) hovered_link: Option<(usize, usize)>,
     pub(crate) code_blocks: Vec<CodeBlockInfo>,
     pub(crate) code_select: Option<usize>,
-    pub(crate) hovered_code_block: Option<usize>,
     code_block_flash: Option<(CodeBlockFlash, Instant)>,
     link_flash: Option<(LinkFlash, Instant)>,
     path_flash: Option<(PathFlash, Instant)>,
@@ -291,7 +290,6 @@ impl App {
             hovered_link: None,
             code_blocks: Vec::new(),
             code_select: None,
-            hovered_code_block: None,
             code_block_flash: None,
             link_flash: None,
             path_flash: None,
@@ -336,7 +334,6 @@ impl App {
         self.mouse_capture = !self.mouse_capture;
         if !self.mouse_capture {
             self.hovered_link = None;
-            self.hovered_code_block = None;
             self.hovered_toc_idx = None;
             self.scrollbar_dragging = false;
         }

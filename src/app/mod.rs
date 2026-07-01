@@ -73,6 +73,7 @@ pub(crate) struct StatusCacheKey {
     link_flash_active: bool,
     path_flash_active: bool,
     code_block_flash_active: bool,
+    mouse_capture: bool,
 }
 
 pub(crate) struct AppConfig {
@@ -149,6 +150,7 @@ pub(crate) struct App {
     pub(super) file_mode: bool,
     pub(super) code_line_numbers: bool,
     max_width: Option<usize>,
+    mouse_capture: bool,
 }
 
 impl App {
@@ -303,6 +305,7 @@ impl App {
             file_mode: false,
             code_line_numbers: true,
             max_width: None,
+            mouse_capture: true,
         };
         app.store_current_theme_preview();
         app.refresh_static_caches();
@@ -323,6 +326,21 @@ impl App {
 
     pub(crate) fn set_max_width(&mut self, max_width: Option<usize>) {
         self.max_width = max_width;
+    }
+
+    pub(crate) fn is_mouse_capture_enabled(&self) -> bool {
+        self.mouse_capture
+    }
+
+    pub(crate) fn toggle_mouse_capture(&mut self) -> bool {
+        self.mouse_capture = !self.mouse_capture;
+        if !self.mouse_capture {
+            self.hovered_link = None;
+            self.hovered_code_block = None;
+            self.hovered_toc_idx = None;
+            self.scrollbar_dragging = false;
+        }
+        self.mouse_capture
     }
 
     pub(crate) fn max_width(&self) -> Option<usize> {
@@ -569,6 +587,7 @@ impl App {
                 .as_ref()
                 .map(|(_, t)| t.elapsed() < Duration::from_millis(FLASH_DURATION_MS))
                 .unwrap_or(false),
+            mouse_capture: self.mouse_capture,
         };
 
         if self.status_cache_key.as_ref() == Some(&cache_key) {

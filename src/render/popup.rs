@@ -77,7 +77,7 @@ pub(super) fn popup_footer_line(segments: &[&'static str], bg: Color) -> Line<'s
 
 pub(super) fn render_help_popup(f: &mut Frame, _app: &App) {
     let theme = app_theme();
-    let area = centered_rect(53, 24, f.area());
+    let area = centered_rect(53, 25, f.area());
 
     let select_hint =
         crate::editor::selection_modifier_label(&crate::editor::detect_terminal_emulator());
@@ -107,33 +107,36 @@ pub(super) fn render_help_popup(f: &mut Frame, _app: &App) {
             Span::styled("j/k, ↑/↓   ", key_style),
             Span::styled("scroll", text_style),
             Span::raw("           "),
-            Span::styled("dbl-click   ", key_style),
-            Span::styled("copy code", text_style),
+            Span::styled("shift+m     ", key_style),
+            Span::styled("capture", text_style),
         ]),
         Line::from(vec![
             Span::styled("u/d        ", key_style),
             Span::styled("page up/down", text_style),
             Span::raw("     "),
             Span::styled("dbl-click   ", key_style),
-            Span::styled("copy link", text_style),
+            Span::styled("copy code", text_style),
         ]),
         Line::from(vec![
             Span::styled("g/G        ", key_style),
             Span::styled("top/bottom", text_style),
             Span::raw("       "),
-            Span::styled("ctrl+click  ", key_style),
-            Span::styled("open link", text_style),
+            Span::styled("dbl-click   ", key_style),
+            Span::styled("copy link", text_style),
         ]),
         Line::from(vec![
             Span::styled("1-9/0+1-9  ", key_style),
             Span::styled("jump/reverse", text_style),
             Span::raw("     "),
-            Span::styled(format!("{select_hint:<12}"), key_style),
-            Span::styled("slct text", text_style),
+            Span::styled("ctrl+click  ", key_style),
+            Span::styled("open link", text_style),
         ]),
         Line::from(vec![
             Span::styled("y/Y, c/C   ", key_style),
             Span::styled("focus code", text_style),
+            Span::raw("       "),
+            Span::styled(format!("{select_hint:<12}"), key_style),
+            Span::styled("slct text", text_style),
         ]),
         Line::from(""),
         Line::from(vec![

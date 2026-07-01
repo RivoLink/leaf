@@ -307,6 +307,16 @@ pub(crate) fn build_status_bar(app: &App, pct: u16) -> Vec<Span<'static>> {
     let bar_bg = status_bar_bg();
     let outer_separator = Span::raw(" ");
 
+    if !app.is_mouse_capture_enabled() {
+        let theme = app_theme();
+        let mut left = status_brand_section();
+        left.push(Span::styled(
+            " Mouse capture disabled ",
+            Style::default().fg(theme.ui.status_warning_fg).bg(bar_bg),
+        ));
+        return join_span_sections(vec![left], outer_separator);
+    }
+
     if let Some(flash_section) = editor_flash_section(app) {
         let mut left = status_brand_section();
         left.extend(flash_section);

@@ -157,19 +157,20 @@ pub(super) fn handle_mouse_event(app: &mut App, mouse: MouseEvent) -> bool {
                         false
                     }
                 } else if is_on_scrollbar(app.content_area, mouse.column, mouse.row) {
-                    app.exit_code_select_mode();
                     app.scrollbar_dragging = true;
                     scrollbar_scroll_to(app, mouse.row);
                     true
                 } else if is_double_click {
-                    if let Some(line_idx) = line_idx_at(app, mouse.column, mouse.row) {
-                        if let Some(block_idx) = app.code_block_at_line(line_idx) {
-                            app.copy_code_block_at(block_idx);
-                            app.last_click = None;
-                            return true;
-                        }
+                    let block_hit = line_idx_at(app, mouse.column, mouse.row)
+                        .and_then(|line_idx| app.code_block_at_line(line_idx));
+                    if let Some(block_idx) = block_hit {
+                        app.code_select = Some(block_idx);
+                        app.copy_code_block_at(block_idx);
+                        app.last_click = None;
+                        true
+                    } else {
+                        false
                     }
-                    false
                 } else {
                     false
                 }
@@ -177,13 +178,11 @@ pub(super) fn handle_mouse_event(app: &mut App, mouse: MouseEvent) -> bool {
             MouseEventKind::Down(MouseButton::Middle | MouseButton::Right)
                 if is_on_scrollbar(app.content_area, mouse.column, mouse.row) =>
             {
-                app.exit_code_select_mode();
                 app.scrollbar_dragging = true;
                 scrollbar_scroll_to(app, mouse.row);
                 true
             }
             MouseEventKind::Drag(..) if app.scrollbar_dragging => {
-                app.exit_code_select_mode();
                 scrollbar_scroll_to(app, mouse.row);
                 true
             }
@@ -223,21 +222,7 @@ pub(super) fn handle_mouse_event(app: &mut App, mouse: MouseEvent) -> bool {
                     app.hovered_toc_idx = new_toc_hover;
                 }
 
-                let new_code_block_hover = line_idx_at(app, mouse.column, mouse.row)
-                    .and_then(|line_idx| app.code_block_at_line(line_idx));
-                let code_block_hover_changed = app.hovered_code_block != new_code_block_hover;
-                if code_block_hover_changed {
-                    app.hovered_code_block = new_code_block_hover;
-                }
-                if app.code_select.is_some() {
-                    if let Some(new_idx) = new_code_block_hover {
-                        if app.code_select != Some(new_idx) {
-                            app.code_select = Some(new_idx);
-                        }
-                    }
-                }
-
-                scrollbar_changed || hover_changed || toc_hover_changed || code_block_hover_changed
+                scrollbar_changed || hover_changed || toc_hover_changed
             }
             _ => false,
         }

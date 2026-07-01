@@ -103,6 +103,6 @@ impl App {
     }
 
     pub(crate) fn highlighted_code_block(&self) -> Option<usize> {
-        self.code_select.or(self.hovered_code_block)
+        self.code_select
     }
 }

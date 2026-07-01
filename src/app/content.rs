@@ -48,7 +48,6 @@ impl App {
         self.hovered_link = None;
         self.set_code_blocks(code_blocks);
         self.code_select = None;
-        self.hovered_code_block = None;
         self.set_line_maps(line_number_map, source_line_map);
         self.refresh_static_caches();
     }

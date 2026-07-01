@@ -96,10 +96,14 @@ impl App {
         }
     }
 
-    pub(crate) fn code_block_at_line(&self, line_idx: usize) -> Option<usize> {
-        self.code_blocks
-            .iter()
-            .position(|b| line_idx >= b.rendered_start && line_idx <= b.rendered_end)
+    pub(crate) fn code_block_at(&self, line_idx: usize, inner_col: u16) -> Option<usize> {
+        let col = inner_col as usize;
+        self.code_blocks.iter().position(|b| {
+            line_idx >= b.rendered_start
+                && line_idx <= b.rendered_end
+                && col >= b.rendered_offset
+                && col < b.rendered_offset + b.rendered_width
+        })
     }
 
     pub(crate) fn highlighted_code_block(&self) -> Option<usize> {

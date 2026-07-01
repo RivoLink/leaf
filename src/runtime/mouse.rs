@@ -161,8 +161,14 @@ pub(super) fn handle_mouse_event(app: &mut App, mouse: MouseEvent) -> bool {
                     scrollbar_scroll_to(app, mouse.row);
                     true
                 } else if is_double_click {
-                    let block_hit = line_idx_at(app, mouse.column, mouse.row)
-                        .and_then(|line_idx| app.code_block_at_line(line_idx));
+                    let inner_x = content_inner_x(app.content_area, gutter);
+                    let block_hit = if mouse.column >= inner_x {
+                        let inner_col = mouse.column - inner_x;
+                        line_idx_at(app, mouse.column, mouse.row)
+                            .and_then(|line_idx| app.code_block_at(line_idx, inner_col))
+                    } else {
+                        None
+                    };
                     if let Some(block_idx) = block_hit {
                         app.code_select = Some(block_idx);
                         app.copy_code_block_at(block_idx);
@@ -354,10 +360,14 @@ fn is_in_rect(rect: Rect, col: u16, row: u16) -> bool {
     col >= rect.x && col < rect.x + rect.width && row >= rect.y && row < rect.y + rect.height
 }
 
+fn content_inner_x(area: Rect, gutter: u16) -> u16 {
+    area.x + CONTENT_HORIZONTAL_PADDING + gutter
+}
+
 fn line_idx_at(app: &App, col: u16, row: u16) -> Option<usize> {
     let area = app.content_area;
     let gutter = app.line_number_gutter_width() as u16;
-    let inner_x = area.x + CONTENT_HORIZONTAL_PADDING + gutter;
+    let inner_x = content_inner_x(area, gutter);
     let inner_w = area
         .width
         .saturating_sub(CONTENT_HORIZONTAL_PADDING * 2)

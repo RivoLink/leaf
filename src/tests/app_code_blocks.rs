@@ -61,7 +61,7 @@ fn copy_selected_code_block_works_for_mermaid_latex_and_display_math() {
 }
 
 #[test]
-fn code_block_at_line_resolves_mermaid_latex_and_display_math() {
+fn code_block_at_resolves_mermaid_latex_and_display_math() {
     let app = build_app_with_mixed_blocks();
     let mermaid = &app.code_blocks[1];
     let latex = &app.code_blocks[2];
@@ -69,7 +69,7 @@ fn code_block_at_line_resolves_mermaid_latex_and_display_math() {
     let mermaid_mid = (mermaid.rendered_start + mermaid.rendered_end) / 2;
     let latex_mid = (latex.rendered_start + latex.rendered_end) / 2;
     let display_math_mid = (display_math.rendered_start + display_math.rendered_end) / 2;
-    assert_eq!(app.code_block_at_line(mermaid_mid), Some(1));
-    assert_eq!(app.code_block_at_line(latex_mid), Some(2));
-    assert_eq!(app.code_block_at_line(display_math_mid), Some(3));
+    assert_eq!(app.code_block_at(mermaid_mid, 0), Some(1));
+    assert_eq!(app.code_block_at(latex_mid, 0), Some(2));
+    assert_eq!(app.code_block_at(display_math_mid, 0), Some(3));
 }

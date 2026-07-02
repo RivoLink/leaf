@@ -110,6 +110,28 @@ fn rules_use_render_width_without_extra_blank_after() {
 }
 
 #[test]
+fn body_dashes_are_thematic_breaks_not_metadata_block() {
+    let (ss, theme) = test_assets();
+    let src = "# Title\n\n---\n### SSL\n\n- item 1\n- item 2\n\n---\n### TLS\nend\n";
+    let (lines, _, _, _) =
+        parse_markdown_with_width(src, &ss, &theme, 40, &test_md_theme(), false, true).into();
+    let rendered = rendered_non_empty_lines(&lines);
+
+    let rule_count = rendered
+        .iter()
+        .filter(|line| line.trim_start().starts_with('─'))
+        .count();
+    assert!(
+        rule_count >= 2,
+        "expected two thematic breaks, got {rule_count}"
+    );
+    assert!(rendered.iter().any(|line| line.contains("SSL")));
+    assert!(rendered.iter().any(|line| line.contains("item 1")));
+    assert!(rendered.iter().any(|line| line.contains("item 2")));
+    assert!(rendered.iter().any(|line| line.contains("TLS")));
+}
+
+#[test]
 fn source_line_map_plain_document_is_aligned_with_first_event() {
     let (ss, theme) = test_assets();
     let src = "# Title\n\nfirst paragraph\n";

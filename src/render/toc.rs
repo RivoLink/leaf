@@ -2,9 +2,15 @@ use crate::{app::App, theme::app_theme};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
+    symbols::border,
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
     Frame,
+};
+
+const TOC_HEADER_BORDER: border::Set = border::Set {
+    bottom_right: "┤",
+    ..border::PLAIN
 };
 
 pub(super) fn render_toc_panel(f: &mut Frame, app: &mut App, area: Rect) {
@@ -22,6 +28,7 @@ pub(super) fn render_toc_panel(f: &mut Frame, app: &mut App, area: Rect) {
             .block(
                 Block::default()
                     .borders(Borders::RIGHT | Borders::BOTTOM)
+                    .border_set(TOC_HEADER_BORDER)
                     .border_style(Style::default().fg(theme.ui.toc_border))
                     .style(Style::default().bg(theme.ui.toc_bg)),
             ),
@@ -52,9 +59,9 @@ pub(super) fn render_toc_panel(f: &mut Frame, app: &mut App, area: Rect) {
         Paragraph::new(vec![app.toc_header_line().clone()])
             .style(Style::default().bg(theme.ui.toc_bg)),
         Rect {
-            x: toc_chunks[0].x,
+            x: toc_chunks[0].x.saturating_add(1),
             y: toc_chunks[0].y.saturating_add(1),
-            width: toc_chunks[0].width.saturating_sub(1),
+            width: toc_chunks[0].width.saturating_sub(2),
             height: 1,
         },
     );
@@ -90,7 +97,7 @@ pub(crate) fn build_toc_line_with_index(
     match display_level {
         1 => {
             let index = top_level_index.unwrap_or(0) + 1;
-            let title = crate::markdown::truncate_display_width(&entry.title, 18);
+            let title = crate::markdown::truncate_display_width(&entry.title, 20);
             let bg = if active { active_bg } else { inactive_bg };
             Line::from(vec![
                 Span::styled(

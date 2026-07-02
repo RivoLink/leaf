@@ -339,7 +339,10 @@ pub(crate) fn parse_markdown_with_width(
 
     let normalized = normalize_code_fences(src);
     let line_starts = compute_line_starts(&normalized);
-    for (ev, range) in Parser::new_ext(&normalized, Options::all()).into_offset_iter() {
+    let parser_options = Options::all()
+        - Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
+        - Options::ENABLE_PLUSES_DELIMITED_METADATA_BLOCKS;
+    for (ev, range) in Parser::new_ext(&normalized, parser_options).into_offset_iter() {
         state.truncate(lines.len());
         let before = lines.len();
         let raw_line = byte_to_line(&line_starts, range.start);

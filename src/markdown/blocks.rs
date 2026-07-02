@@ -15,6 +15,11 @@ use super::width::display_width;
 use super::wrapping::{push_wrapped_code_lines, push_wrapped_prefixed_lines};
 use super::LastBlock;
 
+pub(super) struct BlockLayout {
+    pub(super) prefix_width: usize,
+    pub(super) rendered_width: usize,
+}
+
 pub(super) fn block_prefix(
     in_bq: bool,
     theme: &MarkdownTheme,
@@ -169,7 +174,7 @@ pub(super) fn push_code_block_lines(
     code_lang: &mut String,
     ctx: CodeBlockRenderContext<'_>,
     item_stack: &mut [ItemState],
-) {
+) -> BlockLayout {
     let prefix = if !item_stack.is_empty() {
         list_item_prefix(
             ctx.blockquote_depth > 0,
@@ -275,9 +280,12 @@ pub(super) fn push_code_block_lines(
         Style::default().fg(ctx.theme_colors.code_frame),
     ));
     lines.push(Line::from(footer));
-    lines.push(Line::from(""));
     code_lang.clear();
     code_buf.clear();
+    BlockLayout {
+        prefix_width,
+        rendered_width: inner_width + 2,
+    }
 }
 
 pub(super) struct SpecialBlockCtx<'a, F: Fn(&str) -> Vec<Span<'static>>> {
@@ -296,7 +304,7 @@ pub(super) fn push_special_block_lines<F: Fn(&str) -> Vec<Span<'static>>>(
     list_stack: &[ListKind],
     item_stack: &mut [ItemState],
     ctx: SpecialBlockCtx<'_, F>,
-) {
+) -> BlockLayout {
     let label = ctx.label;
     let content_lines = ctx.content_lines;
     let show_line_numbers = ctx.show_line_numbers;
@@ -409,7 +417,10 @@ pub(super) fn push_special_block_lines<F: Fn(&str) -> Vec<Span<'static>>>(
         ));
     }
     lines.push(Line::from(footer));
-    lines.push(Line::from(""));
+    BlockLayout {
+        prefix_width,
+        rendered_width: inner_width + 2,
+    }
 }
 
 pub(super) struct EmbeddedBlockCtx<'a> {
@@ -425,7 +436,7 @@ pub(super) fn push_latex_block_lines(
     content: &str,
     ctx: EmbeddedBlockCtx<'_>,
     item_stack: &mut [ItemState],
-) {
+) -> BlockLayout {
     let rendered = latex::to_unicode(content);
     let all_lines: Vec<&str> = rendered.lines().collect();
     let start = all_lines
@@ -451,7 +462,7 @@ pub(super) fn push_latex_block_lines(
             center: false,
             make_spans: |line| vec![Span::styled(line.to_string(), content_style)],
         },
-    );
+    )
 }
 
 pub(super) fn push_mermaid_block_lines(
@@ -459,7 +470,7 @@ pub(super) fn push_mermaid_block_lines(
     content: &str,
     ctx: EmbeddedBlockCtx<'_>,
     item_stack: &mut [ItemState],
-) {
+) -> BlockLayout {
     let rendered = mermaid::render(content);
     let use_rendered = rendered.is_some();
     let content_lines: Vec<&str> = if let Some(ref r) = rendered {
@@ -488,7 +499,7 @@ pub(super) fn push_mermaid_block_lines(
                 }
             },
         },
-    );
+    )
 }
 
 pub(super) fn push_rule_line(

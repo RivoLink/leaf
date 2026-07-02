@@ -40,7 +40,7 @@ use toc::{normalize_toc, TocEntry};
 
 use blocks::{
     flush_wrapped_spans, push_code_block_lines, push_heading_lines, push_latex_block_lines,
-    push_mermaid_block_lines, push_rule_line, trim_paragraph_gap_before_block,
+    push_mermaid_block_lines, push_rule_line, trim_paragraph_gap_before_block, BlockLayout,
     CodeBlockRenderContext, EmbeddedBlockCtx, CODE_BLOCK_GUTTER,
 };
 use fences::normalize_code_fences;
@@ -224,6 +224,8 @@ fn push_text_event(
 pub(crate) struct CodeBlockInfo {
     pub(crate) rendered_start: usize,
     pub(crate) rendered_end: usize,
+    pub(crate) rendered_offset: usize,
+    pub(crate) rendered_width: usize,
     pub(crate) raw_content: String,
 }
 
@@ -231,16 +233,19 @@ fn record_code_block(
     code_blocks: &mut Vec<CodeBlockInfo>,
     raw_content: String,
     rendered_start: usize,
-    lines_len_after: usize,
+    rendered_end: usize,
+    layout: BlockLayout,
 ) {
-    let rendered_end = lines_len_after.saturating_sub(1);
-    if rendered_end >= rendered_start {
-        code_blocks.push(CodeBlockInfo {
-            rendered_start,
-            rendered_end,
-            raw_content,
-        });
+    if rendered_end < rendered_start {
+        return;
     }
+    code_blocks.push(CodeBlockInfo {
+        rendered_start,
+        rendered_end,
+        rendered_offset: layout.prefix_width,
+        rendered_width: layout.rendered_width,
+        raw_content,
+    });
 }
 
 pub(crate) struct ParseResult {
@@ -411,8 +416,8 @@ pub(crate) fn parse_markdown_with_width(
                 in_code = false;
                 let raw_content = code_buf.clone();
                 let rendered_start = lines.len();
-                if code_lang == "latex" || code_lang == "tex" {
-                    push_latex_block_lines(
+                let layout = if code_lang == "latex" || code_lang == "tex" {
+                    let layout = push_latex_block_lines(
                         &mut lines,
                         &code_buf,
                         EmbeddedBlockCtx {
@@ -427,8 +432,9 @@ pub(crate) fn parse_markdown_with_width(
                     code_buf.clear();
                     code_lang.clear();
                     wraps = true;
+                    layout
                 } else if code_lang == "mermaid" {
-                    push_mermaid_block_lines(
+                    let layout = push_mermaid_block_lines(
                         &mut lines,
                         &code_buf,
                         EmbeddedBlockCtx {
@@ -442,8 +448,9 @@ pub(crate) fn parse_markdown_with_width(
                     );
                     code_buf.clear();
                     code_lang.clear();
+                    layout
                 } else {
-                    push_code_block_lines(
+                    let layout = push_code_block_lines(
                         &mut lines,
                         &mut code_buf,
                         &mut code_lang,
@@ -460,8 +467,16 @@ pub(crate) fn parse_markdown_with_width(
                         &mut item_stack,
                     );
                     wraps = true;
-                }
-                record_code_block(&mut code_blocks, raw_content, rendered_start, lines.len());
+                    layout
+                };
+                record_code_block(
+                    &mut code_blocks,
+                    raw_content,
+                    rendered_start,
+                    lines.len().saturating_sub(1),
+                    layout,
+                );
+                lines.push(Line::from(""));
                 last_block = LastBlock::Other;
             }
             MdEvent::Code(text) => {
@@ -570,7 +585,7 @@ pub(crate) fn parse_markdown_with_width(
                 trim_paragraph_gap_before_block(&mut lines, last_block);
                 let raw_content = text.as_ref().trim().to_string();
                 let rendered_start = lines.len();
-                push_latex_block_lines(
+                let layout = push_latex_block_lines(
                     &mut lines,
                     text.as_ref(),
                     EmbeddedBlockCtx {
@@ -582,7 +597,14 @@ pub(crate) fn parse_markdown_with_width(
                     },
                     &mut item_stack,
                 );
-                record_code_block(&mut code_blocks, raw_content, rendered_start, lines.len());
+                record_code_block(
+                    &mut code_blocks,
+                    raw_content,
+                    rendered_start,
+                    lines.len().saturating_sub(1),
+                    layout,
+                );
+                lines.push(Line::from(""));
                 wraps = true;
                 last_block = LastBlock::Other;
             }

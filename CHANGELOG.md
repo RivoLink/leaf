@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- next-version -->
 
+## [[1.26.0](https://github.com/RivoLink/leaf/releases/tag/1.26.0)] - 2026-07-04
+
+### Added
+
+- toc scroll auto-follow ([#198](https://github.com/RivoLink/leaf/pull/198))
+- toggle mouse capture ([#193](https://github.com/RivoLink/leaf/pull/193))
+- copy code-block ([#191](https://github.com/RivoLink/leaf/pull/191))
+- toggle code line numbers ([#190](https://github.com/RivoLink/leaf/pull/190))
+
+### Fixed
+
+- toc level alignment and junction ([#197](https://github.com/RivoLink/leaf/pull/197))
+- thematic break metadata-block ([#196](https://github.com/RivoLink/leaf/pull/196))
+
+### Changed
+
+- improve code-block hit bounds ([#195](https://github.com/RivoLink/leaf/pull/195))
+- code-block disable hover ([#194](https://github.com/RivoLink/leaf/pull/194))
+
 ## [[1.25.0](https://github.com/RivoLink/leaf/releases/tag/1.25.0)] - 2026-06-26
 
 ### Added

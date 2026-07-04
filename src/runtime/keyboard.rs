@@ -280,6 +280,14 @@ pub(super) fn handle_key_event(
             KeyCode::Char('u') | KeyCode::PageUp => app.scroll_up(20),
             KeyCode::Char('g') | KeyCode::Home => app.scroll_top(),
             KeyCode::Char('G') | KeyCode::End => app.scroll_bottom(),
+            KeyCode::Char('J') if app.can_scroll_toc() => app.focus_next_top_level_toc(),
+            KeyCode::Char('K') if app.can_scroll_toc() => app.focus_prev_top_level_toc(),
+            KeyCode::Char('D') if app.can_scroll_toc() => {
+                app.scroll_toc_down(app.toc_half_page_step());
+            }
+            KeyCode::Char('U') if app.can_scroll_toc() => {
+                app.scroll_toc_up(app.toc_half_page_step());
+            }
             KeyCode::Char('t') => app.toggle_toc(),
             KeyCode::Char('T') => {
                 app.open_theme_picker();

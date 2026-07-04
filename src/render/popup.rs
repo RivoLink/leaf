@@ -77,7 +77,7 @@ pub(super) fn popup_footer_line(segments: &[&'static str], bg: Color) -> Line<'s
 
 pub(super) fn render_help_popup(f: &mut Frame, _app: &App) {
     let theme = app_theme();
-    let area = centered_rect(53, 25, f.area());
+    let area = centered_rect(53, 26, f.area());
 
     let select_hint =
         crate::editor::selection_modifier_label(&crate::editor::detect_terminal_emulator());
@@ -137,6 +137,10 @@ pub(super) fn render_help_popup(f: &mut Frame, _app: &App) {
             Span::raw("       "),
             Span::styled(format!("{select_hint:<12}"), key_style),
             Span::styled("slct text", text_style),
+        ]),
+        Line::from(vec![
+            Span::styled("J/K, U/D   ", key_style),
+            Span::styled("navigate toc", text_style),
         ]),
         Line::from(""),
         Line::from(vec![

@@ -54,6 +54,7 @@ impl App {
 
     pub(crate) fn reload(&mut self, ss: &SyntaxSet, themes: &ThemeSet) -> bool {
         self.reset_numkey_state();
+        self.reset_toc_scroll_mode();
         let path = match &self.filepath {
             Some(p) => p,
             None => return false,
@@ -129,6 +130,7 @@ impl App {
         self.invalidate_theme_preview_cache();
         self.store_current_theme_preview_from(&parsed.lines, &parsed.toc);
         self.replace_content(parsed);
+        self.reset_toc_scroll_mode();
         true
     }
 

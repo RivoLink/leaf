@@ -123,6 +123,7 @@ impl App {
 
         let theme = current_syntect_theme(themes);
         let at = app_theme();
+        let base_path = self.filepath.as_deref().and_then(|p| p.parent());
         let parsed = parse_markdown_with_width(
             &self.source,
             ss,
@@ -131,6 +132,8 @@ impl App {
             &at.markdown,
             self.file_mode,
             self.code_line_numbers,
+            base_path,
+            &self.image_picker,
         );
         self.store_theme_preview(preset, &parsed.lines, &parsed.toc);
         self.replace_content(parsed);
@@ -147,6 +150,7 @@ impl App {
             } else {
                 let theme = current_syntect_theme(themes);
                 let at = app_theme();
+                let base_path = self.filepath.as_deref().and_then(|p| p.parent());
                 let parsed = parse_markdown_with_width(
                     &self.source,
                     ss,
@@ -155,6 +159,8 @@ impl App {
                     &at.markdown,
                     self.file_mode,
                     self.code_line_numbers,
+                    base_path,
+                    &self.image_picker,
                 );
                 self.replace_content(parsed);
             }

@@ -2,6 +2,7 @@ mod blocks;
 mod fences;
 mod frontmatter;
 mod highlight;
+mod images;
 mod latex;
 mod links;
 mod lists;
@@ -16,6 +17,7 @@ pub(crate) mod width;
 mod wrapping;
 
 pub(crate) use highlight::highlight_line;
+pub(crate) use images::ImageEntry;
 pub(crate) use links::LinkSpan;
 pub(crate) use syntax::resolve_syntax;
 use tables::{handle_table_event, start_table, TableBuf};
@@ -31,10 +33,11 @@ use ratatui::{
     style::{Color, Modifier, Style},
     text::{Line, Span},
 };
+use ratatui_image::picker::Picker;
 use std::{
     hash::{Hash, Hasher},
     io,
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 use toc::{normalize_toc, TocEntry};
 
@@ -82,7 +85,7 @@ pub(crate) fn hash_file_contents(path: &PathBuf) -> io::Result<u64> {
     std::fs::read_to_string(path).map(|contents| hash_str(&contents))
 }
 
-const DEFAULT_RENDER_WIDTH: usize = 80;
+pub(crate) const DEFAULT_RENDER_WIDTH: usize = 80;
 
 fn heading_level(level: HeadingLevel) -> u8 {
     match level {
@@ -255,6 +258,7 @@ pub(crate) struct ParseResult {
     pub(crate) line_number_map: Vec<usize>,
     pub(crate) source_line_map: Vec<usize>,
     pub(crate) code_blocks: Vec<CodeBlockInfo>,
+    pub(crate) images: Vec<ImageEntry>,
 }
 
 impl ParseResult {
@@ -266,6 +270,7 @@ impl ParseResult {
             line_number_map: Vec::new(),
             source_line_map: Vec::new(),
             code_blocks: Vec::new(),
+            images: Vec::new(),
         }
     }
 }
@@ -277,6 +282,7 @@ impl From<ParseResult> for (Vec<Line<'static>>, Vec<TocEntry>, Vec<LinkSpan>, Ve
     }
 }
 
+#[cfg(test)]
 pub(crate) fn parse_markdown(
     src: &str,
     ss: &syntect::parsing::SyntaxSet,
@@ -293,9 +299,12 @@ pub(crate) fn parse_markdown(
         md_theme,
         file_mode,
         code_line_numbers,
+        None,
+        &Picker::halfblocks(),
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn parse_markdown_with_width(
     src: &str,
     ss: &syntect::parsing::SyntaxSet,
@@ -304,6 +313,8 @@ pub(crate) fn parse_markdown_with_width(
     theme_colors: &MarkdownTheme,
     file_mode: bool,
     code_line_numbers: bool,
+    base_path: Option<&Path>,
+    image_picker: &Picker,
 ) -> ParseResult {
     let original_src = src;
     let (src, fm_pairs) = frontmatter::extract_frontmatter(src);
@@ -336,6 +347,8 @@ pub(crate) fn parse_markdown_with_width(
     let mut last_block = LastBlock::Other;
     let mut link_urls: Vec<String> = Vec::new();
     let mut blockquote_color: Option<Color> = None;
+    let mut image_entries: Vec<ImageEntry> = Vec::new();
+    let mut in_image: Option<(String, String)> = None;
 
     let normalized = normalize_code_fences(src);
     let line_starts = compute_line_starts(&normalized);
@@ -370,10 +383,49 @@ pub(crate) fn parse_markdown_with_width(
             continue;
         }
 
+        if let Some((_, alt)) = in_image.as_mut() {
+            match &ev {
+                MdEvent::Text(text) | MdEvent::Code(text) => {
+                    alt.push_str(text.as_ref());
+                    continue;
+                }
+                _ => {}
+            }
+        }
+
         let mut wraps = false;
         match ev {
             MdEvent::Start(Tag::Table(aligns)) => {
                 start_table(&mut table, &aligns);
+            }
+            MdEvent::Start(Tag::Image { dest_url, .. }) => {
+                if !spans.is_empty() {
+                    lines.push(Line::from(std::mem::take(&mut spans)));
+                }
+                in_image = Some((dest_url.to_string(), String::new()));
+            }
+            MdEvent::End(TagEnd::Image) => {
+                if let Some((dest_url, alt)) = in_image.take() {
+                    match images::load_image(&dest_url, base_path, render_width, image_picker) {
+                        Some((slice, height)) => {
+                            let rendered_start = lines.len();
+                            for _ in 0..height {
+                                lines.push(Line::from(""));
+                            }
+                            image_entries.push(ImageEntry {
+                                rendered_start,
+                                slice,
+                            });
+                        }
+                        None => {
+                            lines.push(Line::from(Span::styled(
+                                format!("[img: {alt}]"),
+                                Style::default().fg(theme_colors.code_gutter),
+                            )));
+                        }
+                    }
+                }
+                last_block = LastBlock::Other;
             }
             MdEvent::Start(Tag::Heading { level, .. }) => {
                 start_heading(&mut in_heading, level);
@@ -641,6 +693,7 @@ pub(crate) fn parse_markdown_with_width(
         line_number_map: state.line_number_map,
         source_line_map: state.source_line_map,
         code_blocks,
+        images: image_entries,
     }
 }
 

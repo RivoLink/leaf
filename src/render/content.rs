@@ -6,6 +6,7 @@ use ratatui::{
     widgets::{Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Wrap},
     Frame,
 };
+use ratatui_image::sliced::SlicedImage;
 
 use super::{CONTENT_HORIZONTAL_PADDING, SCROLLBAR_WIDTH};
 
@@ -102,6 +103,8 @@ pub(super) fn render_content_panel(f: &mut Frame, app: &mut App, area: Rect) {
         content_area,
     );
 
+    render_images(f, app, content_area, scroll, visible_end);
+
     let (mouse_col, mouse_row) = app.mouse_position;
     let sb_x = area.x + area.width - SCROLLBAR_WIDTH;
     let on_sb_column = mouse_col >= sb_x
@@ -132,6 +135,22 @@ pub(super) fn render_content_panel(f: &mut Frame, app: &mut App, area: Rect) {
 
     let mut scrollbar_state = ScrollbarState::new(max_scroll).position(app.scroll());
     f.render_stateful_widget(scrollbar, area, &mut scrollbar_state);
+}
+
+fn render_images(f: &mut Frame, app: &App, content_area: Rect, scroll: usize, visible_end: usize) {
+    for entry in &app.images {
+        let start = entry.rendered_start;
+        let end = start + entry.slice.size().height as usize;
+        if end <= scroll || start >= visible_end {
+            continue;
+        }
+        let position_y =
+            (start as i64 - scroll as i64).clamp(i16::MIN as i64, i16::MAX as i64) as i16;
+        f.render_widget(
+            SlicedImage::new(&entry.slice, (0, position_y).into()),
+            content_area,
+        );
+    }
 }
 
 fn inner_content_area(area: Rect) -> Rect {

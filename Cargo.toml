@@ -23,6 +23,8 @@ sha2          = "0.10"
 toml          = "0.8"
 unicodeit     = "0.2"
 mmdflux       = "2.5"
+ratatui-image = { version = "11", default-features = false, features = ["crossterm"] }
+image         = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 crossterm     = { version = "0.29", features = ["use-dev-tty"] }

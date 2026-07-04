@@ -2,12 +2,13 @@ use crate::{
     markdown::{
         build_searchable_lines,
         toc::{toc_levels, TocEntry},
-        CodeBlockInfo, LinkSpan,
+        CodeBlockInfo, ImageEntry, LinkSpan,
     },
     render::{build_status_bar, build_toc_line_with_index, toc_header_line},
     theme::{app_theme, current_theme_selection, theme_preset_index},
 };
 use ratatui::{layout::Rect, text::Line};
+use ratatui_image::picker::Picker;
 use std::{
     collections::HashMap,
     path::PathBuf,
@@ -147,6 +148,8 @@ pub(crate) struct App {
     pub(crate) hovered_link: Option<(usize, usize)>,
     pub(crate) code_blocks: Vec<CodeBlockInfo>,
     pub(crate) code_select: Option<usize>,
+    pub(crate) images: Vec<ImageEntry>,
+    pub(super) image_picker: Picker,
     code_block_flash: Option<(CodeBlockFlash, Instant)>,
     link_flash: Option<(LinkFlash, Instant)>,
     path_flash: Option<(PathFlash, Instant)>,
@@ -305,6 +308,8 @@ impl App {
             hovered_link: None,
             code_blocks: Vec::new(),
             code_select: None,
+            images: Vec::new(),
+            image_picker: Picker::halfblocks(),
             code_block_flash: None,
             link_flash: None,
             path_flash: None,
@@ -327,6 +332,14 @@ impl App {
 
     pub(crate) fn set_extras(&mut self, extras: Vec<String>) {
         self.file_picker.extras = extras;
+    }
+
+    pub(crate) fn set_image_picker(&mut self, picker: Picker) {
+        self.image_picker = picker;
+    }
+
+    pub(crate) fn set_images(&mut self, images: Vec<ImageEntry>) {
+        self.images = images;
     }
 
     pub(crate) fn set_file_mode(&mut self, file_mode: bool) {

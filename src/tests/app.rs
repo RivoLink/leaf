@@ -4,6 +4,7 @@ use crate::cli::parse_cli;
 use crate::markdown::{hash_str, parse_markdown, parse_markdown_with_width, read_file_state};
 use crate::*;
 use crossterm::event::KeyEventKind;
+use ratatui_image::picker::Picker;
 use std::{
     fs,
     time::{SystemTime, UNIX_EPOCH},
@@ -463,8 +464,18 @@ fn sync_render_width_preserves_scroll_proportion() {
         })
         .collect::<Vec<_>>()
         .join("\n\n");
-    let (lines, toc, _, _) =
-        parse_markdown_with_width(&source, &ss, &theme, 80, &test_md_theme(), false, true).into();
+    let (lines, toc, _, _) = parse_markdown_with_width(
+        &source,
+        &ss,
+        &theme,
+        80,
+        &test_md_theme(),
+        false,
+        true,
+        None,
+        &Picker::halfblocks(),
+    )
+    .into();
     let mut app = App::new_with_source(
         lines,
         toc,
@@ -528,8 +539,18 @@ fn sync_render_width_returns_false_when_clamped_width_is_unchanged() {
     let (ss, theme) = test_assets();
     let ts = ThemeSet::load_defaults();
     let source = "One paragraph that does not matter much for this width clamp test.";
-    let (lines, toc, _, _) =
-        parse_markdown_with_width(source, &ss, &theme, 20, &test_md_theme(), false, true).into();
+    let (lines, toc, _, _) = parse_markdown_with_width(
+        source,
+        &ss,
+        &theme,
+        20,
+        &test_md_theme(),
+        false,
+        true,
+        None,
+        &Picker::halfblocks(),
+    )
+    .into();
     let mut app = App::new_with_source(
         lines,
         toc,
@@ -547,9 +568,19 @@ fn sync_render_width_returns_false_when_clamped_width_is_unchanged() {
     assert!(!app.sync_render_width(10, &ss, &ts));
     assert_eq!(
         app.total(),
-        parse_markdown_with_width(source, &ss, &theme, 20, &test_md_theme(), false, true)
-            .lines
-            .len()
+        parse_markdown_with_width(
+            source,
+            &ss,
+            &theme,
+            20,
+            &test_md_theme(),
+            false,
+            true,
+            None,
+            &Picker::halfblocks()
+        )
+        .lines
+        .len()
     );
 }
 

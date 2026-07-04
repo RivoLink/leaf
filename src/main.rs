@@ -21,7 +21,8 @@ mod update;
 
 use app::{App, AppConfig};
 use cli::{parse_cli, print_usage, print_version, CliOptions};
-use markdown::{hash_str, parse_markdown, parse_markdown_with_width, read_file_state};
+use markdown::{hash_str, parse_markdown_with_width, read_file_state};
+use ratatui_image::picker::Picker;
 use runtime::run;
 use terminal::{finish_with_restore, TerminalSession};
 use theme::{
@@ -295,6 +296,22 @@ fn main() -> Result<()> {
         .unwrap_or("");
     let (src, file_mode) = App::wrap_as_code_block(src, ext, &ss);
 
+    // Must be created before entering raw mode / the alternate screen, since it queries the
+    // terminal for graphics-protocol and font-size capabilities. Inside tmux, that query's
+    // batched escape sequences can go unanswered; ratatui-image then leaves a background thread
+    // stuck reading stdin, which later resets the terminal out from under raw mode and hangs the
+    // app. tmux's own graphics passthrough is unreliable anyway, so skip the query there and
+    // fall back to halfblocks, which always works.
+    let image_picker = if std::env::var_os("TMUX").is_none()
+        && io::stdin().is_terminal()
+        && io::stdout().is_terminal()
+    {
+        Picker::from_query_stdio().unwrap_or_else(|_| Picker::halfblocks())
+    } else {
+        Picker::halfblocks()
+    };
+    let base_path = filepath.as_deref().and_then(|p| p.parent());
+
     if let Some(ref spec) = inline_spec {
         if src.is_empty() && filepath.is_none() {
             bail!("--inline requires a file path or stdin input");
@@ -313,6 +330,8 @@ fn main() -> Result<()> {
             &at.markdown,
             file_mode,
             code_line_numbers,
+            base_path,
+            &image_picker,
         );
 
         while parsed.lines.last().is_some_and(|l| {
@@ -329,13 +348,16 @@ fn main() -> Result<()> {
     }
 
     let at = app_theme();
-    let parsed = parse_markdown(
+    let parsed = parse_markdown_with_width(
         &src,
         &ss,
         &theme,
+        markdown::DEFAULT_RENDER_WIDTH,
         &at.markdown,
         file_mode,
         code_line_numbers,
+        base_path,
+        &image_picker,
     );
     let crate::markdown::ParseResult {
         lines,
@@ -344,6 +366,7 @@ fn main() -> Result<()> {
         line_number_map,
         source_line_map,
         code_blocks,
+        images,
     } = parsed;
     let mut app = App::new_with_source(
         lines,
@@ -360,6 +383,8 @@ fn main() -> Result<()> {
     app.set_link_spans(link_spans);
     app.set_code_blocks(code_blocks);
     app.set_line_maps(line_number_map, source_line_map);
+    app.set_images(images);
+    app.set_image_picker(image_picker);
     app.set_last_content_hash(last_content_hash);
     app.set_watch_from_config(watch_from_config);
     app.set_max_width(max_width);

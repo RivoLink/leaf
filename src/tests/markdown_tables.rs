@@ -2,13 +2,24 @@ use super::{rendered_non_empty_lines, test_assets, test_md_theme};
 use crate::markdown::{parse_markdown, parse_markdown_with_width};
 use crate::theme::app_theme;
 use crate::*;
+use ratatui_image::picker::Picker;
 
 #[test]
 fn narrow_tables_fit_render_width_and_wrap_cells() {
     let (ss, theme) = test_assets();
     let md = "| Column | Description | Value |\n| --- | --- | ---: |\n| Width | Terminal-dependent layout behavior | 80 |\n";
-    let (lines, _, _, _) =
-        parse_markdown_with_width(md, &ss, &theme, 36, &test_md_theme(), false, true).into();
+    let (lines, _, _, _) = parse_markdown_with_width(
+        md,
+        &ss,
+        &theme,
+        36,
+        &test_md_theme(),
+        false,
+        true,
+        None,
+        &Picker::halfblocks(),
+    )
+    .into();
     let rendered = rendered_non_empty_lines(&lines);
 
     assert!(rendered.len() >= 6);
@@ -177,8 +188,18 @@ fn table_long_inline_code_wraps_without_clipping() {
     let code = "verylonginlinecodethatcannotfitinasinglenarrowcolumn";
     let md = format!("| Description |\n|---|\n| `{code}` |\n");
     let width = 24;
-    let (lines, _, _, _) =
-        parse_markdown_with_width(&md, &ss, &theme, width, &test_md_theme(), false, true).into();
+    let (lines, _, _, _) = parse_markdown_with_width(
+        &md,
+        &ss,
+        &theme,
+        width,
+        &test_md_theme(),
+        false,
+        true,
+        None,
+        &Picker::halfblocks(),
+    )
+    .into();
     let rendered = rendered_non_empty_lines(&lines);
     let theme_colors = &app_theme().markdown;
 

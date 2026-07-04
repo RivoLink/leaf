@@ -3,6 +3,7 @@ use crate::app::App;
 use crate::markdown::{parse_markdown, parse_markdown_with_width};
 use crate::wrap_path_lines;
 use ratatui::style::Style;
+use ratatui_image::picker::Picker;
 
 #[test]
 fn code_block_box_renders_right_border_in_one_column() {
@@ -36,6 +37,8 @@ fn file_mode_code_block_fills_full_render_width() {
         &test_md_theme(),
         true,
         true,
+        None,
+        &Picker::halfblocks(),
     )
     .into();
     let buffer = render_buffer(&lines);

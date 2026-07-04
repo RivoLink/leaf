@@ -2,6 +2,7 @@ use super::{rendered_non_empty_lines, test_assets, test_md_theme};
 use crate::markdown::{parse_markdown, parse_markdown_with_width};
 use crate::markdown::{TASK_CHECKED, TASK_CHECKED_ALT, TASK_UNCHECKED};
 use crate::*;
+use ratatui_image::picker::Picker;
 
 #[test]
 fn loose_list_items_keep_their_markers() {
@@ -162,8 +163,18 @@ fn paragraph_and_following_list_have_no_blank_gap() {
 fn wrapped_list_items_align_continuation_under_text() {
     let (ss, theme) = test_assets();
     let src = "- First item with enough text to wrap when the terminal is narrow and show continuation alignment.\n8. Eighth item with enough text to wrap and keep numeric alignment readable.\n";
-    let (lines, _, _, _) =
-        parse_markdown_with_width(src, &ss, &theme, 36, &test_md_theme(), false, true).into();
+    let (lines, _, _, _) = parse_markdown_with_width(
+        src,
+        &ss,
+        &theme,
+        36,
+        &test_md_theme(),
+        false,
+        true,
+        None,
+        &Picker::halfblocks(),
+    )
+    .into();
     let rendered = rendered_non_empty_lines(&lines);
 
     assert!(rendered.iter().any(|line| line.starts_with("• First item")));
@@ -226,8 +237,18 @@ fn tight_nested_list_multiline_parent_with_softbreak() {
 fn wrapped_list_inline_code_keeps_left_padding_in_rendered_line() {
     let (ss, theme) = test_assets();
     let source = "- `leaf --theme ocean README.md` exercises wrapping inside a list item.\n";
-    let (lines, _, _, _) =
-        parse_markdown_with_width(source, &ss, &theme, 22, &test_md_theme(), false, true).into();
+    let (lines, _, _, _) = parse_markdown_with_width(
+        source,
+        &ss,
+        &theme,
+        22,
+        &test_md_theme(),
+        false,
+        true,
+        None,
+        &Picker::halfblocks(),
+    )
+    .into();
 
     let target = lines
         .iter()

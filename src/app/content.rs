@@ -34,6 +34,7 @@ impl App {
             line_number_map,
             source_line_map,
             code_blocks,
+            images,
         } = parsed;
 
         self.plain_lines = build_searchable_lines(&lines)
@@ -49,6 +50,7 @@ impl App {
         self.set_code_blocks(code_blocks);
         self.code_select = None;
         self.set_line_maps(line_number_map, source_line_map);
+        self.images = images;
         self.refresh_static_caches();
     }
 
@@ -98,6 +100,7 @@ impl App {
         self.file_mode = is_code_file;
         let theme = current_syntect_theme(themes);
         let at = app_theme();
+        let base_path = path.parent().map(|p| p.to_path_buf());
         let parsed = parse_markdown_with_width(
             &src,
             ss,
@@ -106,6 +109,8 @@ impl App {
             &at.markdown,
             self.file_mode,
             self.code_line_numbers,
+            base_path.as_deref(),
+            &self.image_picker,
         );
 
         let first_load = self.filepath.is_none();
@@ -138,6 +143,7 @@ impl App {
         let theme = current_syntect_theme(themes);
         let at = app_theme();
         let old_total = self.total();
+        let base_path = self.filepath.as_deref().and_then(|p| p.parent());
         let parsed = parse_markdown_with_width(
             &self.source,
             ss,
@@ -146,6 +152,8 @@ impl App {
             &at.markdown,
             self.file_mode,
             self.code_line_numbers,
+            base_path,
+            &self.image_picker,
         );
         let new_total = parsed.lines.len();
 

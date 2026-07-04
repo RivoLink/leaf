@@ -35,6 +35,7 @@ pub(super) fn render_toc_panel(f: &mut Frame, app: &mut App, area: Rect) {
         toc_chunks[0],
     );
 
+    let scroll_offset = app.toc_scroll_offset(toc_chunks[1].height);
     let mut lines: Vec<Line<'static>> = app.toc_display_lines().to_vec();
     if let Some(display_idx) = app.hovered_toc_idx {
         let is_active = app.toc_display_entries().get(display_idx).copied() == app.toc_active_idx;
@@ -44,8 +45,14 @@ pub(super) fn render_toc_panel(f: &mut Frame, app: &mut App, area: Rect) {
             }
         }
     }
+    let padding_width = toc_chunks[1].width.saturating_sub(1) as usize;
+    lines.push(Line::from(Span::styled(
+        " ".repeat(padding_width),
+        Style::default().bg(theme.ui.toc_bg),
+    )));
     f.render_widget(
         Paragraph::new(lines)
+            .scroll((scroll_offset as u16, 0))
             .style(Style::default().bg(theme.ui.toc_bg))
             .block(
                 Block::default()

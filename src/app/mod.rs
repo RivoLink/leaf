@@ -48,6 +48,12 @@ mod io_picker;
 mod theme_picker;
 pub(crate) use theme_picker::ThemePickerState;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum TocScrollMode {
+    Auto,
+    Manual(usize),
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct StatusCacheKey {
     pct: u16,
@@ -74,6 +80,7 @@ pub(crate) struct StatusCacheKey {
     path_flash_active: bool,
     code_block_flash_active: bool,
     mouse_capture: bool,
+    toc_scroll_hint_visible: bool,
 }
 
 pub(crate) struct AppConfig {
@@ -113,7 +120,11 @@ pub(crate) struct App {
     toc_display_entries: Vec<usize>,
     toc_header_line: Line<'static>,
     pub(crate) toc_active_idx: Option<usize>,
+    pub(crate) toc_active_display_idx: Option<usize>,
     pub(crate) hovered_toc_idx: Option<usize>,
+    toc_scroll_mode: TocScrollMode,
+    toc_scroll_hint_dismissed: bool,
+    toc_active_pin: Option<usize>,
     status_line: Line<'static>,
     status_cache_key: Option<StatusCacheKey>,
     pub(super) help_open: bool,
@@ -246,7 +257,11 @@ impl App {
             toc_display_entries: Vec::new(),
             toc_header_line: toc_header_line(),
             toc_active_idx: None,
+            toc_active_display_idx: None,
             hovered_toc_idx: None,
+            toc_scroll_mode: TocScrollMode::Auto,
+            toc_scroll_hint_dismissed: false,
+            toc_active_pin: None,
             status_line: Line::default(),
             status_cache_key: None,
             help_open: false,
@@ -459,6 +474,9 @@ impl App {
     }
 
     pub(crate) fn active_toc_index(&self) -> Option<usize> {
+        if let Some(pin) = self.toc_active_pin {
+            return Some(pin);
+        }
         let mut first_visible = None;
         let mut active = None;
         let mut last_visible = None;
@@ -514,15 +532,20 @@ impl App {
         let mut top_level_index = 0usize;
         let mut lines: Vec<Line<'static>> = Vec::new();
         let mut entries: Vec<usize> = Vec::new();
+        let mut active_display_idx = None;
         for (idx, entry, display_level) in self.visible_toc_entries() {
+            let is_active = active_idx == Some(idx);
             let line = build_toc_line_with_index(
                 entry,
                 display_level,
                 (display_level == 1).then_some(top_level_index),
-                active_idx == Some(idx),
+                is_active,
             );
             if display_level == 1 {
                 top_level_index += 1;
+            }
+            if is_active {
+                active_display_idx = Some(entries.len());
             }
             lines.push(line);
             entries.push(idx);
@@ -530,6 +553,7 @@ impl App {
         debug_assert_eq!(lines.len(), entries.len());
         self.toc_display_lines = lines;
         self.toc_display_entries = entries;
+        self.toc_active_display_idx = active_display_idx;
     }
 
     pub(crate) fn refresh_status_cache(&mut self, pct: u16) {
@@ -585,6 +609,7 @@ impl App {
                 .map(|(_, t)| t.elapsed() < Duration::from_millis(FLASH_DURATION_MS))
                 .unwrap_or(false),
             mouse_capture: self.mouse_capture,
+            toc_scroll_hint_visible: self.is_toc_scroll_hint_visible(),
         };
 
         if self.status_cache_key.as_ref() == Some(&cache_key) {
@@ -597,6 +622,8 @@ impl App {
 
     pub(crate) fn refresh_static_caches(&mut self) {
         self.toc_active_idx = None;
+        self.toc_active_display_idx = None;
+        self.toc_active_pin = None;
         self.toc_display_lines.clear();
         self.toc_display_entries.clear();
         self.refresh_toc_cache();

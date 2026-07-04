@@ -69,6 +69,10 @@ pub(super) fn handle_mouse_event(app: &mut App, mouse: MouseEvent) -> bool {
     } else {
         match mouse.kind {
             MouseEventKind::ScrollUp => {
+                if mouse_in_toc_area(app, mouse.column, mouse.row) {
+                    app.scroll_toc_up(super::MOUSE_SCROLL_STEP);
+                    return true;
+                }
                 app.exit_code_select_mode();
                 app.scroll_up(super::MOUSE_SCROLL_STEP);
                 app.hovered_link = None;
@@ -76,6 +80,10 @@ pub(super) fn handle_mouse_event(app: &mut App, mouse: MouseEvent) -> bool {
                 true
             }
             MouseEventKind::ScrollDown => {
+                if mouse_in_toc_area(app, mouse.column, mouse.row) {
+                    app.scroll_toc_down(super::MOUSE_SCROLL_STEP);
+                    return true;
+                }
                 app.exit_code_select_mode();
                 app.scroll_down(super::MOUSE_SCROLL_STEP);
                 app.hovered_link = None;
@@ -93,9 +101,11 @@ pub(super) fn handle_mouse_event(app: &mut App, mouse: MouseEvent) -> bool {
                 app.last_click = Some((mouse.column, mouse.row, now));
 
                 if let Some(area) = app.toc_list_area {
+                    let scroll_offset = app.toc_scroll_offset(area.height);
                     if let Some(display_idx) = toc_display_index_at(
                         area,
                         app.toc_display_entries().len(),
+                        scroll_offset,
                         mouse.column,
                         mouse.row,
                     ) {
@@ -216,9 +226,11 @@ pub(super) fn handle_mouse_event(app: &mut App, mouse: MouseEvent) -> bool {
                 }
 
                 let new_toc_hover = app.toc_list_area.and_then(|area| {
+                    let scroll_offset = app.toc_scroll_offset(area.height);
                     toc_display_index_at(
                         area,
                         app.toc_display_entries().len(),
+                        scroll_offset,
                         mouse.column,
                         mouse.row,
                     )
@@ -325,7 +337,18 @@ fn try_open_editor(
 
 const TOC_RIGHT_BORDER_WIDTH: u16 = 1;
 
-fn toc_display_index_at(area: Rect, entries_len: usize, col: u16, row: u16) -> Option<usize> {
+fn mouse_in_toc_area(app: &App, col: u16, row: u16) -> bool {
+    app.toc_list_area
+        .is_some_and(|area| is_in_rect(area, col, row))
+}
+
+fn toc_display_index_at(
+    area: Rect,
+    entries_len: usize,
+    scroll_offset: usize,
+    col: u16,
+    row: u16,
+) -> Option<usize> {
     let inner = Rect {
         width: area.width.saturating_sub(TOC_RIGHT_BORDER_WIDTH),
         ..area
@@ -333,7 +356,7 @@ fn toc_display_index_at(area: Rect, entries_len: usize, col: u16, row: u16) -> O
     if !is_in_rect(inner, col, row) {
         return None;
     }
-    let display_idx = (row - area.y) as usize;
+    let display_idx = (row - area.y) as usize + scroll_offset;
     (display_idx < entries_len).then_some(display_idx)
 }
 

@@ -353,6 +353,16 @@ pub(crate) fn build_status_bar(app: &App, pct: u16) -> Vec<Span<'static>> {
         return join_span_sections(vec![left], outer_separator);
     }
 
+    if app.is_toc_scroll_hint_visible() {
+        let theme = app_theme();
+        let mut left = status_brand_section();
+        left.push(Span::styled(
+            " Navigate with shift+j/k and shift+u/d ",
+            Style::default().fg(theme.ui.status_warning_fg).bg(bar_bg),
+        ));
+        return join_span_sections(vec![left], outer_separator);
+    }
+
     let mut left_section = status_brand_section();
     left_section.extend(status_filename_section(app.filename()));
 

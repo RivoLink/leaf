@@ -83,6 +83,7 @@ impl App {
         self.search.matches = search_matches;
         self.search.idx = 0;
         if let Some(&f) = self.search.matches.first() {
+            self.reset_toc_scroll_mode();
             self.scroll = f.min(self.max_scroll());
         }
     }
@@ -164,6 +165,7 @@ impl App {
             return;
         }
         self.reset_numkey_state();
+        self.reset_toc_scroll_mode();
         self.search.idx = (self.search.idx + 1) % self.search.matches.len();
         self.scroll = self.search.matches[self.search.idx].min(self.max_scroll());
     }
@@ -173,6 +175,7 @@ impl App {
             return;
         }
         self.reset_numkey_state();
+        self.reset_toc_scroll_mode();
         if self.search.idx == 0 {
             self.search.idx = self.search.matches.len() - 1;
         } else {

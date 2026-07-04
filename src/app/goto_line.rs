@@ -71,6 +71,7 @@ impl App {
         if let Some(render_index) = self.find_render_index_for_logical(logical) {
             self.goto_line.target = Some(render_index);
             self.goto_line.error = false;
+            self.reset_toc_scroll_mode();
             let scroll_pos = render_index.saturating_sub(GOTO_LINE_CONTEXT_OFFSET);
             self.scroll = scroll_pos.min(self.max_scroll());
         } else {

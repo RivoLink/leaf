@@ -160,6 +160,7 @@ pub(crate) struct App {
     pub(super) file_mode: bool,
     pub(super) code_line_numbers: bool,
     max_width: Option<usize>,
+    tab_title_max_filename_len: Option<usize>,
     mouse_capture: bool,
 }
 
@@ -318,6 +319,7 @@ impl App {
             file_mode: false,
             code_line_numbers: true,
             max_width: None,
+            tab_title_max_filename_len: None,
             mouse_capture: true,
         };
         app.store_current_theme_preview();
@@ -339,6 +341,14 @@ impl App {
 
     pub(crate) fn set_max_width(&mut self, max_width: Option<usize>) {
         self.max_width = max_width;
+    }
+
+    pub(crate) fn set_tab_title_max_filename_len(&mut self, value: Option<usize>) {
+        self.tab_title_max_filename_len = value;
+    }
+
+    pub(crate) fn tab_title_max_filename_len(&self) -> Option<usize> {
+        self.tab_title_max_filename_len
     }
 
     pub(crate) fn is_mouse_capture_enabled(&self) -> bool {
@@ -466,6 +476,10 @@ impl App {
 
     pub(crate) fn filename(&self) -> &str {
         &self.filename
+    }
+
+    pub(crate) fn title_filename(&self) -> Option<&str> {
+        self.has_content().then_some(self.filename.as_str())
     }
 
     #[cfg(test)]

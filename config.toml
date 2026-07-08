@@ -72,3 +72,11 @@ watch = false
 # Accepted env values: 1 = true, 0 = false (other values ignored)
 # Default: true
 # code-line-numbers = true
+
+# Maximum tab title length (in characters)
+# Controls the tab title of the terminal: "leaf: <filename>".
+# When the filename is long, it is truncated: "leaf: prefix...ext".
+# Priority: LEAF_TAB_TITLE_LENGTH > this setting > default (-1)
+# Minimum accepted: 20. Any other value falls back to no truncation.
+# Default: -1 (no truncation)
+# tab-title-length = -1

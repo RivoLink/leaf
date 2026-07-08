@@ -8,7 +8,40 @@ use crossterm::{
     },
 };
 use ratatui::{backend::CrosstermBackend, Terminal};
-use std::io;
+use std::io::{self, Write};
+use std::path::Path;
+
+fn format_tab_title_filename(filename: &str, max_len: usize) -> String {
+    if filename.len() <= max_len || filename.chars().count() <= max_len {
+        return filename.to_string();
+    }
+    let ext = Path::new(filename)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("");
+    let keep = max_len
+        .saturating_sub(3)
+        .saturating_sub(ext.chars().count());
+    let prefix: String = filename.chars().take(keep).collect();
+    format!("{prefix}...{ext}")
+}
+
+pub(crate) fn set_tab_title(filename: Option<&str>, max_filename_len: Option<usize>) {
+    let mut stdout = io::stdout();
+    match (filename, max_filename_len) {
+        (Some(name), Some(m)) if !name.is_empty() => {
+            let display = format_tab_title_filename(name, m);
+            let _ = write!(stdout, "\x1b]0;leaf: {display}\x07");
+        }
+        (Some(name), None) if !name.is_empty() => {
+            let _ = write!(stdout, "\x1b]0;leaf: {name}\x07");
+        }
+        _ => {
+            let _ = write!(stdout, "\x1b]0;leaf\x07");
+        }
+    }
+    let _ = stdout.flush();
+}
 
 pub(crate) struct TerminalSession {
     raw_enabled: bool,
@@ -158,5 +191,67 @@ pub(crate) fn finish_with_restore(
         (Err(run_err), Ok(())) => Err(run_err),
         (Ok(()), Err(restore_err)) => Err(restore_err),
         (Ok(()), Ok(())) => Ok(()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const MAX: usize = 15;
+
+    #[test]
+    fn format_tab_title_filename_short_unchanged() {
+        assert_eq!(format_tab_title_filename("readme.md", MAX), "readme.md");
+        assert_eq!(
+            format_tab_title_filename("notes-2026.md", MAX),
+            "notes-2026.md"
+        );
+        assert_eq!(format_tab_title_filename("script.rs", MAX), "script.rs");
+        assert_eq!(format_tab_title_filename("stdin", MAX), "stdin");
+        assert_eq!(format_tab_title_filename("README", MAX), "README");
+        assert_eq!(format_tab_title_filename(".gitignore", MAX), ".gitignore");
+        assert_eq!(format_tab_title_filename(".env", MAX), ".env");
+    }
+
+    #[test]
+    fn format_tab_title_filename_at_limit_unchanged() {
+        let name = "abcdefghijklmno";
+        assert_eq!(name.chars().count(), MAX);
+        assert_eq!(format_tab_title_filename(name, MAX), name);
+    }
+
+    #[test]
+    fn format_tab_title_filename_truncates_with_extension() {
+        assert_eq!(
+            format_tab_title_filename("chapitre-1-introduction.md", MAX),
+            "chapitre-1...md"
+        );
+        assert_eq!(
+            format_tab_title_filename("verylongfilename.markdown", MAX),
+            "very...markdown"
+        );
+    }
+
+    #[test]
+    fn format_tab_title_filename_md_output_is_exactly_max_len() {
+        let out = format_tab_title_filename("chapitre-1-introduction.md", MAX);
+        assert_eq!(out.chars().count(), MAX);
+    }
+
+    #[test]
+    fn format_tab_title_filename_truncates_without_extension() {
+        assert_eq!(
+            format_tab_title_filename("verylongfilenamewithoutextension", MAX),
+            "verylongfile..."
+        );
+    }
+
+    #[test]
+    fn format_tab_title_filename_utf8_boundary_safe() {
+        let name = "résumé-tres-long-fichier.md";
+        let out = format_tab_title_filename(name, MAX);
+        assert!(out.ends_with("...md"));
+        assert!(out.chars().count() <= MAX);
     }
 }

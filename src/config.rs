@@ -5,7 +5,7 @@ use std::{
 };
 
 use anyhow::Context;
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 
 use crate::theme::{resolve_theme_selection, CustomThemeConfig};
 
@@ -21,9 +21,22 @@ pub(crate) struct LeafConfig {
     pub(crate) extras: Vec<String>,
     #[serde(rename = "code-line-numbers")]
     pub(crate) code_line_numbers: Option<bool>,
+    #[serde(
+        rename = "tab-title-length",
+        deserialize_with = "deserialize_lenient_i32"
+    )]
+    pub(crate) tab_title_length: Option<i32>,
     pub(crate) themes: BTreeMap<String, CustomThemeConfig>,
     #[serde(skip)]
     pub(crate) config_dir: Option<PathBuf>,
+}
+
+fn deserialize_lenient_i32<'de, D>(deserializer: D) -> Result<Option<i32>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = toml::Value::deserialize(deserializer)?;
+    Ok(value.as_integer().and_then(|n| i32::try_from(n).ok()))
 }
 
 #[derive(Default)]
@@ -71,6 +84,16 @@ pub(crate) fn load_config(overrides: &CliOverrides) -> (LeafConfig, Option<Strin
             warnings.push(format!(
                 "width={w} in config is below minimum (20), will use 20"
             ));
+        }
+    }
+
+    let leaf_tab_title_env_overrides = std::env::var("LEAF_TAB_TITLE_LENGTH")
+        .is_ok_and(|v| v.parse::<i32>().is_ok_and(crate::is_valid_tab_title_length));
+    if !leaf_tab_title_env_overrides {
+        if let Some(n) = config.tab_title_length {
+            if (0..20).contains(&n) {
+                warnings.push("tab-title-length is invalid, no truncation applied".to_string());
+            }
         }
     }
 

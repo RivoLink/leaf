@@ -9,11 +9,15 @@ use std::{
     time::Duration,
 };
 
-const GITHUB_API_BASE: &str = "https://api.github.com/repos/RivoLink/leaf";
-const GITHUB_API_BASE_FALLBACK: &str = "https://api.github.com/repos/leaf-mg/leaf";
-const GITHUB_API_RELEASES_LATEST_PATH: &str = "/releases/latest";
+const REPOS: &[&str] = &["RivoLink/leaf", "leaf-mg/leaf"];
 const CHECKSUMS_ASSET_NAME: &str = "checksums.txt";
 const HTTP_TIMEOUT: Duration = Duration::from_secs(20);
+
+#[cfg(windows)]
+const INSTALLER_NAME: &str = "install.ps1";
+
+#[cfg(not(windows))]
+const INSTALLER_NAME: &str = "install.sh";
 
 #[derive(Debug, Deserialize)]
 struct GithubRelease {
@@ -32,7 +36,7 @@ pub(crate) fn run_update() -> Result<()> {
 
     let current_version = env!("CARGO_PKG_VERSION");
     let asset_name = current_asset_name()?;
-    let release = fetch_latest_release()?;
+    let release = fetch_latest_release(asset_name)?;
     let latest_version = normalize_version_tag(&release.tag_name);
 
     if !is_newer_version(current_version, latest_version)? {
@@ -88,18 +92,35 @@ pub(crate) fn asset_name_for_target(os: &str, arch: &str) -> Option<&'static str
     }
 }
 
-fn fetch_latest_release() -> Result<GithubRelease> {
-    match fetch_release_from(GITHUB_API_BASE) {
-        Ok(release) => Ok(release),
-        Err(_) => fetch_release_from(GITHUB_API_BASE_FALLBACK),
+fn fetch_latest_release(asset_name: &str) -> Result<GithubRelease> {
+    let mut last_err: Option<anyhow::Error> = None;
+
+    for repo in REPOS {
+        match fetch_release_from_api(repo) {
+            Ok(release) => return Ok(release),
+            Err(err) => last_err = Some(err),
+        }
     }
+    for repo in REPOS {
+        match fetch_release_from_redirect(repo, asset_name) {
+            Ok(release) => return Ok(release),
+            Err(err) => last_err = Some(err),
+        }
+    }
+
+    let last = last_err.unwrap_or_else(|| anyhow::anyhow!("Unable to fetch latest leaf release"));
+    Err(last.context(format!(
+        "All GitHub sources failed. Try reinstalling via {INSTALLER_NAME}."
+    )))
 }
 
-fn fetch_release_from(base_url: &str) -> Result<GithubRelease> {
+fn fetch_release_from_api(repo: &str) -> Result<GithubRelease> {
     let client = http_client()?;
 
     let response = client
-        .get(format!("{base_url}{GITHUB_API_RELEASES_LATEST_PATH}"))
+        .get(format!(
+            "https://api.github.com/repos/{repo}/releases/latest"
+        ))
         .header(reqwest::header::USER_AGENT, "leaf-updater")
         .send()
         .context("Cannot reach GitHub releases API")?;
@@ -118,6 +139,59 @@ fn fetch_release_from(base_url: &str) -> Result<GithubRelease> {
     response
         .json::<GithubRelease>()
         .context("Cannot parse GitHub release metadata")
+}
+
+fn fetch_release_from_redirect(repo: &str, asset_name: &str) -> Result<GithubRelease> {
+    let client = http_client_no_redirect()?;
+
+    let response = client
+        .head(format!("https://github.com/{repo}/releases/latest"))
+        .header(reqwest::header::USER_AGENT, "leaf-updater")
+        .send()
+        .context("Cannot reach GitHub releases page")?;
+
+    let status = response.status();
+    if !status.is_redirection() {
+        bail!("GitHub releases page returned unexpected HTTP {status}");
+    }
+
+    let location = response
+        .headers()
+        .get(reqwest::header::LOCATION)
+        .and_then(|v| v.to_str().ok())
+        .ok_or_else(|| anyhow::anyhow!("GitHub releases redirect missing Location header"))?;
+
+    let tag_name = extract_tag_from_release_url(location)?.to_string();
+    let assets = build_synthetic_assets(repo, &tag_name, asset_name);
+
+    Ok(GithubRelease { tag_name, assets })
+}
+
+pub(crate) fn extract_tag_from_release_url(url: &str) -> Result<&str> {
+    let marker = "/releases/tag/";
+    let idx = url
+        .rfind(marker)
+        .ok_or_else(|| anyhow::anyhow!("Release URL missing /releases/tag/ segment: {url}"))?;
+    let tail = &url[idx + marker.len()..];
+    let tag = tail.split(['/', '?', '#']).next().unwrap_or("");
+    if tag.is_empty() {
+        bail!("Release URL contains an empty tag: {url}");
+    }
+    Ok(tag)
+}
+
+pub(crate) fn build_download_url(repo: &str, tag: &str, asset_name: &str) -> String {
+    format!("https://github.com/{repo}/releases/download/{tag}/{asset_name}")
+}
+
+fn build_synthetic_assets(repo: &str, tag: &str, asset_name: &str) -> Vec<GithubAsset> {
+    [asset_name, CHECKSUMS_ASSET_NAME]
+        .into_iter()
+        .map(|name| GithubAsset {
+            name: name.to_string(),
+            browser_download_url: build_download_url(repo, tag, name),
+        })
+        .collect()
 }
 
 pub(crate) fn expected_asset_download_url<'a>(
@@ -200,6 +274,15 @@ fn download_text_asset(url: &str) -> Result<String> {
 fn http_client() -> Result<Client> {
     let client = Client::builder()
         .timeout(HTTP_TIMEOUT)
+        .build()
+        .context("Cannot initialize HTTP client")?;
+    Ok(client)
+}
+
+fn http_client_no_redirect() -> Result<Client> {
+    let client = Client::builder()
+        .timeout(HTTP_TIMEOUT)
+        .redirect(reqwest::redirect::Policy::none())
         .build()
         .context("Cannot initialize HTTP client")?;
     Ok(client)

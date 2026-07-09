@@ -56,8 +56,9 @@ pub(crate) use theme::{
 };
 #[cfg(test)]
 pub(crate) use update::{
-    asset_name_for_target, expected_asset_download_url, find_expected_checksum, is_newer_version,
-    validate_download_size, validate_sha256_hex,
+    asset_name_for_target, build_download_url, expected_asset_download_url,
+    extract_tag_from_release_url, find_expected_checksum, is_newer_version, validate_download_size,
+    validate_sha256_hex,
 };
 
 fn read_stdin_limited<R: Read>(reader: &mut R, max_bytes: usize) -> Result<String> {

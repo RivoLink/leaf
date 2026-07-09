@@ -114,3 +114,24 @@ fn validate_sha256_hex_accepts_expected_format() {
     )
     .is_ok());
 }
+
+#[test]
+fn extract_tag_from_release_url_reads_last_segment() {
+    let url = "https://github.com/RivoLink/leaf/releases/tag/v1.26.0";
+    assert_eq!(extract_tag_from_release_url(url).unwrap(), "v1.26.0");
+}
+
+#[test]
+fn extract_tag_from_release_url_rejects_missing_segment() {
+    let err = extract_tag_from_release_url("https://github.com/RivoLink/leaf").unwrap_err();
+    assert!(err.to_string().contains("missing /releases/tag/"));
+}
+
+#[test]
+fn build_download_url_composes_release_asset_path() {
+    let url = build_download_url("RivoLink/leaf", "v1.26.0", "leaf-linux-x86_64");
+    assert_eq!(
+        url,
+        "https://github.com/RivoLink/leaf/releases/download/v1.26.0/leaf-linux-x86_64"
+    );
+}

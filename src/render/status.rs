@@ -162,7 +162,8 @@ pub(crate) fn status_goto_line_section(app: &App) -> Option<Vec<Span<'static>>> 
                 .fg(theme.ui.status_error_fg)
                 .bg(theme.ui.status_error_bg),
         )
-    } else if let Some(target) = app.goto_line_target() {
+    } else {
+        let target = app.goto_line_target()?;
         let logical = app.line_number_at(target);
         Span::styled(
             format!(" :{} ", logical),
@@ -170,8 +171,6 @@ pub(crate) fn status_goto_line_section(app: &App) -> Option<Vec<Span<'static>>> 
                 .fg(theme.ui.status_success_fg)
                 .bg(theme.ui.status_success_bg),
         )
-    } else {
-        return None;
     };
     Some(vec![span])
 }

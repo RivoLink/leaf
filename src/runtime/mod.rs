@@ -86,6 +86,7 @@ pub(crate) fn run(
     const PICKER_LOAD_POLL_INTERVAL: Duration = Duration::from_millis(50);
     let mut needs_redraw = !initial_draw_done;
     let mut pending_resize: Option<Instant> = None;
+    let mut last_title_filename: Option<String> = app.title_filename().map(str::to_string);
     sync_render_width(terminal, app, ss, themes)?;
 
     loop {
@@ -95,6 +96,15 @@ pub(crate) fn run(
         }
         if app.poll_picker_loading() {
             needs_redraw = true;
+        }
+
+        let current_title_filename = app.title_filename();
+        if current_title_filename != last_title_filename.as_deref() {
+            crate::terminal::set_tab_title(
+                current_title_filename,
+                app.tab_title_max_filename_len(),
+            );
+            last_title_filename = current_title_filename.map(str::to_string);
         }
 
         if needs_redraw {

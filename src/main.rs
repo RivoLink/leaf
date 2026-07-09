@@ -107,6 +107,31 @@ fn resolve_code_line_numbers(config_value: Option<bool>) -> bool {
     config_value.unwrap_or(true)
 }
 
+const LEAF_TAB_PREFIX_LEN: usize = 6;
+
+pub(crate) fn is_valid_tab_title_length(n: i32) -> bool {
+    n == -1 || n >= 20
+}
+
+fn resolve_tab_title_max_filename_len(config_value: Option<i32>) -> Option<usize> {
+    if let Ok(val) = std::env::var("LEAF_TAB_TITLE_LENGTH") {
+        if let Ok(n) = val.parse::<i32>() {
+            if is_valid_tab_title_length(n) {
+                return tab_title_n_to_max_filename_len(n);
+            }
+        }
+    }
+    tab_title_n_to_max_filename_len(config_value.unwrap_or(-1))
+}
+
+pub(crate) fn tab_title_n_to_max_filename_len(n: i32) -> Option<usize> {
+    if n >= 20 {
+        Some((n as usize).saturating_sub(LEAF_TAB_PREFIX_LEN))
+    } else {
+        None
+    }
+}
+
 fn append_config_warning(warning: &mut Option<String>, next: Option<String>) {
     let Some(next) = next else {
         return;
@@ -188,6 +213,8 @@ fn main() -> Result<()> {
     let watch_from_config = user_config.watch.unwrap_or(false);
     let max_width = resolve_configured_width(cli_width, user_config.width);
     let code_line_numbers = resolve_code_line_numbers(user_config.code_line_numbers);
+    let tab_title_max_filename_len =
+        resolve_tab_title_max_filename_len(user_config.tab_title_length);
 
     if let Some(ref mut spec) = inline_spec {
         if spec.width.is_none() {
@@ -363,6 +390,7 @@ fn main() -> Result<()> {
     app.set_last_content_hash(last_content_hash);
     app.set_watch_from_config(watch_from_config);
     app.set_max_width(max_width);
+    app.set_tab_title_max_filename_len(tab_title_max_filename_len);
     app.set_extras(user_config.extras);
     app.set_file_mode(file_mode);
     app.set_editor_config(Some(resolved_editor));
@@ -387,8 +415,7 @@ fn main() -> Result<()> {
     );
 
     let mut stdout = io::stdout();
-    print!("\x1b]0;leaf\x07");
-    let _ = io::stdout().flush();
+    terminal::set_tab_title(app.title_filename(), app.tab_title_max_filename_len());
     runtime::debug_log(debug_input, "terminal enter start");
     let mut session = TerminalSession::enter(&mut stdout)?;
     runtime::debug_log(debug_input, "terminal enter done");

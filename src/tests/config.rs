@@ -181,6 +181,54 @@ heading_1 = "#fabd2f"
 }
 
 #[test]
+fn tab_title_n_to_max_filename_len_returns_none_for_disabled() {
+    assert_eq!(tab_title_n_to_max_filename_len(-1), None);
+    assert_eq!(tab_title_n_to_max_filename_len(-42), None);
+    assert_eq!(tab_title_n_to_max_filename_len(0), None);
+    assert_eq!(tab_title_n_to_max_filename_len(19), None);
+}
+
+#[test]
+fn tab_title_n_to_max_filename_len_subtracts_prefix_when_valid() {
+    assert_eq!(tab_title_n_to_max_filename_len(20), Some(14));
+    assert_eq!(tab_title_n_to_max_filename_len(21), Some(15));
+    assert_eq!(tab_title_n_to_max_filename_len(50), Some(44));
+}
+
+#[test]
+fn parse_tab_title_length_valid_int() {
+    let toml = r#"tab-title-length = -1"#;
+    let config: LeafConfig = toml::from_str(toml).unwrap();
+    assert_eq!(config.tab_title_length, Some(-1));
+
+    let toml = r#"tab-title-length = 30"#;
+    let config: LeafConfig = toml::from_str(toml).unwrap();
+    assert_eq!(config.tab_title_length, Some(30));
+}
+
+#[test]
+fn parse_tab_title_length_string_falls_back_silently() {
+    let toml = r#"
+theme = "forest"
+tab-title-length = "abc"
+"#;
+    let config: LeafConfig = toml::from_str(toml).unwrap();
+    assert_eq!(config.tab_title_length, None);
+    assert_eq!(config.theme.as_deref(), Some("forest"));
+}
+
+#[test]
+fn parse_tab_title_length_bool_falls_back_silently() {
+    let toml = r#"
+theme = "arctic"
+tab-title-length = true
+"#;
+    let config: LeafConfig = toml::from_str(toml).unwrap();
+    assert_eq!(config.tab_title_length, None);
+    assert_eq!(config.theme.as_deref(), Some("arctic"));
+}
+
+#[test]
 fn config_path_returns_some() {
     let path = config_path();
     assert!(path.is_some());

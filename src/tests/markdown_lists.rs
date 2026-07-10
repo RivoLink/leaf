@@ -278,3 +278,34 @@ fn code_block_inside_list_item_is_indented_and_has_no_blank_gap_before() {
     assert!(rendered[header_idx].starts_with("  "));
     assert!(rendered[code_idx].starts_with("  "));
 }
+
+#[test]
+fn code_block_after_continuation_line_in_tight_list_item_renders_below_it() {
+    let (ss, theme) = test_assets();
+    let md = "- one\n  two\n  ```\n  three\n  ```\n";
+    let (lines, _, _, _) = parse_markdown(md, &ss, &theme, &test_md_theme(), false, true).into();
+    let rendered = rendered_non_empty_lines(&lines);
+
+    let one_idx = rendered
+        .iter()
+        .position(|line| line.contains("one"))
+        .expect("missing first list line");
+    let two_idx = rendered
+        .iter()
+        .position(|line| line.contains("two"))
+        .expect("missing continuation line");
+    let three_idx = rendered
+        .iter()
+        .position(|line| line.contains("three"))
+        .expect("missing code line");
+
+    assert!(
+        one_idx < two_idx && two_idx < three_idx,
+        "expected code block below continuation line, got one={one_idx}, two={two_idx}, three={three_idx}"
+    );
+    assert_eq!(
+        two_idx,
+        one_idx + 1,
+        "expected continuation line directly after first line"
+    );
+}

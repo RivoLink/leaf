@@ -405,6 +405,19 @@ pub(crate) fn parse_markdown_with_width(
                 last_block = LastBlock::Paragraph;
             }
             MdEvent::Start(Tag::CodeBlock(kind)) => {
+                if !spans.is_empty() {
+                    flush_wrapped_spans(
+                        &mut lines,
+                        &mut spans,
+                        blockquote_depth,
+                        &list_stack,
+                        &mut item_stack,
+                        render_width,
+                        theme_colors,
+                        blockquote_color,
+                    );
+                    wraps = true;
+                }
                 start_code_block(
                     &mut lines,
                     last_block,

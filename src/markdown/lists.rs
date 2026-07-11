@@ -25,58 +25,71 @@ pub(super) struct ItemState {
     pub(super) marker_emitted: bool,
     pub(super) continuation_indent: usize,
     pub(super) checkbox: Option<bool>,
+    pub(super) opened_at_bq_depth: usize,
 }
 
 pub(super) fn list_item_prefix(
-    in_bq: bool,
+    blockquote_depth: usize,
     list_stack: &[ListKind],
     item_stack: &mut [ItemState],
     theme: &MarkdownTheme,
     marker_color: Option<ratatui::style::Color>,
 ) -> Vec<Span<'static>> {
-    let mut prefix = block_prefix(in_bq, theme, marker_color);
+    let in_bq = blockquote_depth > 0;
     let Some(item) = item_stack.last_mut() else {
-        return prefix;
+        return block_prefix(in_bq, theme, marker_color);
     };
+
+    let bq_is_outer = in_bq && blockquote_depth == item.opened_at_bq_depth;
+
+    let mut prefix = Vec::new();
+
+    if bq_is_outer {
+        prefix.extend(block_prefix(in_bq, theme, marker_color));
+    }
 
     if item.marker_emitted {
         prefix.push(Span::raw(" ".repeat(item.continuation_indent)));
-        return prefix;
+    } else {
+        let depth = list_stack.len();
+        prefix.push(Span::raw("  ".repeat(depth.saturating_sub(1))));
+
+        let marker: Cow<'static, str> = match item.checkbox {
+            // Avoids U+2611 emoji rendering on Windows.
+            Some(true) if cfg!(target_os = "windows") => TASK_CHECKED_ALT.into(),
+            Some(true) => TASK_CHECKED.into(),
+            Some(false) => TASK_UNCHECKED.into(),
+            None => match list_stack.last().copied().unwrap_or(ListKind::Unordered) {
+                ListKind::Unordered => match depth {
+                    1 => "• ".into(),
+                    2 => "◦ ".into(),
+                    _ => "▸ ".into(),
+                },
+                ListKind::Ordered(n) => format!("{n}. ").into(),
+            },
+        };
+        item.continuation_indent = 2 * depth.saturating_sub(1) + display_width(&marker);
+        item.marker_emitted = true;
+
+        let marker_style = match item.checkbox {
+            Some(true) => Style::default().fg(theme.task_checked),
+            Some(false) => Style::default().fg(theme.task_unchecked),
+            None => match list_stack.last().copied().unwrap_or(ListKind::Unordered) {
+                ListKind::Unordered => match depth {
+                    1 => Style::default().fg(theme.list_level_1),
+                    2 => Style::default().fg(theme.list_level_2),
+                    _ => Style::default().fg(theme.list_level_3),
+                },
+                ListKind::Ordered(_) => Style::default().fg(theme.ordered_list),
+            },
+        };
+        prefix.push(Span::styled(marker, marker_style));
     }
 
-    let depth = list_stack.len();
-    prefix.push(Span::raw("  ".repeat(depth.saturating_sub(1))));
+    if in_bq && !bq_is_outer {
+        prefix.extend(block_prefix(in_bq, theme, marker_color));
+    }
 
-    let marker: Cow<'static, str> = match item.checkbox {
-        // Avoids U+2611 emoji rendering on Windows.
-        Some(true) if cfg!(target_os = "windows") => TASK_CHECKED_ALT.into(),
-        Some(true) => TASK_CHECKED.into(),
-        Some(false) => TASK_UNCHECKED.into(),
-        None => match list_stack.last().copied().unwrap_or(ListKind::Unordered) {
-            ListKind::Unordered => match depth {
-                1 => "• ".into(),
-                2 => "◦ ".into(),
-                _ => "▸ ".into(),
-            },
-            ListKind::Ordered(n) => format!("{n}. ").into(),
-        },
-    };
-    item.continuation_indent = "  ".repeat(depth.saturating_sub(1)).len() + display_width(&marker);
-    item.marker_emitted = true;
-
-    let marker_style = match item.checkbox {
-        Some(true) => Style::default().fg(theme.task_checked),
-        Some(false) => Style::default().fg(theme.task_unchecked),
-        None => match list_stack.last().copied().unwrap_or(ListKind::Unordered) {
-            ListKind::Unordered => match depth {
-                1 => Style::default().fg(theme.list_level_1),
-                2 => Style::default().fg(theme.list_level_2),
-                _ => Style::default().fg(theme.list_level_3),
-            },
-            ListKind::Ordered(_) => Style::default().fg(theme.ordered_list),
-        },
-    };
-    prefix.push(Span::styled(marker, marker_style));
     prefix
 }
 
@@ -96,14 +109,14 @@ pub(super) fn flush_list_item_spans(
     }
 
     let first_prefix = list_item_prefix(
-        blockquote_depth > 0,
+        blockquote_depth,
         list_stack,
         item_stack,
         theme,
         marker_color,
     );
     let continuation_prefix = list_item_prefix(
-        blockquote_depth > 0,
+        blockquote_depth,
         list_stack,
         item_stack,
         theme,
@@ -138,11 +151,12 @@ pub(super) fn end_list(lines: &mut Vec<Line<'static>>, list_stack: &mut Vec<List
     }
 }
 
-pub(super) fn start_item(item_stack: &mut Vec<ItemState>) {
+pub(super) fn start_item(item_stack: &mut Vec<ItemState>, blockquote_depth: usize) {
     item_stack.push(ItemState {
         marker_emitted: false,
         continuation_indent: 0,
         checkbox: None,
+        opened_at_bq_depth: blockquote_depth,
     });
 }
 

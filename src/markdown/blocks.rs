@@ -59,14 +59,14 @@ pub(super) fn flush_wrapped_spans(
         push_wrapped_blockquote_lines(lines, spans, render_width, theme, marker_color);
     } else if !item_stack.is_empty() {
         let first_prefix = list_item_prefix(
-            blockquote_depth > 0,
+            blockquote_depth,
             list_stack,
             item_stack,
             theme,
             marker_color,
         );
         let continuation_prefix = list_item_prefix(
-            blockquote_depth > 0,
+            blockquote_depth,
             list_stack,
             item_stack,
             theme,
@@ -177,7 +177,7 @@ pub(super) fn push_code_block_lines(
 ) -> BlockLayout {
     let prefix = if !item_stack.is_empty() {
         list_item_prefix(
-            ctx.blockquote_depth > 0,
+            ctx.blockquote_depth,
             ctx.list_stack,
             item_stack,
             ctx.theme_colors,
@@ -310,7 +310,7 @@ pub(super) fn push_special_block_lines<F: Fn(&str) -> Vec<Span<'static>>>(
     let show_line_numbers = ctx.show_line_numbers;
     let center = ctx.center;
     let prefix = if !item_stack.is_empty() {
-        list_item_prefix(blockquote_depth > 0, list_stack, item_stack, theme, None)
+        list_item_prefix(blockquote_depth, list_stack, item_stack, theme, None)
     } else if blockquote_depth > 0 {
         block_prefix(true, theme, None)
     } else {

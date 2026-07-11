@@ -46,7 +46,8 @@ use blocks::{
 use fences::normalize_code_fences;
 use links::build_link_spans;
 use lists::{
-    end_item, end_list, flush_list_item_spans, start_item, start_list, ItemState, ListKind,
+    end_item, end_list, flush_list_item_spans, list_item_prefix, start_item, start_list, ItemState,
+    ListKind,
 };
 #[cfg(test)]
 pub(crate) use lists::{TASK_CHECKED, TASK_CHECKED_ALT, TASK_UNCHECKED};
@@ -542,13 +543,18 @@ pub(crate) fn parse_markdown_with_width(
                     let color = alert_color(k, theme_colors);
                     blockquote_color = Some(color);
                     let (icon, label) = alert_icon_label(k);
-                    lines.push(Line::from(vec![
-                        Span::styled("▏ ", Style::default().fg(color)),
-                        Span::styled(
-                            format!("{icon} {label}"),
-                            Style::default().fg(color).add_modifier(Modifier::BOLD),
-                        ),
-                    ]));
+                    let mut header = list_item_prefix(
+                        blockquote_depth,
+                        &list_stack,
+                        &mut item_stack,
+                        theme_colors,
+                        blockquote_color,
+                    );
+                    header.push(Span::styled(
+                        format!("{icon} {label}"),
+                        Style::default().fg(color).add_modifier(Modifier::BOLD),
+                    ));
+                    lines.push(Line::from(header));
                 }
             }
             MdEvent::End(TagEnd::BlockQuote(_)) => {
@@ -584,7 +590,7 @@ pub(crate) fn parse_markdown_with_width(
                 last_block = LastBlock::Other;
             }
             MdEvent::Start(Tag::Item) => {
-                start_item(&mut item_stack);
+                start_item(&mut item_stack, blockquote_depth);
             }
             MdEvent::End(TagEnd::Item) => {
                 end_item(

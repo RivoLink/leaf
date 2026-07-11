@@ -159,6 +159,33 @@ fn end_paragraph(
     lines.push(Line::from(""));
 }
 
+#[allow(clippy::too_many_arguments)]
+fn flush_pending_inline_if_any(
+    lines: &mut Vec<Line<'static>>,
+    spans: &mut Vec<Span<'static>>,
+    blockquote_depth: usize,
+    list_stack: &[ListKind],
+    item_stack: &mut [ItemState],
+    render_width: usize,
+    theme: &MarkdownTheme,
+    marker_color: Option<Color>,
+) -> bool {
+    if spans.is_empty() {
+        return false;
+    }
+    flush_wrapped_spans(
+        lines,
+        spans,
+        blockquote_depth,
+        list_stack,
+        item_stack,
+        render_width,
+        theme,
+        marker_color,
+    );
+    true
+}
+
 fn end_blockquote(
     lines: &mut Vec<Line<'static>>,
     spans: &mut Vec<Span<'static>>,
@@ -405,17 +432,16 @@ pub(crate) fn parse_markdown_with_width(
                 last_block = LastBlock::Paragraph;
             }
             MdEvent::Start(Tag::CodeBlock(kind)) => {
-                if !spans.is_empty() {
-                    flush_wrapped_spans(
-                        &mut lines,
-                        &mut spans,
-                        blockquote_depth,
-                        &list_stack,
-                        &mut item_stack,
-                        render_width,
-                        theme_colors,
-                        blockquote_color,
-                    );
+                if flush_pending_inline_if_any(
+                    &mut lines,
+                    &mut spans,
+                    blockquote_depth,
+                    &list_stack,
+                    &mut item_stack,
+                    render_width,
+                    theme_colors,
+                    blockquote_color,
+                ) {
                     wraps = true;
                 }
                 start_code_block(
@@ -499,6 +525,18 @@ pub(crate) fn parse_markdown_with_width(
                 push_inline_code_span(&mut spans, text.as_ref(), theme_colors);
             }
             MdEvent::Start(Tag::BlockQuote(kind)) => {
+                if flush_pending_inline_if_any(
+                    &mut lines,
+                    &mut spans,
+                    blockquote_depth,
+                    &list_stack,
+                    &mut item_stack,
+                    render_width,
+                    theme_colors,
+                    blockquote_color,
+                ) {
+                    wraps = true;
+                }
                 blockquote_depth += 1;
                 if let Some(k) = kind {
                     let color = alert_color(k, theme_colors);

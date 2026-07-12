@@ -220,7 +220,7 @@ fn make_app_with_overflowing_toc() -> App {
 #[test]
 fn toc_scroll_mode_default_is_auto() {
     let app = make_app_with_toc(10, 15, toc(&[(2, 0)]));
-    assert_eq!(app.toc_scroll_mode(), TocScrollMode::Auto);
+    assert_eq!(app.toc_scroll_mode(), TocScrollMode::Auto(0));
     assert!(!app.is_toc_scroll_hint_dismissed());
 }
 
@@ -279,7 +279,7 @@ fn content_scroll_resets_toc_scroll_mode_to_auto() {
     app.scroll_toc_down(5);
     assert!(matches!(app.toc_scroll_mode(), TocScrollMode::Manual(_)));
     app.scroll_down(1);
-    assert_eq!(app.toc_scroll_mode(), TocScrollMode::Auto);
+    assert!(matches!(app.toc_scroll_mode(), TocScrollMode::Auto(_)));
 }
 
 #[test]

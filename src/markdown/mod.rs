@@ -39,9 +39,10 @@ use std::{
 use toc::{normalize_toc, TocEntry};
 
 use blocks::{
-    flush_wrapped_spans, push_code_block_lines, push_heading_lines, push_latex_block_lines,
-    push_mermaid_block_lines, push_rule_line, trim_paragraph_gap_before_block, BlockLayout,
-    CodeBlockRenderContext, EmbeddedBlockCtx, CODE_BLOCK_GUTTER,
+    block_prefix, flush_wrapped_spans, pop_trailing_blockquote_gap, push_code_block_lines,
+    push_heading_lines, push_latex_block_lines, push_mermaid_block_lines, push_rule_line,
+    trim_paragraph_gap_before_block, BlockLayout, CodeBlockRenderContext, EmbeddedBlockCtx,
+    CODE_BLOCK_GUTTER,
 };
 use fences::normalize_code_fences;
 use links::build_link_spans;
@@ -63,6 +64,7 @@ const LINK_MARKER: &str = "#";
 enum LastBlock {
     Other,
     Paragraph,
+    Blockquote,
 }
 
 pub(crate) fn hash_str(text: &str) -> u64 {
@@ -157,7 +159,22 @@ fn end_paragraph(
         theme,
         marker_color,
     );
-    lines.push(Line::from(""));
+    let gap = if blockquote_depth > 0 {
+        if !item_stack.is_empty() {
+            Line::from(list_item_prefix(
+                blockquote_depth,
+                list_stack,
+                item_stack,
+                theme,
+                marker_color,
+            ))
+        } else {
+            Line::from(block_prefix(blockquote_depth, theme, marker_color))
+        }
+    } else {
+        Line::from("")
+    };
+    lines.push(gap);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -195,13 +212,21 @@ fn end_blockquote(
     marker_color: Option<Color>,
 ) {
     if !spans.is_empty() {
-        let color = marker_color.unwrap_or(theme.blockquote_marker);
-        let mut all = vec![Span::styled("▏ ", Style::default().fg(color))];
+        let mut all = block_prefix(*blockquote_depth, theme, marker_color);
         all.append(spans);
         lines.push(Line::from(all));
     }
+    pop_trailing_blockquote_gap(lines);
     *blockquote_depth = blockquote_depth.saturating_sub(1);
-    lines.push(Line::from(""));
+    if *blockquote_depth == 0 {
+        lines.push(Line::from(""));
+    } else {
+        lines.push(Line::from(block_prefix(
+            *blockquote_depth,
+            theme,
+            marker_color,
+        )));
+    }
 }
 
 fn alert_icon_label(kind: BlockQuoteKind) -> (&'static str, &'static str) {
@@ -364,6 +389,7 @@ pub(crate) fn parse_markdown_with_width(
     let mut last_block = LastBlock::Other;
     let mut link_urls: Vec<String> = Vec::new();
     let mut blockquote_color: Option<Color> = None;
+    let mut prev_event_end: usize = 0;
 
     let normalized = normalize_code_fences(src);
     let line_starts = compute_line_starts(&normalized);
@@ -385,6 +411,7 @@ pub(crate) fn parse_markdown_with_width(
             } else {
                 state.mark_all_new(lines.len());
             }
+            prev_event_end = range.end;
             continue;
         }
         if handle_inline_style_event(
@@ -395,6 +422,7 @@ pub(crate) fn parse_markdown_with_width(
             blockquote_depth,
             &mut link_urls,
         ) {
+            prev_event_end = range.end;
             continue;
         }
 
@@ -538,6 +566,21 @@ pub(crate) fn parse_markdown_with_width(
                 ) {
                     wraps = true;
                 }
+                let source_between = normalized.get(prev_event_end..range.start).unwrap_or("");
+                let has_explicit_gap = source_between.split_inclusive('\n').any(|line| {
+                    if !line.ends_with('\n') {
+                        return false;
+                    }
+                    let content = line.trim_end_matches('\n').trim_start();
+                    content.starts_with('>')
+                        && content.get(1..).is_none_or(|rest| rest.trim().is_empty())
+                });
+                if last_block == LastBlock::Paragraph
+                    && (!item_stack.is_empty() || blockquote_depth > 0)
+                    && !has_explicit_gap
+                {
+                    trim_paragraph_gap_before_block(&mut lines, last_block);
+                }
                 blockquote_depth += 1;
                 if let Some(k) = kind {
                     let color = alert_color(k, theme_colors);
@@ -566,7 +609,7 @@ pub(crate) fn parse_markdown_with_width(
                     blockquote_color.take(),
                 );
                 wraps = true;
-                last_block = LastBlock::Other;
+                last_block = LastBlock::Blockquote;
             }
             MdEvent::Start(Tag::List(start)) => {
                 if !item_stack.is_empty() && !spans.is_empty() {
@@ -680,6 +723,7 @@ pub(crate) fn parse_markdown_with_width(
         } else {
             state.mark_all_new(lines.len());
         }
+        prev_event_end = range.end;
     }
 
     if !spans.is_empty() {

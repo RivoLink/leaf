@@ -1,5 +1,50 @@
 use super::{rendered_non_empty_lines, test_assets, test_md_theme};
+use crate::line_plain_text;
 use crate::markdown::{parse_markdown, parse_markdown_with_width};
+
+#[test]
+fn code_block_after_blockquote_in_list_item_has_no_blank_gap_before() {
+    let (ss, theme) = test_assets();
+    let src = "- header\n  > quote first\n  ```\n  code after quote\n  ```\n";
+    let (lines, _, _, _) = parse_markdown(src, &ss, &theme, &test_md_theme(), false, true).into();
+    let rendered: Vec<String> = lines.iter().map(line_plain_text).collect();
+
+    let quote_idx = rendered
+        .iter()
+        .position(|l| l == "  ▏ quote first")
+        .expect("missing blockquote line");
+    let header_idx = rendered
+        .iter()
+        .position(|l| l.contains("┌─"))
+        .expect("missing code block header");
+    assert_eq!(
+        header_idx,
+        quote_idx + 1,
+        "expected code block header directly after blockquote line, got {rendered:?}"
+    );
+}
+
+#[test]
+fn blockquote_after_list_item_paragraph_has_no_blank_gap_before() {
+    let (ss, theme) = test_assets();
+    let src = "1. first item\n   > quote\n\n2. second item\n   > another quote\n";
+    let (lines, _, _, _) = parse_markdown(src, &ss, &theme, &test_md_theme(), false, true).into();
+    let rendered: Vec<String> = lines.iter().map(line_plain_text).collect();
+
+    let first_idx = rendered
+        .iter()
+        .position(|l| l == "1. first item")
+        .expect("missing '1. first item'");
+    let quote_idx = rendered
+        .iter()
+        .position(|l| l == "   ▏ quote")
+        .expect("missing blockquote line");
+    assert_eq!(
+        quote_idx,
+        first_idx + 1,
+        "expected blockquote directly under the item content, got {rendered:?}"
+    );
+}
 
 #[test]
 fn code_block_in_list_item_has_same_layout_loose_and_tight() {
@@ -271,15 +316,33 @@ fn nested_blockquote_in_list_item_uses_list_indent() {
         deep_line.contains("• "),
         "list marker should be present on the item opening: {deep_line:?}"
     );
-    assert!(
-        deep_line.contains('▏'),
-        "blockquote marker should be present: {deep_line:?}"
+    let markers = deep_line.matches('▏').count();
+    assert_eq!(
+        markers, 2,
+        "expected 2 blockquote markers for depth 2, got {deep_line:?}"
     );
     let bullet_idx = deep_line.find("• ").unwrap();
     let bar_idx = deep_line.find('▏').unwrap();
     assert!(
         bullet_idx < bar_idx,
-        "list marker should come before blockquote marker: {deep_line:?}"
+        "list marker should come before blockquote markers: {deep_line:?}"
+    );
+}
+
+#[test]
+fn nested_blockquote_inside_list_item_uses_depth_markers() {
+    let (ss, theme) = test_assets();
+    let md = "- > > deep\n";
+    let (lines, _, _, _) = parse_markdown(md, &ss, &theme, &test_md_theme(), false, true).into();
+    let rendered = rendered_non_empty_lines(&lines);
+    let deep_line = rendered
+        .iter()
+        .find(|line| line.contains("deep"))
+        .expect("missing deep line");
+
+    assert!(
+        deep_line.contains("▏ ▏ "),
+        "expected two blockquote markers in the prefix: {deep_line:?}"
     );
 }
 

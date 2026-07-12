@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- next-version -->
 
+## [[1.26.1](https://github.com/RivoLink/leaf/releases/tag/1.26.1)] - 2026-07-12
+
+### Fixed
+
+- toc sticky auto-scroll ([#212](https://github.com/RivoLink/leaf/pull/212))
+- blockquote depth markers ([#211](https://github.com/RivoLink/leaf/pull/211))
+- blockquote indent in list ([#210](https://github.com/RivoLink/leaf/pull/210))
+- tight list flush blocks ([#209](https://github.com/RivoLink/leaf/pull/209))
+- tight list code-block ([#208](https://github.com/RivoLink/leaf/pull/208))
+
+### Changed
+
+- self-update fallback url ([#207](https://github.com/RivoLink/leaf/pull/207))
+- terminal tab title filename ([#206](https://github.com/RivoLink/leaf/pull/206))
+
 ## [[1.26.0](https://github.com/RivoLink/leaf/releases/tag/1.26.0)] - 2026-07-04
 
 ### Added

@@ -21,26 +21,47 @@ pub(super) struct BlockLayout {
 }
 
 pub(super) fn block_prefix(
-    in_bq: bool,
+    blockquote_depth: usize,
     theme: &MarkdownTheme,
     marker_color: Option<Color>,
 ) -> Vec<Span<'static>> {
-    if in_bq {
-        let color = marker_color.unwrap_or(theme.blockquote_marker);
-        vec![Span::styled("▏ ", Style::default().fg(color))]
-    } else {
-        vec![]
+    if blockquote_depth == 0 {
+        return vec![];
+    }
+    let default_color = theme.blockquote_marker;
+    let outer_color = marker_color.unwrap_or(default_color);
+    let outer_style = Style::default().fg(outer_color);
+    let inner_style = Style::default().fg(default_color);
+    let mut spans = Vec::with_capacity(blockquote_depth);
+    spans.push(Span::styled("▏ ", outer_style));
+    for _ in 1..blockquote_depth {
+        spans.push(Span::styled("▏ ", inner_style));
+    }
+    spans
+}
+
+fn is_blockquote_blank_text(plain: &str) -> bool {
+    !plain.is_empty() && plain.chars().all(|c| c == '▏' || c.is_whitespace())
+}
+
+pub(super) fn pop_trailing_blockquote_gap(lines: &mut Vec<Line<'static>>) {
+    if lines
+        .last()
+        .is_some_and(|line| is_blockquote_blank_text(&super::width::line_plain_text(line)))
+    {
+        lines.pop();
     }
 }
 
 pub(super) fn push_wrapped_blockquote_lines(
     lines: &mut Vec<Line<'static>>,
     body_spans: &mut Vec<Span<'static>>,
+    blockquote_depth: usize,
     render_width: usize,
     theme: &MarkdownTheme,
     marker_color: Option<Color>,
 ) {
-    let prefix = block_prefix(true, theme, marker_color);
+    let prefix = block_prefix(blockquote_depth, theme, marker_color);
     push_wrapped_prefixed_lines(lines, body_spans, prefix.clone(), prefix, render_width);
 }
 
@@ -56,7 +77,14 @@ pub(super) fn flush_wrapped_spans(
     marker_color: Option<Color>,
 ) {
     if blockquote_depth > 0 && item_stack.is_empty() {
-        push_wrapped_blockquote_lines(lines, spans, render_width, theme, marker_color);
+        push_wrapped_blockquote_lines(
+            lines,
+            spans,
+            blockquote_depth,
+            render_width,
+            theme,
+            marker_color,
+        );
     } else if !item_stack.is_empty() {
         let first_prefix = list_item_prefix(
             blockquote_depth,
@@ -88,10 +116,11 @@ pub(super) fn trim_paragraph_gap_before_block(
     lines: &mut Vec<Line<'static>>,
     last_block: LastBlock,
 ) {
-    if last_block == LastBlock::Paragraph
-        && lines
-            .last()
-            .is_some_and(|line| super::width::line_plain_text(line).is_empty())
+    if matches!(last_block, LastBlock::Paragraph | LastBlock::Blockquote)
+        && lines.last().is_some_and(|line| {
+            let plain = super::width::line_plain_text(line);
+            plain.is_empty() || is_blockquote_blank_text(&plain)
+        })
     {
         lines.pop();
     }
@@ -184,7 +213,7 @@ pub(super) fn push_code_block_lines(
             None,
         )
     } else if ctx.blockquote_depth > 0 {
-        block_prefix(true, ctx.theme_colors, None)
+        block_prefix(ctx.blockquote_depth, ctx.theme_colors, None)
     } else {
         Vec::new()
     };
@@ -312,7 +341,7 @@ pub(super) fn push_special_block_lines<F: Fn(&str) -> Vec<Span<'static>>>(
     let prefix = if !item_stack.is_empty() {
         list_item_prefix(blockquote_depth, list_stack, item_stack, theme, None)
     } else if blockquote_depth > 0 {
-        block_prefix(true, theme, None)
+        block_prefix(blockquote_depth, theme, None)
     } else {
         Vec::new()
     };

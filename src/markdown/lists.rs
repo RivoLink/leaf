@@ -37,7 +37,7 @@ pub(super) fn list_item_prefix(
 ) -> Vec<Span<'static>> {
     let in_bq = blockquote_depth > 0;
     let Some(item) = item_stack.last_mut() else {
-        return block_prefix(in_bq, theme, marker_color);
+        return block_prefix(blockquote_depth, theme, marker_color);
     };
 
     let bq_is_outer = in_bq && blockquote_depth == item.opened_at_bq_depth;
@@ -45,7 +45,7 @@ pub(super) fn list_item_prefix(
     let mut prefix = Vec::new();
 
     if bq_is_outer {
-        prefix.extend(block_prefix(in_bq, theme, marker_color));
+        prefix.extend(block_prefix(blockquote_depth, theme, marker_color));
     }
 
     if item.marker_emitted {
@@ -87,7 +87,7 @@ pub(super) fn list_item_prefix(
     }
 
     if in_bq && !bq_is_outer {
-        prefix.extend(block_prefix(in_bq, theme, marker_color));
+        prefix.extend(block_prefix(blockquote_depth, theme, marker_color));
     }
 
     prefix

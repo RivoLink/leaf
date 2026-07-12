@@ -177,31 +177,24 @@ impl App {
             .is_some_and(|area| self.toc_overflows(area.height))
     }
 
-    fn max_toc_scroll_offset(&self, list_height: u16) -> usize {
+    pub(super) fn max_toc_scroll_offset(&self, list_height: u16) -> usize {
         (self.toc_display_lines.len() + 1).saturating_sub(list_height as usize)
     }
 
     pub(crate) fn toc_scroll_offset(&self, list_height: u16) -> usize {
         let max_offset = self.max_toc_scroll_offset(list_height);
-        let list_height = list_height as usize;
-        match self.toc_scroll_mode {
-            TocScrollMode::Manual(offset) => offset.min(max_offset),
-            TocScrollMode::Auto => {
-                let Some(active_display_idx) = self.toc_active_display_idx else {
-                    return 0;
-                };
-                let mut offset = 0usize;
-                if active_display_idx + 1 >= list_height {
-                    offset = active_display_idx + 2 - list_height;
-                }
-                offset.min(max_offset)
-            }
-        }
+        self.toc_scroll_mode.offset().min(max_offset)
     }
 
     pub(crate) fn reset_toc_scroll_mode(&mut self) {
-        self.toc_scroll_mode = TocScrollMode::Auto;
+        self.toc_scroll_mode = TocScrollMode::Auto(self.toc_scroll_mode.offset());
         self.toc_active_pin = None;
+    }
+
+    pub(crate) fn clear_toc_scroll_state(&mut self) {
+        self.toc_scroll_mode = TocScrollMode::Auto(0);
+        self.toc_active_pin = None;
+        self.toc_scroll_hint_dismissed = false;
     }
 
     pub(crate) fn scroll_toc_down(&mut self, n: usize) {

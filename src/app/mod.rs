@@ -50,8 +50,16 @@ pub(crate) use theme_picker::ThemePickerState;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum TocScrollMode {
-    Auto,
+    Auto(usize),
     Manual(usize),
+}
+
+impl TocScrollMode {
+    pub(crate) fn offset(self) -> usize {
+        match self {
+            TocScrollMode::Auto(o) | TocScrollMode::Manual(o) => o,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -260,7 +268,7 @@ impl App {
             toc_active_idx: None,
             toc_active_display_idx: None,
             hovered_toc_idx: None,
-            toc_scroll_mode: TocScrollMode::Auto,
+            toc_scroll_mode: TocScrollMode::Auto(0),
             toc_scroll_hint_dismissed: false,
             toc_active_pin: None,
             status_line: Line::default(),
@@ -539,6 +547,7 @@ impl App {
     pub(crate) fn refresh_toc_cache(&mut self) {
         let active_idx = self.active_toc_index();
         if self.toc_active_idx == active_idx && !self.toc_display_lines.is_empty() {
+            self.adjust_auto_toc_offset();
             return;
         }
 
@@ -568,6 +577,30 @@ impl App {
         self.toc_display_lines = lines;
         self.toc_display_entries = entries;
         self.toc_active_display_idx = active_display_idx;
+        self.adjust_auto_toc_offset();
+    }
+
+    fn adjust_auto_toc_offset(&mut self) {
+        let TocScrollMode::Auto(current_offset) = self.toc_scroll_mode else {
+            return;
+        };
+        let (Some(active), Some(area)) = (self.toc_active_display_idx, self.toc_list_area) else {
+            return;
+        };
+        let list_height = area.height as usize;
+        if list_height == 0 {
+            return;
+        }
+        let max_offset = self.max_toc_scroll_offset(area.height);
+
+        let new_offset = if active + 1 >= current_offset + list_height {
+            (active + 2).saturating_sub(list_height)
+        } else if active <= current_offset {
+            active.saturating_sub(1)
+        } else {
+            current_offset
+        };
+        self.toc_scroll_mode = TocScrollMode::Auto(new_offset.min(max_offset));
     }
 
     pub(crate) fn refresh_status_cache(&mut self, pct: u16) {

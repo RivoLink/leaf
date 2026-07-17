@@ -111,7 +111,7 @@ pub(super) fn render_help_popup(f: &mut Frame, _app: &App) {
             Span::styled("capture", text_style),
         ]),
         Line::from(vec![
-            Span::styled("u/d        ", key_style),
+            Span::styled("u/d spc/b  ", key_style),
             Span::styled("page up/down", text_style),
             Span::raw("     "),
             Span::styled("dbl-click   ", key_style),

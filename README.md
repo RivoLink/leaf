@@ -243,8 +243,8 @@ See [`gruvbox.toml`](gruvbox.toml) for a complete example with all available col
 |---|---|---|---|
 | `j` / `↓` | Scroll down | `?` | Show help popup |
 | `k` / `↑` | Scroll up | `t` | Toggle TOC sidebar |
-| `d` / PgDn | Page down (20 lines) | `Shift+L` | Toggle line numbers |
-| `u` / PgUp | Page up (20 lines) | `Shift+T` | Open theme picker |
+| `d` / `Space` / PgDn | Page down (20 lines) | `Shift+L` | Toggle line numbers |
+| `u` / `b` / PgUp | Page up (20 lines) | `Shift+T` | Open theme picker |
 | `g` / Home | Top | `Shift+E` | Open editor picker |
 | `G` / End | Bottom | `Shift+P` | Open file browser |
 | `Ctrl+L` | Go to line | `Ctrl+P` | Open fuzzy picker |

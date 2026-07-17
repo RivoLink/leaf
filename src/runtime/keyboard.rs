@@ -278,8 +278,8 @@ pub(super) fn handle_key_event(
             }
             KeyCode::Char('j') | KeyCode::Down => app.scroll_down(1),
             KeyCode::Char('k') | KeyCode::Up => app.scroll_up(1),
-            KeyCode::Char('d') | KeyCode::PageDown => app.scroll_down(20),
-            KeyCode::Char('u') | KeyCode::PageUp => app.scroll_up(20),
+            KeyCode::Char('d') | KeyCode::Char(' ') | KeyCode::PageDown => app.scroll_down(20),
+            KeyCode::Char('u') | KeyCode::Char('b') | KeyCode::PageUp => app.scroll_up(20),
             KeyCode::Char('g') | KeyCode::Home => app.scroll_top(),
             KeyCode::Char('G') | KeyCode::End => app.scroll_bottom(),
             KeyCode::Char('J') if app.can_scroll_toc() => app.focus_next_top_level_toc(),

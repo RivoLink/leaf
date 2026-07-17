@@ -261,10 +261,12 @@ pub(super) fn handle_key_event(
             KeyCode::Esc if app.has_active_goto_line() => app.clear_active_goto_line(),
             KeyCode::Esc if app.has_active_search() => app.clear_active_search(),
             KeyCode::Enter if app.has_active_search() => app.next_match(),
-            KeyCode::Char('q') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            KeyCode::Char('q') | KeyCode::Char('Q')
+                if key.modifiers.contains(KeyModifiers::CONTROL) =>
+            {
                 app.queue_fuzzy_file_picker(app.picker_dir());
             }
-            KeyCode::Char('q') => return Ok(HandleResult::Break),
+            KeyCode::Char('q') | KeyCode::Char('Q') => return Ok(HandleResult::Break),
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 if app.has_active_search() {
                     app.clear_active_search();

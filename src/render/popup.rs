@@ -195,7 +195,7 @@ pub(super) fn render_help_popup(f: &mut Frame, _app: &App) {
             Span::styled("p          ", key_style),
             Span::styled("path viewer", text_style),
             Span::raw("      "),
-            Span::styled("q           ", key_style),
+            Span::styled("q/Q         ", key_style),
             Span::styled("quit", text_style),
         ]),
         Line::from(vec![

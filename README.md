@@ -252,7 +252,7 @@ See [`gruvbox.toml`](gruvbox.toml) for a complete example with all available col
 | `n` / `N` | Next / prev match | `Ctrl+Click` | Open link |
 | `w` | Toggle watch mode | `Double-Click` | Copy link |
 | `r` | Force reload (watch mode) | `Shift+Drag` | Select text |
-| `q` | Quit | `Option+Drag` | Select text (iTerm2) |
+| `q` / `Q` | Quit | `Option+Drag` | Select text (iTerm2) |
 
 ## Features
 

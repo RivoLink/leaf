@@ -14,5 +14,5 @@ sequenceDiagram
     participant L as Leaf
     U->>T: leaf README.md
     L-->>T: render preview
-    U->>L: q (quit)
+    U->>L: q/Q (quit)
 ```

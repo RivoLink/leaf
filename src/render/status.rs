@@ -183,7 +183,7 @@ pub(crate) fn status_hint_segments(app: &App) -> &'static [&'static str] {
     } else if app.has_active_search() {
         &["n/N next/prev", "esc cancel"]
     } else {
-        &["ctrl+e edit", "ctrl+f find", "t toc", "? help", "q quit"]
+        &["ctrl+e edit", "ctrl+f find", "t toc", "? help", "q/Q quit"]
     }
 }
 

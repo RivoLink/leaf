@@ -272,11 +272,53 @@ fn platform_fallback_editor() -> &'static str {
     }
 }
 
+fn is_wsl() -> bool {
+    static CACHED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *CACHED.get_or_init(|| {
+        if std::env::var("WSL_DISTRO_NAME")
+            .map(|s| !s.is_empty())
+            .unwrap_or(false)
+        {
+            return true;
+        }
+        std::fs::read_to_string("/proc/sys/kernel/osrelease")
+            .map(|s| s.to_lowercase().contains("microsoft"))
+            .unwrap_or(false)
+    })
+}
+
+pub(crate) enum LaunchStrategy {
+    SpawnAndAssume(Command),
+    RunAndCheck(Command),
+}
+
+fn silence(cmd: &mut Command) {
+    cmd.stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+}
+
+impl LaunchStrategy {
+    fn run(self) -> bool {
+        match self {
+            LaunchStrategy::SpawnAndAssume(mut cmd) => {
+                silence(&mut cmd);
+                cmd.spawn().is_ok()
+            }
+            LaunchStrategy::RunAndCheck(mut cmd) => {
+                silence(&mut cmd);
+                cmd.status().map(|s| s.success()).unwrap_or(false)
+            }
+        }
+    }
+}
+
 pub(crate) fn try_new_tab_command(
     editor: &str,
     file: &Path,
     emulator: &TerminalEmulator,
-) -> Option<Command> {
+    wsl: bool,
+) -> Option<LaunchStrategy> {
     let (bin, args) = split_editor_cmd(editor);
     let file_str = file.display().to_string();
 
@@ -292,7 +334,7 @@ pub(crate) fn try_new_tab_command(
                 cmd.arg(a);
             }
             cmd.arg(&file_str);
-            Some(cmd)
+            Some(LaunchStrategy::RunAndCheck(cmd))
         }
         TerminalEmulator::GnomeTerminal => {
             let mut cmd = Command::new("gnome-terminal");
@@ -304,7 +346,7 @@ pub(crate) fn try_new_tab_command(
                 cmd.arg(a);
             }
             cmd.arg(&file_str);
-            Some(cmd)
+            Some(LaunchStrategy::SpawnAndAssume(cmd))
         }
         TerminalEmulator::MacTerminal(ref tp) => {
             let app_name = if tp == "Apple_Terminal" {
@@ -327,9 +369,15 @@ pub(crate) fn try_new_tab_command(
             };
             let mut cmd = Command::new("osascript");
             cmd.arg("-e").arg(script);
-            Some(cmd)
+            Some(LaunchStrategy::SpawnAndAssume(cmd))
         }
         TerminalEmulator::WindowsTerminal => {
+            let is_windows_bin = Path::new(bin)
+                .extension()
+                .is_some_and(|e| e.eq_ignore_ascii_case("exe"));
+            if wsl && !is_windows_bin {
+                return None;
+            }
             let mut cmd = Command::new("wt");
             cmd.arg("new-tab")
                 .arg("--title")
@@ -339,7 +387,7 @@ pub(crate) fn try_new_tab_command(
                 cmd.arg(a);
             }
             cmd.arg(&file_str);
-            Some(cmd)
+            Some(LaunchStrategy::SpawnAndAssume(cmd))
         }
         TerminalEmulator::Termux | TerminalEmulator::Unknown => None,
     }
@@ -361,24 +409,18 @@ pub(crate) fn open_in_editor(
     match kind {
         EditorKind::Gui => {
             let exec = which(bin).unwrap_or_else(|| PathBuf::from(bin));
-            Command::new(&exec)
-                .args(&args)
-                .arg(file)
-                .stdin(Stdio::null())
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .spawn()
-                .map_err(|e| format!("{bin}: {e}"))?;
+            let mut cmd = Command::new(&exec);
+            cmd.args(&args).arg(file);
+            silence(&mut cmd);
+            cmd.spawn().map_err(|e| format!("{bin}: {e}"))?;
             Ok(EditorResult::Opened)
         }
         EditorKind::Terminal => {
-            if let Some(mut cmd) = try_new_tab_command(editor, file, emulator) {
-                cmd.stdin(Stdio::null())
-                    .stdout(Stdio::null())
-                    .stderr(Stdio::null());
-                if cmd.spawn().is_ok() {
-                    return Ok(EditorResult::Opened);
-                }
+            if try_new_tab_command(editor, file, emulator, is_wsl())
+                .map(LaunchStrategy::run)
+                .unwrap_or(false)
+            {
+                return Ok(EditorResult::Opened);
             }
             Ok(EditorResult::NeedsSameTerminal)
         }

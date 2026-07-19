@@ -164,9 +164,65 @@ fn classify_windows_path_with_spaces() {
 
 fn mac_tab_script(editor: &str, file: &str, term_program: &str) -> String {
     let emulator = TerminalEmulator::MacTerminal(term_program.to_string());
-    let cmd = try_new_tab_command(editor, Path::new(file), &emulator).unwrap();
+    let strategy = try_new_tab_command(editor, Path::new(file), &emulator, false).unwrap();
+    let cmd = match strategy {
+        LaunchStrategy::SpawnAndAssume(cmd) => cmd,
+        LaunchStrategy::RunAndCheck(_) => panic!("expected SpawnAndAssume for MacTerminal"),
+    };
     let args: Vec<_> = cmd.get_args().collect();
     args[1].to_str().unwrap().to_string()
+}
+
+#[test]
+fn try_new_tab_command_windows_terminal_wsl_linux_editor_returns_none() {
+    let emulator = TerminalEmulator::WindowsTerminal;
+    let strategy = try_new_tab_command("nano", Path::new("/tmp/test.md"), &emulator, true);
+    assert!(strategy.is_none());
+}
+
+#[test]
+fn try_new_tab_command_windows_terminal_wsl_windows_editor_returns_spawn() {
+    let emulator = TerminalEmulator::WindowsTerminal;
+    let strategy =
+        try_new_tab_command("notepad.exe", Path::new("/tmp/test.md"), &emulator, true).unwrap();
+    assert!(matches!(strategy, LaunchStrategy::SpawnAndAssume(_)));
+}
+
+#[test]
+fn try_new_tab_command_windows_terminal_non_wsl_returns_spawn() {
+    let emulator = TerminalEmulator::WindowsTerminal;
+    let strategy =
+        try_new_tab_command("nano", Path::new("/tmp/test.md"), &emulator, false).unwrap();
+    assert!(matches!(strategy, LaunchStrategy::SpawnAndAssume(_)));
+}
+
+#[test]
+fn try_new_tab_command_kitty_returns_run_and_check() {
+    let emulator = TerminalEmulator::Kitty;
+    let strategy =
+        try_new_tab_command("nano", Path::new("/tmp/test.md"), &emulator, false).unwrap();
+    assert!(matches!(strategy, LaunchStrategy::RunAndCheck(_)));
+}
+
+#[test]
+fn try_new_tab_command_gnome_returns_spawn() {
+    let emulator = TerminalEmulator::GnomeTerminal;
+    let strategy = try_new_tab_command("vim", Path::new("/tmp/test.md"), &emulator, false).unwrap();
+    assert!(matches!(strategy, LaunchStrategy::SpawnAndAssume(_)));
+}
+
+#[test]
+fn try_new_tab_command_termux_returns_none() {
+    let emulator = TerminalEmulator::Termux;
+    let strategy = try_new_tab_command("nano", Path::new("/tmp/test.md"), &emulator, false);
+    assert!(strategy.is_none());
+}
+
+#[test]
+fn try_new_tab_command_unknown_returns_none() {
+    let emulator = TerminalEmulator::Unknown;
+    let strategy = try_new_tab_command("nano", Path::new("/tmp/test.md"), &emulator, false);
+    assert!(strategy.is_none());
 }
 
 #[test]

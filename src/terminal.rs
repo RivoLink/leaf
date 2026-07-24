@@ -11,7 +11,7 @@ use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io::{self, Write};
 use std::path::Path;
 
-fn format_tab_title_filename(filename: &str, max_len: usize) -> String {
+pub(crate) fn format_tab_title_filename(filename: &str, max_len: usize) -> String {
     if filename.len() <= max_len || filename.chars().count() <= max_len {
         return filename.to_string();
     }

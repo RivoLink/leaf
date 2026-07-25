@@ -303,7 +303,7 @@ fn try_open_editor(
     themes: &ThemeSet,
 ) -> Result<Option<EditorFlash>> {
     let kind = classify(editor_cmd);
-    match open_in_editor(editor_cmd, filepath, kind, emulator) {
+    match open_in_editor(editor_cmd, filepath, kind, emulator, app.tab_title_length()) {
         Ok(EditorResult::Opened) => {
             let name = editor::binary_name(editor_cmd).to_string();
             Ok(Some(EditorFlash::Opened(name)))

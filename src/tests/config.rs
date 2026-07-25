@@ -236,3 +236,43 @@ fn config_path_returns_some() {
     assert!(path.ends_with("config.toml"));
     assert!(path.to_string_lossy().contains("leaf"));
 }
+
+#[test]
+fn resolve_tab_title_length_n_none_returns_default_minus_one() {
+    std::env::remove_var("LEAF_TAB_TITLE_LENGTH");
+    assert_eq!(test_resolve_tab_title_length_n(None), Some(-1));
+}
+
+#[test]
+fn resolve_tab_title_length_n_config_minus_one() {
+    std::env::remove_var("LEAF_TAB_TITLE_LENGTH");
+    assert_eq!(test_resolve_tab_title_length_n(Some(-1)), Some(-1));
+}
+
+#[test]
+fn resolve_tab_title_length_n_config_valid_value() {
+    std::env::remove_var("LEAF_TAB_TITLE_LENGTH");
+    assert_eq!(test_resolve_tab_title_length_n(Some(30)), Some(30));
+}
+
+#[test]
+fn resolve_tab_title_length_n_config_invalid_low_returns_none() {
+    std::env::remove_var("LEAF_TAB_TITLE_LENGTH");
+    assert_eq!(test_resolve_tab_title_length_n(Some(5)), None);
+}
+
+#[test]
+fn resolve_tab_title_length_n_env_override_wins() {
+    std::env::set_var("LEAF_TAB_TITLE_LENGTH", "25");
+    let result = test_resolve_tab_title_length_n(Some(50));
+    std::env::remove_var("LEAF_TAB_TITLE_LENGTH");
+    assert_eq!(result, Some(25));
+}
+
+#[test]
+fn resolve_tab_title_length_n_env_invalid_falls_back_to_config() {
+    std::env::set_var("LEAF_TAB_TITLE_LENGTH", "not-a-number");
+    let result = test_resolve_tab_title_length_n(Some(30));
+    std::env::remove_var("LEAF_TAB_TITLE_LENGTH");
+    assert_eq!(result, Some(30));
+}

@@ -164,7 +164,7 @@ fn classify_windows_path_with_spaces() {
 
 fn mac_tab_script(editor: &str, file: &str, term_program: &str) -> String {
     let emulator = TerminalEmulator::MacTerminal(term_program.to_string());
-    let strategy = try_new_tab_command(editor, Path::new(file), &emulator, false).unwrap();
+    let strategy = try_new_tab_command(editor, Path::new(file), &emulator, false, None).unwrap();
     let cmd = match strategy {
         LaunchStrategy::SpawnAndAssume(cmd) => cmd,
         LaunchStrategy::RunAndCheck(_) => panic!("expected SpawnAndAssume for MacTerminal"),
@@ -176,15 +176,21 @@ fn mac_tab_script(editor: &str, file: &str, term_program: &str) -> String {
 #[test]
 fn try_new_tab_command_windows_terminal_wsl_linux_editor_returns_none() {
     let emulator = TerminalEmulator::WindowsTerminal;
-    let strategy = try_new_tab_command("nano", Path::new("/tmp/test.md"), &emulator, true);
+    let strategy = try_new_tab_command("nano", Path::new("/tmp/test.md"), &emulator, true, None);
     assert!(strategy.is_none());
 }
 
 #[test]
 fn try_new_tab_command_windows_terminal_wsl_windows_editor_returns_spawn() {
     let emulator = TerminalEmulator::WindowsTerminal;
-    let strategy =
-        try_new_tab_command("notepad.exe", Path::new("/tmp/test.md"), &emulator, true).unwrap();
+    let strategy = try_new_tab_command(
+        "notepad.exe",
+        Path::new("/tmp/test.md"),
+        &emulator,
+        true,
+        None,
+    )
+    .unwrap();
     assert!(matches!(strategy, LaunchStrategy::SpawnAndAssume(_)));
 }
 
@@ -192,7 +198,7 @@ fn try_new_tab_command_windows_terminal_wsl_windows_editor_returns_spawn() {
 fn try_new_tab_command_windows_terminal_non_wsl_returns_spawn() {
     let emulator = TerminalEmulator::WindowsTerminal;
     let strategy =
-        try_new_tab_command("nano", Path::new("/tmp/test.md"), &emulator, false).unwrap();
+        try_new_tab_command("nano", Path::new("/tmp/test.md"), &emulator, false, None).unwrap();
     assert!(matches!(strategy, LaunchStrategy::SpawnAndAssume(_)));
 }
 
@@ -200,28 +206,29 @@ fn try_new_tab_command_windows_terminal_non_wsl_returns_spawn() {
 fn try_new_tab_command_kitty_returns_run_and_check() {
     let emulator = TerminalEmulator::Kitty;
     let strategy =
-        try_new_tab_command("nano", Path::new("/tmp/test.md"), &emulator, false).unwrap();
+        try_new_tab_command("nano", Path::new("/tmp/test.md"), &emulator, false, None).unwrap();
     assert!(matches!(strategy, LaunchStrategy::RunAndCheck(_)));
 }
 
 #[test]
 fn try_new_tab_command_gnome_returns_spawn() {
     let emulator = TerminalEmulator::GnomeTerminal;
-    let strategy = try_new_tab_command("vim", Path::new("/tmp/test.md"), &emulator, false).unwrap();
+    let strategy =
+        try_new_tab_command("vim", Path::new("/tmp/test.md"), &emulator, false, None).unwrap();
     assert!(matches!(strategy, LaunchStrategy::SpawnAndAssume(_)));
 }
 
 #[test]
 fn try_new_tab_command_termux_returns_none() {
     let emulator = TerminalEmulator::Termux;
-    let strategy = try_new_tab_command("nano", Path::new("/tmp/test.md"), &emulator, false);
+    let strategy = try_new_tab_command("nano", Path::new("/tmp/test.md"), &emulator, false, None);
     assert!(strategy.is_none());
 }
 
 #[test]
 fn try_new_tab_command_unknown_returns_none() {
     let emulator = TerminalEmulator::Unknown;
-    let strategy = try_new_tab_command("nano", Path::new("/tmp/test.md"), &emulator, false);
+    let strategy = try_new_tab_command("nano", Path::new("/tmp/test.md"), &emulator, false, None);
     assert!(strategy.is_none());
 }
 
@@ -392,4 +399,150 @@ fn split_editor_cmd_unclosed_quote_is_graceful() {
     let (bin, args) = split_editor_cmd(r#"nvim +"abc"#);
     assert_eq!(bin, "nvim");
     assert_eq!(args, vec!["+abc"]);
+}
+
+#[test]
+fn format_editor_tab_title_short_name_no_truncation() {
+    assert_eq!(
+        format_editor_tab_title(Path::new("/tmp/readme.md"), Some(30)),
+        "leaf editor: readme.md"
+    );
+}
+
+#[test]
+fn format_editor_tab_title_none_disables_truncation() {
+    assert_eq!(
+        format_editor_tab_title(Path::new("/tmp/verylongfilenamewithoutextension"), None,),
+        "leaf editor: verylongfilenamewithoutextension"
+    );
+}
+
+#[test]
+fn format_editor_tab_title_truncates_preserving_extension() {
+    let out = format_editor_tab_title(Path::new("/tmp/chapitre-1-introduction.md"), Some(25));
+    assert!(
+        out.starts_with("leaf editor: "),
+        "unexpected prefix in {out}"
+    );
+    let display = &out["leaf editor: ".len()..];
+    assert!(display.ends_with(".md"), "should keep extension: {display}");
+    assert!(display.contains("..."), "should be truncated: {display}");
+    assert!(out.chars().count() <= 25, "total len exceeds 25: {out}");
+}
+
+#[test]
+fn format_editor_tab_title_hidden_file_no_extension() {
+    let out = format_editor_tab_title(Path::new("/tmp/.env"), Some(30));
+    assert_eq!(out, "leaf editor: .env");
+}
+
+#[test]
+fn format_editor_tab_title_file_without_extension() {
+    let out = format_editor_tab_title(Path::new("/tmp/README"), Some(30));
+    assert_eq!(out, "leaf editor: README");
+}
+
+#[test]
+fn format_editor_tab_title_unicode_boundary_safe() {
+    let out = format_editor_tab_title(Path::new("/tmp/éàü-très-long-nom.md"), Some(25));
+    assert!(out.starts_with("leaf editor: "));
+    assert!(out.chars().count() <= 25);
+}
+
+#[test]
+fn format_editor_tab_title_name_with_single_quote() {
+    let out = format_editor_tab_title(Path::new("/tmp/don't-remove.md"), None);
+    assert_eq!(out, "leaf editor: don't-remove.md");
+}
+
+#[test]
+fn kitty_tab_title_uses_filename() {
+    let strategy = try_new_tab_command(
+        "nano",
+        Path::new("/tmp/readme.md"),
+        &TerminalEmulator::Kitty,
+        false,
+        None,
+    )
+    .unwrap();
+    let cmd = match strategy {
+        LaunchStrategy::RunAndCheck(cmd) => cmd,
+        LaunchStrategy::SpawnAndAssume(_) => panic!("expected RunAndCheck for Kitty"),
+    };
+    let args: Vec<String> = cmd
+        .get_args()
+        .map(|a| a.to_string_lossy().into_owned())
+        .collect();
+    assert!(
+        args.iter()
+            .any(|a| a == "--tab-title=leaf editor: readme.md"),
+        "missing tab title in args: {args:?}"
+    );
+}
+
+#[test]
+fn gnome_tab_title_uses_filename() {
+    let strategy = try_new_tab_command(
+        "vim",
+        Path::new("/tmp/notes.md"),
+        &TerminalEmulator::GnomeTerminal,
+        false,
+        None,
+    )
+    .unwrap();
+    let cmd = match strategy {
+        LaunchStrategy::SpawnAndAssume(cmd) => cmd,
+        LaunchStrategy::RunAndCheck(_) => panic!("expected SpawnAndAssume for GnomeTerminal"),
+    };
+    let args: Vec<String> = cmd
+        .get_args()
+        .map(|a| a.to_string_lossy().into_owned())
+        .collect();
+    assert!(
+        args.iter().any(|a| a == "--title=leaf editor: notes.md"),
+        "missing tab title in args: {args:?}"
+    );
+}
+
+#[test]
+fn windows_terminal_tab_title_uses_filename() {
+    let strategy = try_new_tab_command(
+        "notepad.exe",
+        Path::new("/tmp/notes.md"),
+        &TerminalEmulator::WindowsTerminal,
+        true,
+        None,
+    )
+    .unwrap();
+    let cmd = match strategy {
+        LaunchStrategy::SpawnAndAssume(cmd) => cmd,
+        LaunchStrategy::RunAndCheck(_) => panic!("expected SpawnAndAssume for WindowsTerminal"),
+    };
+    let args: Vec<String> = cmd
+        .get_args()
+        .map(|a| a.to_string_lossy().into_owned())
+        .collect();
+    let title_idx = args
+        .iter()
+        .position(|a| a == "--title")
+        .expect("--title arg missing");
+    assert_eq!(args[title_idx + 1], "leaf editor: notes.md");
+}
+
+#[test]
+fn apple_terminal_tab_title_uses_filename() {
+    let script = mac_tab_script("nano", "/tmp/readme.md", "Apple_Terminal");
+    assert!(
+        script.contains("leaf editor: readme.md"),
+        "script missing filename title: {script}"
+    );
+}
+
+#[test]
+fn apple_terminal_tab_title_escapes_single_quote() {
+    let script = mac_tab_script("nano", "/tmp/don't.md", "Apple_Terminal");
+    assert!(
+        script.contains(r"leaf editor: don'\\''t.md"),
+        "single quote not escaped for shell (after AppleScript encoding): {script}"
+    );
 }

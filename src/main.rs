@@ -36,8 +36,9 @@ const MAX_STDIN_BYTES: usize = 8 * 1024 * 1024;
 pub(crate) use config::{config_path, LeafConfig};
 #[cfg(test)]
 pub(crate) use editor::{
-    binary_name, classify, expand_editor_placeholders, resolve_editor, selection_modifier_label,
-    split_editor_cmd, try_new_tab_command, EditorKind, LaunchStrategy, TerminalEmulator,
+    binary_name, classify, expand_editor_placeholders, format_editor_tab_title, resolve_editor,
+    selection_modifier_label, split_editor_cmd, try_new_tab_command, EditorKind, LaunchStrategy,
+    TerminalEmulator,
 };
 #[cfg(test)]
 pub(crate) use markdown::toc::{normalize_toc, toc_levels, TocEntry};
@@ -47,6 +48,8 @@ pub(crate) use markdown::{display_width, line_plain_text};
 pub(crate) use read_stdin_limited as read_stdin_with_limit;
 #[cfg(test)]
 pub(crate) use render::wrap_path_lines;
+#[cfg(test)]
+pub(crate) use resolve_tab_title_length_n as test_resolve_tab_title_length_n;
 #[cfg(test)]
 pub(crate) use runtime::should_handle_key;
 #[cfg(test)]
@@ -109,28 +112,30 @@ fn resolve_code_line_numbers(config_value: Option<bool>) -> bool {
 }
 
 const LEAF_TAB_PREFIX_LEN: usize = 6;
+const MIN_TAB_TITLE_LENGTH: i32 = 20;
 
 pub(crate) fn is_valid_tab_title_length(n: i32) -> bool {
-    n == -1 || n >= 20
+    n == -1 || n >= MIN_TAB_TITLE_LENGTH
 }
 
-fn resolve_tab_title_max_filename_len(config_value: Option<i32>) -> Option<usize> {
+pub(crate) fn resolve_tab_title_length_n(config_value: Option<i32>) -> Option<i32> {
     if let Ok(val) = std::env::var("LEAF_TAB_TITLE_LENGTH") {
         if let Ok(n) = val.parse::<i32>() {
             if is_valid_tab_title_length(n) {
-                return tab_title_n_to_max_filename_len(n);
+                return Some(n);
             }
         }
     }
-    tab_title_n_to_max_filename_len(config_value.unwrap_or(-1))
+    let n = config_value.unwrap_or(-1);
+    is_valid_tab_title_length(n).then_some(n)
+}
+
+pub(crate) fn max_filename_len_for_prefix(n: i32, prefix_len: usize) -> Option<usize> {
+    (n >= MIN_TAB_TITLE_LENGTH).then(|| (n as usize).saturating_sub(prefix_len))
 }
 
 pub(crate) fn tab_title_n_to_max_filename_len(n: i32) -> Option<usize> {
-    if n >= 20 {
-        Some((n as usize).saturating_sub(LEAF_TAB_PREFIX_LEN))
-    } else {
-        None
-    }
+    max_filename_len_for_prefix(n, LEAF_TAB_PREFIX_LEN)
 }
 
 fn append_config_warning(warning: &mut Option<String>, next: Option<String>) {
@@ -214,8 +219,8 @@ fn main() -> Result<()> {
     let watch_from_config = user_config.watch.unwrap_or(false);
     let max_width = resolve_configured_width(cli_width, user_config.width);
     let code_line_numbers = resolve_code_line_numbers(user_config.code_line_numbers);
-    let tab_title_max_filename_len =
-        resolve_tab_title_max_filename_len(user_config.tab_title_length);
+    let tab_title_length = resolve_tab_title_length_n(user_config.tab_title_length);
+    let tab_title_max_filename_len = tab_title_length.and_then(tab_title_n_to_max_filename_len);
 
     if let Some(ref mut spec) = inline_spec {
         if spec.width.is_none() {
@@ -392,6 +397,7 @@ fn main() -> Result<()> {
     app.set_watch_from_config(watch_from_config);
     app.set_max_width(max_width);
     app.set_tab_title_max_filename_len(tab_title_max_filename_len);
+    app.set_tab_title_length(tab_title_length);
     app.set_extras(user_config.extras);
     app.set_file_mode(file_mode);
     app.set_editor_config(Some(resolved_editor));

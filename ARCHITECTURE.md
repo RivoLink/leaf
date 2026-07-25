@@ -14,6 +14,7 @@
   - `navigation.rs`  :  scroll, TOC jump, numkey cycle, reverse mode
   - `goto_line.rs`  :  go-to-line mode (`Ctrl+L`): draft input, target validation, error state, contextual scroll offset
   - `flash.rs`  :  flash notification state (editor, watch, config, link, reload)
+  - `code_blocks.rs`  :  code block selection, focus cycling, and clipboard copy
   - `popups.rs`  :  help, path popup, editor picker state and methods
   - `links.rs`  :  link detection, hover tracking, link span mapping
   - `file_picker.rs`  :  fuzzy and browser picker state, queue/pending lifecycle
@@ -93,9 +94,11 @@
 
 - `src/tests/`
   - `app.rs`  :  app state, search, and mode detection tests
+  - `app_code_blocks.rs`  :  code block selection, focus cycling, and copy tests
   - `file_picker.rs`  :  picker opening, browser mode, queued transitions
   - `file_fuzzy.rs`  :  fuzzy matching, scoring, filtering, truncation
   - `markdown_lists.rs`  :  list rendering regression tests
+  - `markdown_list_blocks.rs`  :  list-embedded block rendering tests (code, blockquote)
   - `markdown_tables.rs`  :  table rendering regression tests
   - `markdown_blocks.rs`  :  headings, TOC, blockquotes, code blocks, rules
   - `markdown_embedded.rs`  :  LaTeX and Mermaid rendering tests

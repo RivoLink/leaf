@@ -92,6 +92,16 @@ leaf -w --picker
 # Open a dash-prefixed filename
 leaf -- -notes.md
 
+# Pick a color theme
+leaf --theme forest TESTING.md
+
+# Set the external editor
+leaf --editor nvim TESTING.md
+leaf -e code TESTING.md
+
+# Cap the content width (min: 20)
+leaf --width 100 TESTING.md
+
 # Stream Markdown from another CLI tool
 claude "explain Rust lifetimes" | leaf
 
@@ -156,10 +166,13 @@ leaf --config
 This opens the configuration file in your editor. If the file does not exist yet, **leaf** creates it with documented defaults.
 
 ```toml
-theme = "ocean"          # arctic, forest, ocean, solarized-dark, or a custom theme file
-editor = "nano"          # any editor in PATH
-watch = false            # auto-reload when opening a file
-extras = ["txt", "rs"]   # extra file types shown in the picker
+theme = "ocean"           # arctic, forest, ocean, solarized-dark, or a custom theme file
+editor = "nano"           # any editor in PATH
+watch = false             # auto-reload when opening a file
+width = 80                # maximum content width (min: 20, default: terminal width)
+extras = ["txt", "rs"]    # extra file types shown in the picker
+code-line-numbers = true  # show line numbers inside fenced code blocks
+tab-title-length = -1     # terminal tab title truncation (min: 20, -1: no truncation)
 ```
 
 To reset the configuration to defaults:
@@ -243,14 +256,17 @@ See [`gruvbox.toml`](gruvbox.toml) for a complete example with all available col
 |---|---|---|---|
 | `j` / `↓` | Scroll down | `?` | Show help popup |
 | `k` / `↑` | Scroll up | `t` | Toggle TOC sidebar |
-| `d` / PgDn | Page down (20 lines) | `Shift+L` | Toggle line numbers |
-| `u` / PgUp | Page up (20 lines) | `Shift+T` | Open theme picker |
-| `g` / Home | Top | `Shift+E` | Open editor picker |
-| `G` / End | Bottom | `Shift+P` | Open file browser |
-| `Ctrl+L` | Go to line | `Ctrl+P` | Open fuzzy picker |
-| `Ctrl+F` / `/` | Find | `Ctrl+E` | Open in editor |
-| `n` / `N` | Next / prev match | `Ctrl+Click` | Open link |
-| `w` | Toggle watch mode | `Double-Click` | Copy link |
+| `d` / PgDn | Page down (20 lines) | `p` | Show file path |
+| `u` / PgUp | Page up (20 lines) | `Shift+L` | Toggle line numbers |
+| `g` / Home | Top | `Shift+T` | Open theme picker |
+| `G` / End | Bottom | `Shift+E` | Open editor picker |
+| `1-9` / `0+1-9` | Jump / reverse jump (TOC) | `Shift+P` | Open file browser |
+| `J/K` / `U/D` | Navigate TOC | `Shift+M` | Toggle mouse capture |
+| `y/Y` / `c/C` | Focus code block | `Ctrl+P` | Open fuzzy picker |
+| `Ctrl+L` | Go to line | `Ctrl+E` | Open in editor |
+| `Ctrl+F` / `/` | Find | `Ctrl+Click` | Open link |
+| `n` / `N` | Next / prev match | `Double-Click` (link) | Copy link |
+| `w` | Toggle watch mode | `Double-Click` (code) | Copy code block |
 | `r` | Force reload (watch mode) | `Shift+Drag` | Select text |
 | `q` | Quit | `Option+Drag` | Select text (iTerm2) |
 
@@ -268,6 +284,8 @@ See [`gruvbox.toml`](gruvbox.toml) for a complete example with all available col
 - **LaTeX support** : *Inline, block, and `latex` / `tex` code blocks rendered as formulas*.
 - **Mermaid diagrams** : *`mermaid` code blocks rendered as ASCII diagrams*.
 - **Clickable links** : *`Ctrl+Click` to open, double-click to copy, hover feedback*.
+- **Code block interactions** : *Focus and copy with `y/Y` / `c/C`, or double-click on a block*.
+- **Mouse capture** : *`Shift+M` to toggle mouse capture and let the terminal handle selection*.
 - **Navigation** : *TOC sidebar, active section tracking, heading jumps, and search*.
 - **Terminal UX** : *Theme picker, help popup, file path popup, mouse and keyboard support*.
 - **Custom themes** : *TOML theme files inheriting from built-in presets with color overrides*.

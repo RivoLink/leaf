@@ -1,9 +1,15 @@
 [package]
-name = "leaf"
+name = "leaf-markdown-viewer"
 version = "1.26.2"
 edition = "2021"
-description = "A friendly terminal Markdown previewer"
+description = "Terminal Markdown previewer with a GUI-like experience"
 license = "MIT"
+repository = "https://github.com/RivoLink/leaf"
+homepage = "https://leaf.rivolink.mg"
+readme = "README.md"
+keywords = ["markdown", "terminal", "viewer", "tui", "cli"]
+categories = ["command-line-utilities", "text-processing"]
+authors = ["RivoLink <rivo.link@gmail.com>"]
 
 [[bin]]
 name = "leaf"

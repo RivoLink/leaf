@@ -33,6 +33,14 @@ irm https://raw.githubusercontent.com/RivoLink/leaf/main/scripts/install.ps1 | i
 npm install -g @rivolink/leaf
 ```
 
+**Homebrew:**
+
+Install the **leaf** formula from [Homebrew](https://formulae.brew.sh/formula/leaf-markdown-viewer):
+
+```bash
+brew install leaf-markdown-viewer
+```
+
 **ArchLinux (AUR):**
 
 Use an [AUR helper](https://wiki.archlinux.org/title/AUR_helpers), such as `yay`:
@@ -65,6 +73,12 @@ On Windows, if replacing the running `.exe` is blocked by the OS, rerun the Powe
 
 ```bash
 npm update -g @rivolink/leaf
+```
+
+**Homebrew:**
+
+```bash
+brew upgrade leaf-markdown-viewer
 ```
 
 ## Usage
@@ -353,6 +367,12 @@ Remove-Item "$env:LOCALAPPDATA\Programs\leaf\leaf.exe" -Force
 
 ```bash
 npm uninstall -g @rivolink/leaf
+```
+
+**Homebrew:**
+
+```bash
+brew uninstall leaf-markdown-viewer
 ```
 
 ## Contributors

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- next-version -->
 
+## [[1.26.2](https://github.com/RivoLink/leaf/releases/tag/1.26.2)] - 2026-07-27
+
+### Docs
+
+- sync readme architecture ([#222](https://github.com/RivoLink/leaf/pull/222))
+
+### Fixed
+
+- opening under wsl and kitty ([#220](https://github.com/RivoLink/leaf/pull/220))
+
+### Changed
+
+- editor tab title filename ([#221](https://github.com/RivoLink/leaf/pull/221))
+- quit with uppercase Q ([#216](https://github.com/RivoLink/leaf/pull/216))
+
 ## [[1.26.1](https://github.com/RivoLink/leaf/releases/tag/1.26.1)] - 2026-07-12
 
 ### Fixed

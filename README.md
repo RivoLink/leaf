@@ -41,6 +41,14 @@ Install the **leaf** formula from [Homebrew](https://formulae.brew.sh/formula/le
 brew install leaf-markdown-viewer
 ```
 
+**Cargo:**
+
+Install the **leaf** crate from [crates.io](https://crates.io/crates/leaf-markdown-viewer):
+
+```bash
+cargo install leaf-markdown-viewer
+```
+
 **ArchLinux (AUR):**
 
 Use an [AUR helper](https://wiki.archlinux.org/title/AUR_helpers), such as `yay`:
@@ -79,6 +87,12 @@ npm update -g @rivolink/leaf
 
 ```bash
 brew upgrade leaf-markdown-viewer
+```
+
+**Cargo:**
+
+```bash
+cargo install leaf-markdown-viewer --force
 ```
 
 ## Usage
@@ -373,6 +387,12 @@ npm uninstall -g @rivolink/leaf
 
 ```bash
 brew uninstall leaf-markdown-viewer
+```
+
+**Cargo:**
+
+```bash
+cargo uninstall leaf-markdown-viewer
 ```
 
 ## Contributors

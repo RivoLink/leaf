@@ -16,7 +16,7 @@ _leaf() {
         '--inline[Render to stdout (no TUI)]:format:(ansi plain)'
         '--width[Set maximum content width (min: 20)]:width:'
         '--picker[Open the file browser picker]'
-        '--config[Open or reset configuration file]::action:(reset)'
+        '--config[Open, reset or remove configuration file]::action:(reset remove)'
         '--update[Update leaf to the latest version]'
         '--auto-complete[Install or dump shell completions]::shell:(bash zsh fish powershell)'
     )

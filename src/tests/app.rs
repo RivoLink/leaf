@@ -156,6 +156,29 @@ fn parse_cli_rejects_config_reset_with_other_flags() {
 }
 
 #[test]
+fn parse_cli_config_remove() {
+    let args = vec![
+        "leaf".to_string(),
+        "--config".to_string(),
+        "remove".to_string(),
+    ];
+    let options = parse_cli(&args).unwrap();
+    assert_eq!(options.config, Some(cli::ConfigAction::Remove));
+}
+
+#[test]
+fn parse_cli_rejects_config_remove_with_other_flags() {
+    let args = vec![
+        "leaf".to_string(),
+        "--config".to_string(),
+        "remove".to_string(),
+        "--watch".to_string(),
+    ];
+    let err = parse_cli(&args).unwrap_err();
+    assert!(err.to_string().contains("--config must be used on its own"));
+}
+
+#[test]
 fn parse_cli_accepts_picker_on_its_own() {
     let args = vec!["leaf".to_string(), "--picker".to_string()];
     let options = parse_cli(&args).unwrap();

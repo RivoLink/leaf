@@ -223,6 +223,12 @@ To reset the configuration to defaults:
 leaf --config reset
 ```
 
+To remove the configuration directory and all its contents:
+
+```bash
+leaf --config remove
+```
+
 All settings are optional. CLI arguments always take priority. See [`config.toml`](config.toml) for details.
 
 ## Open in Editor

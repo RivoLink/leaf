@@ -134,18 +134,34 @@ pub(crate) fn run_config() -> anyhow::Result<()> {
     open_config_in_editor(&path)
 }
 
+pub(crate) fn remove_config() -> anyhow::Result<()> {
+    let dir = config_path()
+        .and_then(|p| p.parent().map(Path::to_path_buf))
+        .context("Cannot determine config directory")?;
+
+    if !dir.exists() {
+        println!("No configuration to remove: {}", dir.display());
+        return Ok(());
+    }
+
+    if !confirm("Remove leaf configuration?")? {
+        println!("Remove cancelled.");
+        return Ok(());
+    }
+
+    std::fs::remove_dir_all(&dir)
+        .with_context(|| format!("Cannot remove config directory: {}", dir.display()))?;
+    println!("Configuration removed: {}", dir.display());
+    Ok(())
+}
+
 pub(crate) fn reset_config() -> anyhow::Result<()> {
     let path = config_path().context("Cannot determine config directory")?;
 
     let (old_config, _) = load_config(&CliOverrides::default());
     let editor = crate::editor::resolve_editor(None, old_config.editor.as_deref());
 
-    print!("Reset configuration to defaults? (y/N): ");
-    io::stdout().flush()?;
-    let mut answer = String::new();
-    io::stdin().read_line(&mut answer)?;
-
-    if !answer.trim().eq_ignore_ascii_case("y") {
+    if !confirm("Reset leaf configuration to defaults?")? {
         println!("Reset cancelled.");
         return Ok(());
     }
@@ -154,6 +170,14 @@ pub(crate) fn reset_config() -> anyhow::Result<()> {
     println!("Configuration reset: {}", path.display());
     launch_editor(&editor, &path);
     Ok(())
+}
+
+fn confirm(prompt: &str) -> anyhow::Result<bool> {
+    print!("{prompt} (y/N): ");
+    io::stdout().flush()?;
+    let mut answer = String::new();
+    io::stdin().read_line(&mut answer)?;
+    Ok(answer.trim().eq_ignore_ascii_case("y"))
 }
 
 fn write_default_config(dest: &Path) -> anyhow::Result<()> {

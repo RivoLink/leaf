@@ -171,6 +171,7 @@ fn main() -> Result<()> {
         match config_action {
             cli::ConfigAction::Open => config::run_config()?,
             cli::ConfigAction::Reset => config::reset_config()?,
+            cli::ConfigAction::Remove => config::remove_config()?,
         }
         return Ok(());
     }

@@ -49,6 +49,14 @@ Install the **leaf** crate from [crates.io](https://crates.io/crates/leaf-markdo
 cargo install leaf-markdown-viewer
 ```
 
+**Scoop (Windows):**
+
+Install the **leaf** app from [Scoop](https://scoop.sh/#/apps?q=leaf-markdown-viewer):
+
+```bash
+scoop install leaf-markdown-viewer
+```
+
 **ArchLinux (AUR):**
 
 Use an [AUR helper](https://wiki.archlinux.org/title/AUR_helpers), such as `yay`:
@@ -93,6 +101,12 @@ brew upgrade leaf-markdown-viewer
 
 ```bash
 cargo install leaf-markdown-viewer --force
+```
+
+**Scoop (Windows):**
+
+```bash
+scoop update leaf-markdown-viewer
 ```
 
 ## Usage
@@ -393,6 +407,12 @@ brew uninstall leaf-markdown-viewer
 
 ```bash
 cargo uninstall leaf-markdown-viewer
+```
+
+**Scoop (Windows):**
+
+```bash
+scoop uninstall leaf-markdown-viewer
 ```
 
 ## Contributors

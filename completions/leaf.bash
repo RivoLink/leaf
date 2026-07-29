@@ -17,7 +17,7 @@ _leaf() {
             return
             ;;
         --config)
-            COMPREPLY=($(compgen -W "reset" -- "$cur"))
+            COMPREPLY=($(compgen -W "reset remove" -- "$cur"))
             return
             ;;
         --auto-complete)

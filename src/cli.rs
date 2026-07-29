@@ -6,6 +6,7 @@ use crate::inline::{self, InlineSpec};
 pub(crate) enum ConfigAction {
     Open,
     Reset,
+    Remove,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -46,7 +47,7 @@ pub(crate) fn usage_text() -> &'static str {
      \x20     --inline [SPEC]          Render to stdout (no TUI) [ansi|plain][:<width>]\n\
      \x20     --width <N>              Set maximum content width (min: 20)\n\
      \x20     --picker                 Open the file browser picker\n\
-     \x20     --config [reset]         Open or reset configuration file\n\
+     \x20     --config [reset|remove]  Open, reset or remove configuration\n\
      \x20     --update                 Update leaf to the latest version\n\
      \x20     --auto-complete [SPEC]   Install or dump shell completions [bash|zsh|fish|powershell][:dump]"
 }
@@ -83,10 +84,14 @@ pub(crate) fn parse_cli(args: &[String]) -> Result<CliOptions> {
             "--watch" | "-w" => options.watch = true,
             "--update" => options.update = true,
             "--config" => {
-                let action = match iter.peek() {
-                    Some(next) if next.as_str() == "reset" => {
+                let action = match iter.peek().map(|s| s.as_str()) {
+                    Some("reset") => {
                         iter.next();
                         ConfigAction::Reset
+                    }
+                    Some("remove") => {
+                        iter.next();
+                        ConfigAction::Remove
                     }
                     _ => ConfigAction::Open,
                 };

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::{bail, Context, Result};
 
-use crate::cli::AutoCompleteArg;
+use crate::cli::{AutoCompleteArg, AutoCompleteMode};
 
 const PS1_COMPLETION: &str = include_str!("../completions/leaf.ps1");
 const ZSH_COMPLETION: &str = include_str!("../completions/leaf.zsh");
@@ -14,6 +14,34 @@ enum Shell {
     Zsh,
     Bash,
     Fish,
+}
+
+impl Shell {
+    fn name(&self) -> &'static str {
+        match self {
+            Shell::Bash => "bash",
+            Shell::Zsh => "zsh",
+            Shell::Fish => "fish",
+            Shell::Pwsh => "powershell",
+        }
+    }
+}
+
+fn completion_filename(shell: &Shell) -> &'static str {
+    match shell {
+        Shell::Bash => "leaf.bash",
+        Shell::Zsh => "_leaf",
+        Shell::Fish => "leaf.fish",
+        Shell::Pwsh => "leaf.ps1",
+    }
+}
+
+fn source_line_for(shell: &Shell, path: &std::path::Path) -> Option<String> {
+    match shell {
+        Shell::Bash | Shell::Zsh => Some(format!("source {}", path.display())),
+        Shell::Pwsh => Some(format!(". {}", path.display())),
+        Shell::Fish => None,
+    }
 }
 
 fn detect_shell() -> Result<Shell> {
@@ -115,7 +143,7 @@ fn add_source_line(rc: &std::path::Path, line: &str) -> Result<bool> {
         std::fs::create_dir_all(parent).ok();
     }
     let content = std::fs::read_to_string(rc).unwrap_or_default();
-    if content.contains(line) {
+    if content_has_line(&content, line) {
         return Ok(false);
     }
     let mut file = std::fs::OpenOptions::new()
@@ -156,24 +184,23 @@ pub(crate) fn run_auto_complete(arg: &AutoCompleteArg) -> Result<()> {
         None => detect_shell()?,
     };
 
-    if arg.dump {
-        print!("{}", completion_content(&shell));
-        return Ok(());
+    match arg.mode {
+        AutoCompleteMode::Dump => {
+            print!("{}", completion_content(&shell));
+            Ok(())
+        }
+        AutoCompleteMode::Remove => remove_completions(&shell),
+        AutoCompleteMode::Install => install_completions(&shell),
     }
-
-    install_completions(&shell)
 }
 
 fn check_shell_os_compat(shell: &Shell) -> Result<()> {
     #[cfg(target_os = "windows")]
     if !matches!(shell, Shell::Pwsh) {
-        let name = match shell {
-            Shell::Bash => "bash",
-            Shell::Zsh => "zsh",
-            Shell::Fish => "fish",
-            Shell::Pwsh => unreachable!(),
-        };
-        bail!("Shell '{name}' is not supported. Use 'powershell' instead.");
+        bail!(
+            "Shell '{}' is not supported. Use 'powershell' instead.",
+            shell.name()
+        );
     }
     #[cfg(not(target_os = "windows"))]
     if matches!(shell, Shell::Pwsh) {
@@ -185,15 +212,16 @@ fn check_shell_os_compat(shell: &Shell) -> Result<()> {
 fn install_completions(shell: &Shell) -> Result<()> {
     check_shell_os_compat(shell)?;
     let content = completion_content(shell);
+    let filename = completion_filename(shell);
 
     match shell {
         Shell::Pwsh => {
-            let dest = write_completion(&completion_dir()?, "leaf.ps1", content)?;
+            let dest = write_completion(&completion_dir()?, filename, content)?;
             println!("Completion file installed: {}", dest.display());
 
             #[cfg(target_os = "windows")]
             {
-                let source_line = format!(". {}", dest.display());
+                let source_line = source_line_for(shell, &dest).expect("pwsh has source line");
                 for rc in pwsh_profile_paths()? {
                     if add_source_line(&rc, &source_line)? {
                         println!("Added to {}", rc.display());
@@ -205,14 +233,10 @@ fn install_completions(shell: &Shell) -> Result<()> {
             }
         }
         Shell::Zsh | Shell::Bash => {
-            let filename = match shell {
-                Shell::Zsh => "_leaf",
-                _ => "leaf.bash",
-            };
             let dest = write_completion(&completion_dir()?, filename, content)?;
             println!("Completion file installed: {}", dest.display());
 
-            let source_line = format!("source {}", dest.display());
+            let source_line = source_line_for(shell, &dest).expect("bash/zsh has source line");
             let rc = rc_path(shell)?;
             if add_source_line(&rc, &source_line)? {
                 println!("Added to {}", rc.display());
@@ -222,11 +246,131 @@ fn install_completions(shell: &Shell) -> Result<()> {
             println!("\nRestart your shell or run: source {}", rc.display());
         }
         Shell::Fish => {
-            let dest = write_completion(&fish_completion_dir()?, "leaf.fish", content)?;
+            let dest = write_completion(&fish_completion_dir()?, filename, content)?;
             println!("Completion file installed: {}", dest.display());
             println!("\nCompletions are available in new fish sessions automatically.");
         }
     }
 
     Ok(())
+}
+
+fn remove_completions(shell: &Shell) -> Result<()> {
+    check_shell_os_compat(shell)?;
+
+    let plan = RemovalPlan::compute(shell)?;
+    if plan.is_empty() {
+        println!("Nothing to remove for {}.", shell.name());
+        return Ok(());
+    }
+
+    if !crate::config::confirm(&format!("Remove {} completions?", shell.name()))? {
+        println!("Remove cancelled.");
+        return Ok(());
+    }
+
+    for path in &plan.files {
+        std::fs::remove_file(path).with_context(|| format!("Cannot remove {}", path.display()))?;
+        println!("Removed completion file: {}", path.display());
+    }
+    for (rc, line) in &plan.rc_lines {
+        if remove_source_line(rc, line)? {
+            println!("Removed source line from {}", rc.display());
+        }
+    }
+    Ok(())
+}
+
+struct RemovalPlan {
+    files: Vec<PathBuf>,
+    rc_lines: Vec<(PathBuf, String)>,
+}
+
+impl RemovalPlan {
+    fn is_empty(&self) -> bool {
+        self.files.is_empty() && self.rc_lines.is_empty()
+    }
+
+    fn compute(shell: &Shell) -> Result<Self> {
+        let mut files = Vec::new();
+        let mut rc_lines = Vec::new();
+        let filename = completion_filename(shell);
+
+        match shell {
+            Shell::Pwsh => {
+                let path = completion_dir()?.join(filename);
+                if path.exists() {
+                    files.push(path.clone());
+                }
+                #[cfg(target_os = "windows")]
+                {
+                    let source_line = source_line_for(shell, &path).expect("pwsh has source line");
+                    for rc in pwsh_profile_paths()? {
+                        if rc_contains_line(&rc, &source_line)? {
+                            rc_lines.push((rc, source_line.clone()));
+                        }
+                    }
+                }
+            }
+            Shell::Zsh | Shell::Bash => {
+                let path = completion_dir()?.join(filename);
+                let source_line = source_line_for(shell, &path).expect("bash/zsh has source line");
+                if path.exists() {
+                    files.push(path);
+                }
+                let rc = rc_path(shell)?;
+                if rc_contains_line(&rc, &source_line)? {
+                    rc_lines.push((rc, source_line));
+                }
+            }
+            Shell::Fish => {
+                let path = fish_completion_dir()?.join(filename);
+                if path.exists() {
+                    files.push(path);
+                }
+            }
+        }
+
+        Ok(RemovalPlan { files, rc_lines })
+    }
+}
+
+fn content_has_line(content: &str, line: &str) -> bool {
+    let needle = line.trim();
+    content.lines().any(|l| l.trim() == needle)
+}
+
+fn rc_contains_line(rc: &std::path::Path, line: &str) -> Result<bool> {
+    let Ok(content) = std::fs::read_to_string(rc) else {
+        return Ok(false);
+    };
+    Ok(content_has_line(&content, line))
+}
+
+fn remove_source_line(rc: &std::path::Path, line: &str) -> Result<bool> {
+    let Ok(content) = std::fs::read_to_string(rc) else {
+        return Ok(false);
+    };
+    let needle = line.trim();
+    let mut removed = false;
+    let filtered: Vec<&str> = content
+        .lines()
+        .filter(|l| {
+            if l.trim() == needle {
+                removed = true;
+                false
+            } else {
+                true
+            }
+        })
+        .collect();
+    if !removed {
+        return Ok(false);
+    }
+    let mut new_content = filtered.join("\n");
+    if content.ends_with('\n') && !new_content.is_empty() {
+        new_content.push('\n');
+    }
+    std::fs::write(rc, new_content).with_context(|| format!("Cannot write {}", rc.display()))?;
+    Ok(true)
 }

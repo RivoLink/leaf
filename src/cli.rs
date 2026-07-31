@@ -10,9 +10,16 @@ pub(crate) enum ConfigAction {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+pub(crate) enum AutoCompleteMode {
+    Install,
+    Dump,
+    Remove,
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) struct AutoCompleteArg {
     pub(crate) shell: Option<String>,
-    pub(crate) dump: bool,
+    pub(crate) mode: AutoCompleteMode,
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -49,7 +56,7 @@ pub(crate) fn usage_text() -> &'static str {
      \x20     --picker                 Open the file browser picker\n\
      \x20     --config [reset|remove]  Open, reset or remove configuration\n\
      \x20     --update                 Update leaf to the latest version\n\
-     \x20     --auto-complete [SPEC]   Install or dump shell completions [bash|zsh|fish|powershell][:dump]"
+     \x20     --auto-complete [SPEC]   Install, dump or remove shell completions [<shell>][:dump|:remove]"
 }
 
 pub(crate) fn version_text() -> &'static str {
@@ -105,7 +112,7 @@ pub(crate) fn parse_cli(args: &[String]) -> Result<CliOptions> {
                     }
                     _ => AutoCompleteArg {
                         shell: None,
-                        dump: false,
+                        mode: AutoCompleteMode::Install,
                     },
                 };
                 options.auto_complete = Some(ac_arg);
@@ -211,31 +218,25 @@ fn parse_theme_name(name: &str) -> Result<String> {
 const KNOWN_SHELLS: &[&str] = &["bash", "zsh", "fish", "powershell"];
 
 fn parse_auto_complete_value(s: &str) -> Result<AutoCompleteArg> {
-    if s == "dump" {
-        return Ok(AutoCompleteArg {
-            shell: None,
-            dump: true,
-        });
-    }
-    if let Some(prefix) = s.strip_suffix(":dump") {
-        if KNOWN_SHELLS.contains(&prefix) {
-            return Ok(AutoCompleteArg {
-                shell: Some(prefix.to_string()),
-                dump: true,
-            });
-        }
-        bail!("Unknown shell: '{prefix}'. Expected: bash, zsh, fish, powershell");
-    }
-    if KNOWN_SHELLS.contains(&s) {
-        return Ok(AutoCompleteArg {
-            shell: Some(s.to_string()),
-            dump: false,
-        });
-    }
-    bail!(
-        "Invalid argument for --auto-complete: '{s}'. \
-         Expected: bash, zsh, fish, powershell, dump, or SHELL:dump"
-    );
+    let (shell_part, mode) = match s.split_once(':') {
+        Some((shell, "dump")) => (Some(shell), AutoCompleteMode::Dump),
+        Some((shell, "remove")) => (Some(shell), AutoCompleteMode::Remove),
+        Some(_) => bail!(
+            "Invalid argument for --auto-complete: '{s}'. \
+             Expected: bash, zsh, fish, powershell, dump, remove, SHELL:dump, or SHELL:remove"
+        ),
+        None => match s {
+            "dump" => (None, AutoCompleteMode::Dump),
+            "remove" => (None, AutoCompleteMode::Remove),
+            _ => (Some(s), AutoCompleteMode::Install),
+        },
+    };
+    let shell = match shell_part {
+        Some(name) if KNOWN_SHELLS.contains(&name) => Some(name.to_string()),
+        Some(name) => bail!("Unknown shell: '{name}'. Expected: bash, zsh, fish, powershell"),
+        None => None,
+    };
+    Ok(AutoCompleteArg { shell, mode })
 }
 
 fn parse_width_value(s: &str) -> Result<usize> {

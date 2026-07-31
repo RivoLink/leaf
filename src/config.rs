@@ -172,7 +172,7 @@ pub(crate) fn reset_config() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn confirm(prompt: &str) -> anyhow::Result<bool> {
+pub(crate) fn confirm(prompt: &str) -> anyhow::Result<bool> {
     print!("{prompt} (y/N): ");
     io::stdout().flush()?;
     let mut answer = String::new();

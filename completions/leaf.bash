@@ -21,7 +21,7 @@ _leaf() {
             return
             ;;
         --auto-complete)
-            COMPREPLY=($(compgen -W "bash zsh fish powershell" -- "$cur"))
+            COMPREPLY=($(compgen -W "bash zsh fish powershell dump remove" -- "$cur"))
             return
             ;;
     esac

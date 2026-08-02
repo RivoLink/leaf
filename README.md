@@ -385,39 +385,61 @@ Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 
 ## Uninstall
 
+The uninstall script removes the **leaf** configuration, shell auto-completion, and binary. It is interactive, so download first and run locally.
+
 **macOS / Linux / Android / Termux:**
 
 ```bash
-rm -f ~/.local/bin/leaf
+# Download
+curl -fsSL https://raw.githubusercontent.com/RivoLink/leaf/main/scripts/uninstall.sh -o uninstall.sh
+
+# Run
+sh uninstall.sh
 ```
 
 **Windows:**
 
 ```powershell
-Remove-Item "$env:LOCALAPPDATA\Programs\leaf\leaf.exe" -Force
+# Download
+irm https://raw.githubusercontent.com/RivoLink/leaf/main/scripts/uninstall.ps1 -OutFile uninstall.ps1
+
+# Run
+powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
 ```
 
 **npm:**
 
 ```bash
+leaf --config remove
+leaf --auto-complete remove
+
 npm uninstall -g @rivolink/leaf
 ```
 
 **Homebrew:**
 
 ```bash
+leaf --config remove
+leaf --auto-complete remove
+
 brew uninstall leaf-markdown-viewer
 ```
 
 **Cargo:**
 
 ```bash
+leaf --config remove
+leaf --auto-complete remove
+
 cargo uninstall leaf-markdown-viewer
 ```
 
 **Scoop (Windows):**
 
 ```bash
+leaf --config remove
+leaf --auto-complete remove
+
 scoop uninstall leaf-markdown-viewer
 ```
 

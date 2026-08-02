@@ -1,4 +1,4 @@
-use crate::cli::{parse_cli, AutoCompleteArg};
+use crate::cli::{parse_cli, AutoCompleteArg, AutoCompleteMode};
 
 #[test]
 fn parse_cli_accepts_auto_complete() {
@@ -8,7 +8,7 @@ fn parse_cli_accepts_auto_complete() {
         options.auto_complete,
         Some(AutoCompleteArg {
             shell: None,
-            dump: false
+            mode: AutoCompleteMode::Install,
         })
     );
 }
@@ -25,7 +25,7 @@ fn parse_cli_auto_complete_with_shell() {
         options.auto_complete,
         Some(AutoCompleteArg {
             shell: Some("bash".to_string()),
-            dump: false
+            mode: AutoCompleteMode::Install,
         })
     );
 }
@@ -42,7 +42,7 @@ fn parse_cli_auto_complete_dump() {
         options.auto_complete,
         Some(AutoCompleteArg {
             shell: None,
-            dump: true
+            mode: AutoCompleteMode::Dump,
         })
     );
 }
@@ -59,9 +59,53 @@ fn parse_cli_auto_complete_shell_dump() {
         options.auto_complete,
         Some(AutoCompleteArg {
             shell: Some("zsh".to_string()),
-            dump: true
+            mode: AutoCompleteMode::Dump,
         })
     );
+}
+
+#[test]
+fn parse_cli_auto_complete_remove() {
+    let args = vec![
+        "leaf".to_string(),
+        "--auto-complete".to_string(),
+        "remove".to_string(),
+    ];
+    let options = parse_cli(&args).unwrap();
+    assert_eq!(
+        options.auto_complete,
+        Some(AutoCompleteArg {
+            shell: None,
+            mode: AutoCompleteMode::Remove,
+        })
+    );
+}
+
+#[test]
+fn parse_cli_auto_complete_shell_remove() {
+    let args = vec![
+        "leaf".to_string(),
+        "--auto-complete".to_string(),
+        "bash:remove".to_string(),
+    ];
+    let options = parse_cli(&args).unwrap();
+    assert_eq!(
+        options.auto_complete,
+        Some(AutoCompleteArg {
+            shell: Some("bash".to_string()),
+            mode: AutoCompleteMode::Remove,
+        })
+    );
+}
+
+#[test]
+fn parse_cli_auto_complete_unknown_shell_remove() {
+    let args = vec![
+        "leaf".to_string(),
+        "--auto-complete".to_string(),
+        "xxx:remove".to_string(),
+    ];
+    assert!(parse_cli(&args).is_err());
 }
 
 #[test]

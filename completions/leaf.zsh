@@ -18,7 +18,7 @@ _leaf() {
         '--picker[Open the file browser picker]'
         '--config[Open, reset or remove configuration file]::action:(reset remove)'
         '--update[Update leaf to the latest version]'
-        '--auto-complete[Install or dump shell completions]::shell:(bash zsh fish powershell)'
+        '--auto-complete[Install, dump or remove shell completions]::shell:(bash zsh fish powershell dump remove)'
     )
 
     _arguments -s $flags '*:file:_files'

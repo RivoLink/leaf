@@ -42,7 +42,7 @@ $global:LeafCompleter = {
             return
         }
         '--auto-complete' {
-            @('bash', 'zsh', 'fish', 'powershell') |
+            @('bash', 'zsh', 'fish', 'powershell', 'dump', 'remove') |
                 Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
                     [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
                 }

@@ -11,6 +11,7 @@ mod config;
 mod editor;
 mod inline;
 mod markdown;
+mod picker_width;
 mod render;
 mod runtime;
 mod terminal;
@@ -138,6 +139,17 @@ pub(crate) fn tab_title_n_to_max_filename_len(n: i32) -> Option<usize> {
     max_filename_len_for_prefix(n, LEAF_TAB_PREFIX_LEN)
 }
 
+pub(crate) fn resolve_file_picker_width(
+    config_value: Option<picker_width::PickerWidthSpec>,
+) -> picker_width::PickerWidthSpec {
+    if let Ok(val) = std::env::var("LEAF_FILE_PICKER_WIDTH") {
+        if let Some(spec) = picker_width::parse_picker_width_spec(&val) {
+            return spec;
+        }
+    }
+    config_value.unwrap_or(picker_width::DEFAULT_PICKER_WIDTH)
+}
+
 fn append_config_warning(warning: &mut Option<String>, next: Option<String>) {
     let Some(next) = next else {
         return;
@@ -222,6 +234,7 @@ fn main() -> Result<()> {
     let code_line_numbers = resolve_code_line_numbers(user_config.code_line_numbers);
     let tab_title_length = resolve_tab_title_length_n(user_config.tab_title_length);
     let tab_title_max_filename_len = tab_title_length.and_then(tab_title_n_to_max_filename_len);
+    let file_picker_width = resolve_file_picker_width(user_config.file_picker_width);
 
     if let Some(ref mut spec) = inline_spec {
         if spec.width.is_none() {
@@ -399,6 +412,7 @@ fn main() -> Result<()> {
     app.set_max_width(max_width);
     app.set_tab_title_max_filename_len(tab_title_max_filename_len);
     app.set_tab_title_length(tab_title_length);
+    app.set_file_picker_width(file_picker_width);
     app.set_extras(user_config.extras);
     app.set_file_mode(file_mode);
     app.set_editor_config(Some(resolved_editor));

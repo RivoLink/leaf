@@ -1,5 +1,6 @@
 use crate::{app::App, editor::EditorKind, theme::app_theme};
 use ratatui::{
+    layout::Rect,
     style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Padding, Paragraph},
@@ -11,9 +12,15 @@ use super::popup::{
     highlighted_picker_label, picker_truncation_message, popup_footer, popup_footer_line,
 };
 
-pub(super) fn render_file_popup(f: &mut Frame, app: &App) {
+fn file_picker_area(f: &Frame, app: &mut App) -> Rect {
+    let full = f.area();
+    let width = app.refresh_picker_width_floor(full.width);
+    centered_rect(width, 20, full)
+}
+
+pub(super) fn render_file_popup(f: &mut Frame, app: &mut App) {
     let theme = app_theme();
-    let area = centered_rect(78, 20, f.area());
+    let area = file_picker_area(f, app);
     let title_style = Style::default()
         .fg(theme.markdown.heading_2)
         .add_modifier(Modifier::BOLD);
@@ -176,9 +183,9 @@ pub(super) fn render_file_popup(f: &mut Frame, app: &App) {
     );
 }
 
-pub(super) fn render_picker_loading_popup(f: &mut Frame, app: &App) {
+pub(super) fn render_picker_loading_popup(f: &mut Frame, app: &mut App) {
     let theme = app_theme();
-    let area = centered_rect(78, 20, f.area());
+    let area = file_picker_area(f, app);
     let title_style = Style::default()
         .fg(theme.markdown.heading_2)
         .add_modifier(Modifier::BOLD);

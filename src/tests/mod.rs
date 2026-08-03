@@ -25,6 +25,7 @@ mod markdown_links;
 mod markdown_list_blocks;
 mod markdown_lists;
 mod markdown_tables;
+mod picker_width;
 mod render;
 mod theme;
 mod toc;

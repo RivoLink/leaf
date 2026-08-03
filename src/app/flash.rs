@@ -1,5 +1,6 @@
 use super::App;
 use crate::markdown::hash_str;
+use crate::picker_width as pw;
 use std::time::Instant;
 
 pub(crate) const FLASH_DURATION_MS: u64 = 1500;
@@ -108,6 +109,24 @@ impl App {
         if let Some(msg) = warning {
             self.config_flash = Some((msg, Instant::now()));
         }
+    }
+
+    pub(crate) fn refresh_picker_width_floor(&mut self, area_width: u16) -> u16 {
+        let raw = pw::picker_width_raw(self.file_picker_width, area_width);
+        let below_floor = raw < pw::PICKER_WIDTH_FLOOR_CELLS;
+
+        let cap = area_width.saturating_sub(2);
+        let floor_has_visible_effect = raw.min(cap) != pw::PICKER_WIDTH_FLOOR_CELLS.min(cap);
+        let should_signal = below_floor && floor_has_visible_effect;
+
+        if should_signal && !self.picker_width_floor_active {
+            self.set_config_warning(Some(pw::PICKER_WIDTH_FLOOR_WARNING.to_string()));
+            self.picker_width_floor_active = true;
+        } else if !should_signal {
+            self.picker_width_floor_active = false;
+        }
+
+        raw.max(pw::PICKER_WIDTH_FLOOR_CELLS)
     }
 
     pub(crate) fn config_flash(&self) -> Option<(&str, &Instant)> {

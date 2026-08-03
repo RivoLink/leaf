@@ -346,11 +346,13 @@ impl App {
         self.file_picker.match_positions.clear();
         self.file_picker.index = 0;
         self.file_picker.truncation = None;
+        self.picker_width_floor_active = false;
     }
 
     pub(crate) fn cancel_picker_loading(&mut self) {
         self.picker_load_state = PickerLoadState::Idle;
         self.pending_picker = PendingPicker::None;
+        self.picker_width_floor_active = false;
     }
 
     pub(crate) fn file_picker_dir(&self) -> &std::path::Path {

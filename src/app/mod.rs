@@ -170,6 +170,8 @@ pub(crate) struct App {
     max_width: Option<usize>,
     tab_title_max_filename_len: Option<usize>,
     tab_title_length: Option<i32>,
+    popup_picker_width: crate::picker_width::PickerWidthSpec,
+    pub(super) picker_width_floor_active: bool,
     mouse_capture: bool,
 }
 
@@ -330,6 +332,8 @@ impl App {
             max_width: None,
             tab_title_max_filename_len: None,
             tab_title_length: None,
+            popup_picker_width: crate::picker_width::DEFAULT_PICKER_WIDTH,
+            picker_width_floor_active: false,
             mouse_capture: true,
         };
         app.store_current_theme_preview();
@@ -367,6 +371,10 @@ impl App {
 
     pub(crate) fn tab_title_length(&self) -> Option<i32> {
         self.tab_title_length
+    }
+
+    pub(crate) fn set_popup_picker_width(&mut self, value: crate::picker_width::PickerWidthSpec) {
+        self.popup_picker_width = value;
     }
 
     pub(crate) fn is_mouse_capture_enabled(&self) -> bool {

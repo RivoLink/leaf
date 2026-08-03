@@ -66,6 +66,17 @@ watch = false
 # Default: [] (Markdown only)
 # extras = ["txt", "csv", "rs", "java", "json", "yaml"]
 
+# Width of the file picker popup (fuzzy + file browser)
+# Accepted formats:
+#   "NN%":     percent of terminal width, converted to cells (ceil)
+#   "NNcells": absolute number of terminal cells
+# The final width is always capped by (terminal_width - 2) cells.
+#
+# Priority: LEAF_POPUP_PICKER_WIDTH > this setting > default ("78cells")
+# Minimum: 78 cells. Applies to both formats.
+# Default: "78cells"
+# popup-picker-width = "78cells"
+
 # Show line numbers inside fenced code blocks
 # Only affects code block gutters, the main document line numbers are independent.
 # Priority: LEAF_CODE_LINE_NUMBERS > this setting > default (true)

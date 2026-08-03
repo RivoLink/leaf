@@ -7,6 +7,7 @@ use std::{
 use anyhow::Context;
 use serde::{Deserialize, Deserializer};
 
+use crate::picker_width::{parse_picker_width_spec, PickerWidthSpec};
 use crate::theme::{resolve_theme_selection, CustomThemeConfig};
 
 const DEFAULT_CONFIG: &str = include_str!("../config.toml");
@@ -26,6 +27,11 @@ pub(crate) struct LeafConfig {
         deserialize_with = "deserialize_lenient_i32"
     )]
     pub(crate) tab_title_length: Option<i32>,
+    #[serde(
+        rename = "popup-picker-width",
+        deserialize_with = "deserialize_lenient_picker_width"
+    )]
+    pub(crate) popup_picker_width: Option<PickerWidthSpec>,
     pub(crate) themes: BTreeMap<String, CustomThemeConfig>,
     #[serde(skip)]
     pub(crate) config_dir: Option<PathBuf>,
@@ -37,6 +43,16 @@ where
 {
     let value = toml::Value::deserialize(deserializer)?;
     Ok(value.as_integer().and_then(|n| i32::try_from(n).ok()))
+}
+
+fn deserialize_lenient_picker_width<'de, D>(
+    deserializer: D,
+) -> Result<Option<PickerWidthSpec>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = toml::Value::deserialize(deserializer)?;
+    Ok(value.as_str().and_then(parse_picker_width_spec))
 }
 
 #[derive(Default)]

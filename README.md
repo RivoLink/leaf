@@ -208,13 +208,14 @@ leaf --config
 This opens the configuration file in your editor. If the file does not exist yet, **leaf** creates it with documented defaults.
 
 ```toml
-theme = "ocean"           # arctic, forest, ocean, solarized-dark, or a custom theme file
-editor = "nano"           # any editor in PATH
-watch = false             # auto-reload when opening a file
-width = 80                # maximum content width (min: 20, default: terminal width)
-extras = ["txt", "rs"]    # extra file types shown in the picker
-code-line-numbers = true  # show line numbers inside fenced code blocks
-tab-title-length = -1     # terminal tab title truncation (min: 20, -1: no truncation)
+theme = "ocean"             # arctic, forest, ocean, solarized-dark, or a custom theme file
+editor = "nano"             # any editor in PATH
+watch = false               # auto-reload when opening a file
+width = 80                  # maximum content width (min: 20, default: terminal width)
+extras = ["txt", "rs"]      # extra file types shown in the picker
+popup-picker-width = "75%"  # Width of the picker popup (fuzzy + file browser)
+code-line-numbers = true    # show line numbers inside fenced code blocks
+tab-title-length = -1       # terminal tab title truncation (min: 20, -1: no truncation)
 ```
 
 To reset the configuration to defaults:

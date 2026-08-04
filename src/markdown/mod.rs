@@ -1,5 +1,6 @@
 mod blocks;
 mod fences;
+mod footnotes;
 mod frontmatter;
 mod highlight;
 mod latex;
@@ -61,7 +62,7 @@ use spans::{
 const LINK_MARKER: &str = "#";
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum LastBlock {
+pub(super) enum LastBlock {
     Other,
     Paragraph,
     Blockquote,
@@ -390,6 +391,7 @@ pub(crate) fn parse_markdown_with_width(
     let mut link_urls: Vec<String> = Vec::new();
     let mut blockquote_color: Option<Color> = None;
     let mut prev_event_end: usize = 0;
+    let mut footnotes = footnotes::FootnotesBuf::default();
 
     let normalized = normalize_code_fences(src);
     let line_starts = compute_line_starts(&normalized);
@@ -540,13 +542,15 @@ pub(crate) fn parse_markdown_with_width(
                     wraps = true;
                     layout
                 };
-                record_code_block(
-                    &mut code_blocks,
-                    raw_content,
-                    rendered_start,
-                    lines.len().saturating_sub(1),
-                    layout,
-                );
+                if !footnotes.is_active() {
+                    record_code_block(
+                        &mut code_blocks,
+                        raw_content,
+                        rendered_start,
+                        lines.len().saturating_sub(1),
+                        layout,
+                    );
+                }
                 lines.push(Line::from(""));
                 last_block = LastBlock::Other;
             }
@@ -700,13 +704,15 @@ pub(crate) fn parse_markdown_with_width(
                     },
                     &mut item_stack,
                 );
-                record_code_block(
-                    &mut code_blocks,
-                    raw_content,
-                    rendered_start,
-                    lines.len().saturating_sub(1),
-                    layout,
-                );
+                if !footnotes.is_active() {
+                    record_code_block(
+                        &mut code_blocks,
+                        raw_content,
+                        rendered_start,
+                        lines.len().saturating_sub(1),
+                        layout,
+                    );
+                }
                 lines.push(Line::from(""));
                 wraps = true;
                 last_block = LastBlock::Other;
@@ -715,6 +721,79 @@ pub(crate) fn parse_markdown_with_width(
                 if let Some(item) = item_stack.last_mut() {
                     item.checkbox = Some(checked);
                 }
+            }
+            MdEvent::FootnoteReference(label) => {
+                let n = footnotes.register_reference(label.as_ref());
+                footnotes::push_footnote_reference_span(&mut spans, n, theme_colors);
+            }
+            MdEvent::Start(Tag::FootnoteDefinition(label)) => {
+                if flush_pending_inline_if_any(
+                    &mut lines,
+                    &mut spans,
+                    blockquote_depth,
+                    &list_stack,
+                    &mut item_stack,
+                    render_width,
+                    theme_colors,
+                    blockquote_color,
+                ) {
+                    wraps = true;
+                }
+                let def_src_line = state.current_src_line;
+                let snapshot = footnotes::DefinitionSnapshot::take_from(
+                    &mut spans,
+                    &mut lines,
+                    &mut list_stack,
+                    &mut item_stack,
+                    &mut blockquote_depth,
+                    &mut in_code,
+                    &mut code_lang,
+                    &mut code_buf,
+                    &mut inline,
+                    &mut blockquote_color,
+                    &mut in_heading,
+                    &mut table,
+                    &mut last_block,
+                    &mut state,
+                    &mut toc,
+                    &mut link_urls,
+                );
+                footnotes.start_definition(label.to_string(), def_src_line, snapshot);
+            }
+            MdEvent::End(TagEnd::FootnoteDefinition) => {
+                if !spans.is_empty() {
+                    flush_wrapped_spans(
+                        &mut lines,
+                        &mut spans,
+                        blockquote_depth,
+                        &list_stack,
+                        &mut item_stack,
+                        render_width,
+                        theme_colors,
+                        blockquote_color,
+                    );
+                }
+                let captured_lines = std::mem::take(&mut lines);
+                let captured_urls = std::mem::take(&mut link_urls);
+                let snapshot = footnotes.finish_definition(captured_lines, captured_urls);
+                snapshot.restore_into(
+                    &mut spans,
+                    &mut lines,
+                    &mut list_stack,
+                    &mut item_stack,
+                    &mut blockquote_depth,
+                    &mut in_code,
+                    &mut code_lang,
+                    &mut code_buf,
+                    &mut inline,
+                    &mut blockquote_color,
+                    &mut in_heading,
+                    &mut table,
+                    &mut last_block,
+                    &mut state,
+                    &mut toc,
+                    &mut link_urls,
+                );
             }
             _ => {}
         }
@@ -730,6 +809,13 @@ pub(crate) fn parse_markdown_with_width(
         lines.push(Line::from(spans));
         state.mark_all_new(lines.len());
     }
+    footnotes.flush(
+        &mut lines,
+        &mut state,
+        &mut link_urls,
+        theme_colors,
+        render_width,
+    );
     for _ in 0..5 {
         lines.push(Line::from(""));
     }
@@ -745,19 +831,19 @@ pub(crate) fn parse_markdown_with_width(
     }
 }
 
-fn is_empty_line(line: &Line) -> bool {
+pub(super) fn is_empty_line(line: &Line) -> bool {
     line.spans.is_empty() || (line.spans.len() == 1 && line.spans[0].content.is_empty())
 }
 
-struct LineMapState {
-    line_number_map: Vec<usize>,
-    source_line_map: Vec<usize>,
-    logical: usize,
-    current_src_line: usize,
+pub(super) struct LineMapState {
+    pub(super) line_number_map: Vec<usize>,
+    pub(super) source_line_map: Vec<usize>,
+    pub(super) logical: usize,
+    pub(super) current_src_line: usize,
 }
 
 impl LineMapState {
-    fn new() -> Self {
+    pub(super) fn new() -> Self {
         Self {
             line_number_map: Vec::new(),
             source_line_map: Vec::new(),
@@ -774,7 +860,7 @@ impl LineMapState {
         self.source_line_map.push(self.current_src_line);
     }
 
-    fn mark_all_new(&mut self, to: usize) {
+    pub(super) fn mark_all_new(&mut self, to: usize) {
         while self.line_number_map.len() < to {
             self.push(true);
         }

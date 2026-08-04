@@ -124,6 +124,8 @@ pub(super) const BASE_LIGHT_MARKDOWN: MarkdownTheme = MarkdownTheme {
     alert_important: Color::Rgb(128, 68, 148),
     alert_warning: Color::Rgb(176, 128, 48),
     alert_caution: Color::Rgb(188, 74, 74),
+    footnote_ref: Color::Rgb(62, 124, 188),
+    footnote_text: Color::Rgb(58, 68, 78),
 };
 
 pub(super) const BASE_DARK_MARKDOWN: MarkdownTheme = MarkdownTheme {
@@ -172,6 +174,8 @@ pub(super) const BASE_DARK_MARKDOWN: MarkdownTheme = MarkdownTheme {
     alert_important: Color::Rgb(200, 160, 225),
     alert_warning: Color::Rgb(210, 180, 120),
     alert_caution: Color::Rgb(218, 95, 95),
+    footnote_ref: Color::Rgb(88, 152, 238),
+    footnote_text: Color::Rgb(208, 210, 218),
 };
 
 pub(crate) const ARCTIC_THEME: AppTheme = AppTheme {
@@ -264,6 +268,8 @@ pub(crate) const FOREST_THEME: AppTheme = AppTheme {
         alert_important: Color::Rgb(192, 162, 218),
         alert_warning: Color::Rgb(224, 190, 126),
         alert_caution: Color::Rgb(224, 120, 120),
+        footnote_ref: Color::Rgb(110, 182, 255),
+        footnote_text: Color::Rgb(212, 218, 212),
     },
 };
 
@@ -357,5 +363,7 @@ pub(crate) const SOLARIZED_DARK_THEME: AppTheme = AppTheme {
         alert_important: Color::Rgb(108, 113, 196),
         alert_warning: Color::Rgb(181, 137, 0),
         alert_caution: Color::Rgb(220, 50, 47),
+        footnote_ref: Color::Rgb(38, 139, 210),
+        footnote_text: Color::Rgb(147, 161, 161),
     },
 };

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- next-version -->
 
+## [[1.27.0](https://github.com/RivoLink/leaf/releases/tag/1.27.0)] - 2026-08-05
+
+### Docs
+
+- windows scoop install guide ([#228](https://github.com/RivoLink/leaf/pull/228))
+- homebrew installation guide ([#224](https://github.com/RivoLink/leaf/pull/224))
+
+### Added
+
+- markdown footnotes rendering ([#237](https://github.com/RivoLink/leaf/pull/237))
+- custom file picker width ([#236](https://github.com/RivoLink/leaf/pull/236))
+- cargo install support ([#225](https://github.com/RivoLink/leaf/pull/225))
+
+### Changed
+
+- interactive uninstall scripts ([#234](https://github.com/RivoLink/leaf/pull/234))
+- auto complete removal command ([#232](https://github.com/RivoLink/leaf/pull/232))
+- config removal command ([#229](https://github.com/RivoLink/leaf/pull/229))
+
 ## [[1.26.2](https://github.com/RivoLink/leaf/releases/tag/1.26.2)] - 2026-07-27
 
 ### Docs

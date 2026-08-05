@@ -304,7 +304,7 @@ fn render_cases(body: &str, prefix_width: usize) -> String {
     out
 }
 
-fn to_superscript(ch: char) -> char {
+pub(super) fn to_superscript(ch: char) -> char {
     match ch {
         '0' => '⁰',
         '1' => '¹',

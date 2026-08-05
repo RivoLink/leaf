@@ -174,6 +174,8 @@ theme_overrides!(MarkdownThemeOverrides for MarkdownTheme {
     alert_important,
     alert_warning,
     alert_caution,
+    footnote_ref,
+    footnote_text,
 });
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]

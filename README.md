@@ -15,57 +15,59 @@
 
 Install the latest published binary.
 
-**macOS / Linux / Android / Termux:**
+**macOS / Linux / Android / Termux**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/RivoLink/leaf/main/scripts/install.sh | sh
 ```
 
-**Windows:**
+**Windows**
 
 ```powershell
 irm https://raw.githubusercontent.com/RivoLink/leaf/main/scripts/install.ps1 | iex
 ```
 
-**npm:**
+**npm**
+
+Install the package from [npmjs.com](https://www.npmjs.com/package/@rivolink/leaf):
 
 ```bash
 npm install -g @rivolink/leaf
 ```
 
-**Homebrew:**
+**Homebrew**
 
-Install the **leaf** formula from [Homebrew](https://formulae.brew.sh/formula/leaf-markdown-viewer):
+Install the formula from [brew.sh](https://formulae.brew.sh/formula/leaf-markdown-viewer):
 
 ```bash
 brew install leaf-markdown-viewer
 ```
 
-**Cargo:**
+**Cargo**
 
-Install the **leaf** crate from [crates.io](https://crates.io/crates/leaf-markdown-viewer):
+Install the crate from [crates.io](https://crates.io/crates/leaf-markdown-viewer):
 
 ```bash
 cargo install leaf-markdown-viewer
 ```
 
-**Scoop (Windows):**
+**Scoop (Windows)**
 
-Install the **leaf** app from [Scoop](https://scoop.sh/#/apps?q=leaf-markdown-viewer):
+Install the app from [scoop.sh](https://scoop.sh/#/apps?q=leaf-markdown-viewer):
 
 ```bash
 scoop install leaf-markdown-viewer
 ```
 
-**ArchLinux (AUR):**
+**ArchLinux (AUR)**
 
-Use an [AUR helper](https://wiki.archlinux.org/title/AUR_helpers), such as `yay`:
+Install the package from [archlinux.org](https://aur.archlinux.org/packages/leaf-markdown-viewer-bin), use an [AUR helper](https://wiki.archlinux.org/title/AUR_helpers) such as `yay`:
 
 ```bash
 yay -S leaf-markdown-viewer
 ```
 
-**Verify the installation:**
+**Verify the installation**
 
 ```bash
 leaf --version
@@ -75,7 +77,7 @@ leaf --version
 
 Update an existing installation to the latest published release.
 
-**Self:**
+**Self**
 
 ```bash
 leaf --update
@@ -85,25 +87,25 @@ leaf --update
 
 On Windows, if replacing the running `.exe` is blocked by the OS, rerun the PowerShell installer from the install section.
 
-**npm:**
+**npm**
 
 ```bash
 npm update -g @rivolink/leaf
 ```
 
-**Homebrew:**
+**Homebrew**
 
 ```bash
 brew upgrade leaf-markdown-viewer
 ```
 
-**Cargo:**
+**Cargo**
 
 ```bash
 cargo install leaf-markdown-viewer --force
 ```
 
-**Scoop (Windows):**
+**Scoop (Windows)**
 
 ```bash
 scoop update leaf-markdown-viewer
@@ -115,7 +117,7 @@ scoop update leaf-markdown-viewer
 # Open a Markdown file
 leaf TESTING.md
 
-# Watch mode — reloads automatically on save
+# Watch mode: reloads automatically on save
 leaf --watch TESTING.md
 leaf -w TESTING.md
 
@@ -199,7 +201,7 @@ Once added, use `\md` to open a live preview. To switch focus back to the Markdo
 
 ## Configuration
 
-Set default values for **theme**, **editor**, **watch** mode and **extra** file types via `config.toml`:
+Set default values for **theme**, **editor**, **watch** mode, **extra** file types, and more via `config.toml`:
 
 ```bash
 leaf --config
@@ -388,7 +390,7 @@ Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
 
 The uninstall script removes the **leaf** configuration, shell auto-completion, and binary. It is interactive, so download first and run locally.
 
-**macOS / Linux / Android / Termux:**
+**macOS / Linux / Android / Termux**
 
 ```bash
 # Download
@@ -398,7 +400,7 @@ curl -fsSL https://raw.githubusercontent.com/RivoLink/leaf/main/scripts/uninstal
 sh uninstall.sh
 ```
 
-**Windows:**
+**Windows**
 
 ```powershell
 # Download
@@ -408,7 +410,7 @@ irm https://raw.githubusercontent.com/RivoLink/leaf/main/scripts/uninstall.ps1 -
 powershell -ExecutionPolicy Bypass -File .\uninstall.ps1
 ```
 
-**npm:**
+**npm**
 
 ```bash
 leaf --config remove
@@ -417,7 +419,7 @@ leaf --auto-complete remove
 npm uninstall -g @rivolink/leaf
 ```
 
-**Homebrew:**
+**Homebrew**
 
 ```bash
 leaf --config remove
@@ -426,7 +428,7 @@ leaf --auto-complete remove
 brew uninstall leaf-markdown-viewer
 ```
 
-**Cargo:**
+**Cargo**
 
 ```bash
 leaf --config remove
@@ -435,7 +437,7 @@ leaf --auto-complete remove
 cargo uninstall leaf-markdown-viewer
 ```
 
-**Scoop (Windows):**
+**Scoop (Windows)**
 
 ```bash
 leaf --config remove

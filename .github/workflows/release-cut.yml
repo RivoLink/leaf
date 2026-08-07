@@ -23,6 +23,7 @@ permissions:
 
 jobs:
   release-cut:
+    name: Release cut
     runs-on: ubuntu-latest
 
     steps:

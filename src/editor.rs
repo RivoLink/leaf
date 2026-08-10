@@ -278,6 +278,10 @@ fn platform_fallback_editor() -> &'static str {
     }
 }
 
+fn is_zellij() -> bool {
+    std::env::var_os("ZELLIJ").is_some()
+}
+
 fn is_wsl() -> bool {
     static CACHED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *CACHED.get_or_init(|| {
@@ -333,13 +337,34 @@ pub(crate) fn format_editor_tab_title(file: &Path, tab_title_length: Option<i32>
     format!("{EDITOR_TAB_PREFIX}{display}")
 }
 
+// Inside zellij the host emulator is the wrong target: its new tab would land
+// outside the session. Open a zellij pane in place of leaf's own pane instead.
+// The editor is zellij's (`scrollback_editor`, else $EDITOR), so leaf's editor
+// command is not used here -- only the file and the visible line.
+fn zellij_edit_command(file: &Path, line: usize) -> LaunchStrategy {
+    let mut cmd = Command::new("zellij");
+    cmd.arg("action")
+        .arg("edit")
+        .arg("--in-place")
+        .arg("--line-number")
+        .arg(line.max(1).to_string())
+        .arg(file);
+    LaunchStrategy::RunAndCheck(cmd)
+}
+
 pub(crate) fn try_new_tab_command(
     editor: &str,
     file: &Path,
+    line: usize,
     emulator: &TerminalEmulator,
     wsl: bool,
+    zellij: bool,
     tab_title_length: Option<i32>,
 ) -> Option<LaunchStrategy> {
+    if zellij {
+        return Some(zellij_edit_command(file, line));
+    }
+
     let (bin, args) = split_editor_cmd(editor);
     let file_str = file.display().to_string();
     let title = format_editor_tab_title(file, tab_title_length);
@@ -423,6 +448,7 @@ pub(crate) enum EditorResult {
 pub(crate) fn open_in_editor(
     editor: &str,
     file: &Path,
+    line: usize,
     kind: EditorKind,
     emulator: &TerminalEmulator,
     tab_title_length: Option<i32>,
@@ -438,9 +464,17 @@ pub(crate) fn open_in_editor(
             Ok(EditorResult::Opened)
         }
         EditorKind::Terminal => {
-            if try_new_tab_command(editor, file, emulator, is_wsl(), tab_title_length)
-                .map(LaunchStrategy::run)
-                .unwrap_or(false)
+            if try_new_tab_command(
+                editor,
+                file,
+                line,
+                emulator,
+                is_wsl(),
+                is_zellij(),
+                tab_title_length,
+            )
+            .map(LaunchStrategy::run)
+            .unwrap_or(false)
             {
                 return Ok(EditorResult::Opened);
             }

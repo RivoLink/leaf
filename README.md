@@ -253,6 +253,10 @@ editor = 'code -g {$path}:{$line}'
 
 Without `{$line}`, the editor opens at the top of the file.
 
+Inside a **zellij** session, `Ctrl+E` opens the editor in a pane placed over **leaf**'s own pane (`zellij action edit --in-place`) instead of a new tab of the host terminal. Closing the pane brings **leaf** back.
+
+On this path the editor is the one zellij is configured with (`scrollback_editor`, else `$EDITOR`), so the `editor` setting applies to GUI editors only. The visible line is always passed, so `{$line}` is not needed.
+
 ## Extra Files
 
 Non-Markdown files can be listed in the file picker by adding their extensions to `config.toml`:

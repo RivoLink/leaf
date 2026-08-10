@@ -164,7 +164,8 @@ fn classify_windows_path_with_spaces() {
 
 fn mac_tab_script(editor: &str, file: &str, term_program: &str) -> String {
     let emulator = TerminalEmulator::MacTerminal(term_program.to_string());
-    let strategy = try_new_tab_command(editor, Path::new(file), &emulator, false, None).unwrap();
+    let strategy =
+        try_new_tab_command(editor, Path::new(file), 1, &emulator, false, false, None).unwrap();
     let cmd = match strategy {
         LaunchStrategy::SpawnAndAssume(cmd) => cmd,
         LaunchStrategy::RunAndCheck(_) => panic!("expected SpawnAndAssume for MacTerminal"),
@@ -176,7 +177,15 @@ fn mac_tab_script(editor: &str, file: &str, term_program: &str) -> String {
 #[test]
 fn try_new_tab_command_windows_terminal_wsl_linux_editor_returns_none() {
     let emulator = TerminalEmulator::WindowsTerminal;
-    let strategy = try_new_tab_command("nano", Path::new("/tmp/test.md"), &emulator, true, None);
+    let strategy = try_new_tab_command(
+        "nano",
+        Path::new("/tmp/test.md"),
+        1,
+        &emulator,
+        true,
+        false,
+        None,
+    );
     assert!(strategy.is_none());
 }
 
@@ -186,8 +195,10 @@ fn try_new_tab_command_windows_terminal_wsl_windows_editor_returns_spawn() {
     let strategy = try_new_tab_command(
         "notepad.exe",
         Path::new("/tmp/test.md"),
+        1,
         &emulator,
         true,
+        false,
         None,
     )
     .unwrap();
@@ -197,39 +208,146 @@ fn try_new_tab_command_windows_terminal_wsl_windows_editor_returns_spawn() {
 #[test]
 fn try_new_tab_command_windows_terminal_non_wsl_returns_spawn() {
     let emulator = TerminalEmulator::WindowsTerminal;
-    let strategy =
-        try_new_tab_command("nano", Path::new("/tmp/test.md"), &emulator, false, None).unwrap();
+    let strategy = try_new_tab_command(
+        "nano",
+        Path::new("/tmp/test.md"),
+        1,
+        &emulator,
+        false,
+        false,
+        None,
+    )
+    .unwrap();
     assert!(matches!(strategy, LaunchStrategy::SpawnAndAssume(_)));
 }
 
 #[test]
 fn try_new_tab_command_kitty_returns_run_and_check() {
     let emulator = TerminalEmulator::Kitty;
-    let strategy =
-        try_new_tab_command("nano", Path::new("/tmp/test.md"), &emulator, false, None).unwrap();
+    let strategy = try_new_tab_command(
+        "nano",
+        Path::new("/tmp/test.md"),
+        1,
+        &emulator,
+        false,
+        false,
+        None,
+    )
+    .unwrap();
     assert!(matches!(strategy, LaunchStrategy::RunAndCheck(_)));
 }
 
 #[test]
 fn try_new_tab_command_gnome_returns_spawn() {
     let emulator = TerminalEmulator::GnomeTerminal;
-    let strategy =
-        try_new_tab_command("vim", Path::new("/tmp/test.md"), &emulator, false, None).unwrap();
+    let strategy = try_new_tab_command(
+        "vim",
+        Path::new("/tmp/test.md"),
+        1,
+        &emulator,
+        false,
+        false,
+        None,
+    )
+    .unwrap();
     assert!(matches!(strategy, LaunchStrategy::SpawnAndAssume(_)));
 }
 
 #[test]
 fn try_new_tab_command_termux_returns_none() {
     let emulator = TerminalEmulator::Termux;
-    let strategy = try_new_tab_command("nano", Path::new("/tmp/test.md"), &emulator, false, None);
+    let strategy = try_new_tab_command(
+        "nano",
+        Path::new("/tmp/test.md"),
+        1,
+        &emulator,
+        false,
+        false,
+        None,
+    );
     assert!(strategy.is_none());
 }
 
 #[test]
 fn try_new_tab_command_unknown_returns_none() {
     let emulator = TerminalEmulator::Unknown;
-    let strategy = try_new_tab_command("nano", Path::new("/tmp/test.md"), &emulator, false, None);
+    let strategy = try_new_tab_command(
+        "nano",
+        Path::new("/tmp/test.md"),
+        1,
+        &emulator,
+        false,
+        false,
+        None,
+    );
     assert!(strategy.is_none());
+}
+
+fn zellij_command(
+    editor: &str,
+    file: &str,
+    line: usize,
+    emulator: &TerminalEmulator,
+) -> Vec<String> {
+    let strategy =
+        try_new_tab_command(editor, Path::new(file), line, emulator, false, true, None).unwrap();
+    let cmd = match strategy {
+        LaunchStrategy::RunAndCheck(cmd) => cmd,
+        LaunchStrategy::SpawnAndAssume(_) => panic!("expected RunAndCheck for zellij"),
+    };
+    let mut out = vec![cmd.get_program().to_string_lossy().into_owned()];
+    out.extend(cmd.get_args().map(|a| a.to_string_lossy().into_owned()));
+    out
+}
+
+#[test]
+fn try_new_tab_command_zellij_edits_in_place() {
+    let args = zellij_command("nano", "/tmp/test.md", 1, &TerminalEmulator::Unknown);
+    assert_eq!(
+        args,
+        vec![
+            "zellij",
+            "action",
+            "edit",
+            "--in-place",
+            "--line-number",
+            "1",
+            "/tmp/test.md"
+        ]
+    );
+}
+
+#[test]
+fn try_new_tab_command_zellij_wins_over_host_emulator() {
+    for emulator in [
+        TerminalEmulator::MacTerminal("iTerm.app".into()),
+        TerminalEmulator::Kitty,
+        TerminalEmulator::GnomeTerminal,
+        TerminalEmulator::Unknown,
+    ] {
+        let args = zellij_command("nano", "/tmp/test.md", 1, &emulator);
+        assert_eq!(args[0], "zellij", "host emulator won for {emulator:?}");
+    }
+}
+
+#[test]
+fn try_new_tab_command_zellij_passes_visible_line() {
+    let args = zellij_command("hx", "/tmp/test.md", 42, &TerminalEmulator::Unknown);
+    let idx = args
+        .iter()
+        .position(|a| a == "--line-number")
+        .expect("--line-number arg missing");
+    assert_eq!(args[idx + 1], "42");
+}
+
+#[test]
+fn try_new_tab_command_zellij_clamps_zero_line() {
+    let args = zellij_command("hx", "/tmp/test.md", 0, &TerminalEmulator::Unknown);
+    let idx = args
+        .iter()
+        .position(|a| a == "--line-number")
+        .expect("--line-number arg missing");
+    assert_eq!(args[idx + 1], "1");
 }
 
 #[test]
@@ -460,7 +578,9 @@ fn kitty_tab_title_uses_filename() {
     let strategy = try_new_tab_command(
         "nano",
         Path::new("/tmp/readme.md"),
+        1,
         &TerminalEmulator::Kitty,
+        false,
         false,
         None,
     )
@@ -485,7 +605,9 @@ fn gnome_tab_title_uses_filename() {
     let strategy = try_new_tab_command(
         "vim",
         Path::new("/tmp/notes.md"),
+        1,
         &TerminalEmulator::GnomeTerminal,
+        false,
         false,
         None,
     )
@@ -509,8 +631,10 @@ fn windows_terminal_tab_title_uses_filename() {
     let strategy = try_new_tab_command(
         "notepad.exe",
         Path::new("/tmp/notes.md"),
+        1,
         &TerminalEmulator::WindowsTerminal,
         true,
+        false,
         None,
     )
     .unwrap();

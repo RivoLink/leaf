@@ -46,12 +46,18 @@ jobs:
             exit 0
           fi
 
-          if echo "$MSG" | grep -qE '^(fix|chore|docs|feat): .+$'; then
-            echo "Valid commit message"
-          else
+          if ! echo "$MSG" | grep -qE '^(fix|chore|docs|feat): .+$'; then
             echo "::error::Invalid commit message: must be prefixed by fix:, chore:, docs: or feat:"
             exit 1
           fi
+
+          MAX_LEN=35
+          if [ ${#MSG} -gt $MAX_LEN ]; then
+            echo "::error::Commit message too long (${#MSG} > ${MAX_LEN} chars). Put commit description for more details."
+            exit 1
+          fi
+
+          echo "Valid commit message"
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable

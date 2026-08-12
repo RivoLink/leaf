@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- next-version -->
 
+## [[1.27.1](https://github.com/RivoLink/leaf/releases/tag/1.27.1)] - 2026-08-12
+
+### Docs
+
+- update readme content ([#238](https://github.com/RivoLink/leaf/pull/238))
+
+### Fixed
+
+- cargo audit warnings ([#244](https://github.com/RivoLink/leaf/pull/244))
+
+### Changed
+
+- ci-check commit length ([#243](https://github.com/RivoLink/leaf/pull/243))
+- improve workflow names ([#239](https://github.com/RivoLink/leaf/pull/239))
+
 ## [[1.27.0](https://github.com/RivoLink/leaf/releases/tag/1.27.0)] - 2026-08-05
 
 ### Docs

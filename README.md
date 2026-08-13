@@ -136,6 +136,10 @@ leaf -w --picker
 # Open a dash-prefixed filename
 leaf -- -notes.md
 
+# Open the file history picker
+leaf --history
+leaf -H
+
 # Pick a color theme
 leaf --theme forest TESTING.md
 
@@ -218,6 +222,7 @@ extras = ["txt", "rs"]     # extra file types shown in the picker
 file-picker-width = "75%"  # width of the file picker (fuzzy + file browser)
 code-line-numbers = true   # show line numbers inside fenced code blocks
 tab-title-length = -1      # terminal tab title truncation (min: 20, -1: no truncation)
+file-history-length = 0    # recent file history length (0 disables, max: 50)
 ```
 
 To reset the configuration to defaults:
@@ -306,25 +311,27 @@ See [`gruvbox.toml`](gruvbox.toml) for a complete example with all available col
 | Key | Action | Key | Action |
 |---|---|---|---|
 | `j` / `↓` | Scroll down | `?` | Show help popup |
-| `k` / `↑` | Scroll up | `t` | Toggle TOC sidebar |
-| `d` / PgDn | Page down (20 lines) | `p` | Show file path |
-| `u` / PgUp | Page up (20 lines) | `Shift+L` | Toggle line numbers |
-| `g` / Home | Top | `Shift+T` | Open theme picker |
-| `G` / End | Bottom | `Shift+E` | Open editor picker |
-| `1-9` / `0+1-9` | Jump / reverse jump (TOC) | `Shift+P` | Open file browser |
-| `J/K` / `U/D` | Navigate TOC | `Shift+M` | Toggle mouse capture |
-| `y/Y` / `c/C` | Focus code block | `Ctrl+P` | Open fuzzy picker |
+| `k` / `↑` | Scroll up | `p` | Show file path |
+| `d` / PgDn | Page down (20 lines) | `Shift+L` | Toggle line numbers |
+| `u` / PgUp | Page up (20 lines) | `Shift+T` | Open theme picker |
+| `g` / Home | Top | `Shift+E` | Open editor picker |
+| `G` / End | Bottom | `Shift+P` | Open file browser |
+| `1-9` / `0+1-9` | Jump / reverse jump (TOC) | `Shift+M` | Toggle mouse capture |
+| `J/K` / `U/D` | Navigate TOC | `Ctrl+P` | Open fuzzy picker |
+| `y/Y` / `c/C` | Focus code block | `Ctrl+H` | Open file history picker |
 | `Ctrl+L` | Go to line | `Ctrl+E` | Open in editor |
 | `Ctrl+F` / `/` | Find | `Ctrl+Click` | Open link |
 | `n` / `N` | Next / prev match | `Double-Click` (link) | Copy link |
 | `w` | Toggle watch mode | `Double-Click` (code) | Copy code block |
 | `r` | Force reload (watch mode) | `Shift+Drag` | Select text |
-| `q` | Quit | `Option+Drag` | Select text (iTerm2) |
+| `t` | Toggle TOC sidebar | `Option+Drag` | Select text (iTerm2) |
+| `q` | Quit |  |  |
 
 ## Features
 
 - **Live preview** : *Watch mode with automatic reload and visual feedback*.
 - **File picker** : *Fuzzy Markdown picker, directory browser, and watch after selection*.
+- **File history** : *Recently opened files stored in `history.toml`, picker via `Ctrl+H` or `leaf --history`*.
 - **Editor integration** : *Open the current file in your preferred editor*.
 - **Frontmatter support** : *YAML frontmatter rendered as a table (horizontal or vertical based on key count)*.
 - **Rich Markdown rendering** : *Tables, lists, blockquotes, rules, bold, italic, and strikethrough*.

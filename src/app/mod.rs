@@ -33,8 +33,14 @@ pub(crate) use content::{FileChange, FileState};
 
 mod flash;
 pub(crate) use flash::{
-    CodeBlockFlash, EditorFlash, LinkFlash, PathFlash, WatchFlash, FLASH_DURATION_MS,
+    CodeBlockFlash, EditorFlash, HistoryFlash, LinkFlash, PathFlash, WatchFlash, FLASH_DURATION_MS,
 };
+
+pub(crate) mod history;
+pub(crate) use history::load_history;
+
+mod history_picker;
+pub(crate) use history_picker::HistoryPickerState;
 
 mod popups;
 pub(crate) use popups::{EditorPickerState, PathKind};
@@ -87,6 +93,7 @@ pub(crate) struct StatusCacheKey {
     link_flash_active: bool,
     path_flash_active: bool,
     code_block_flash_active: bool,
+    history_flash_active: bool,
     mouse_capture: bool,
     toc_scroll_hint_visible: bool,
 }
@@ -138,8 +145,14 @@ pub(crate) struct App {
     pub(super) help_open: bool,
     pub(super) path_popup_open: bool,
     pub(super) file_picker: FilePickerState,
+    pub(super) history_picker: HistoryPickerState,
     pub(super) pending_picker: PendingPicker,
     pub(super) picker_load_state: PickerLoadState,
+    pub(super) file_history_length: Option<i32>,
+    pub(super) history_flash: Option<(HistoryFlash, std::time::Instant)>,
+    pub(super) history_error_receiver:
+        Option<std::sync::mpsc::Receiver<history::HistoryWriteError>>,
+    pub(super) history_pending_removals: Vec<std::path::PathBuf>,
     pub(super) theme_picker: ThemePickerState,
     pub(super) editor_picker: EditorPickerState,
     pub(super) render_width: usize,
@@ -290,8 +303,13 @@ impl App {
                 query: String::new(),
                 truncation: None,
             },
+            history_picker: HistoryPickerState::default(),
             pending_picker: PendingPicker::None,
             picker_load_state: PickerLoadState::Idle,
+            file_history_length: None,
+            history_flash: None,
+            history_error_receiver: None,
+            history_pending_removals: Vec::new(),
             theme_picker: ThemePickerState {
                 open: false,
                 index: theme_preset_index(current_theme_selection().preset_hint()),
@@ -375,6 +393,37 @@ impl App {
 
     pub(crate) fn set_file_picker_width(&mut self, value: crate::picker_width::PickerWidthSpec) {
         self.file_picker_width = value;
+    }
+
+    pub(crate) fn set_file_history_length(&mut self, value: Option<i32>) {
+        self.file_history_length = value;
+    }
+
+    pub(crate) fn file_history_length(&self) -> Option<i32> {
+        self.file_history_length
+    }
+
+    pub(crate) fn set_history_error_receiver(
+        &mut self,
+        receiver: std::sync::mpsc::Receiver<history::HistoryWriteError>,
+    ) {
+        self.history_error_receiver = Some(receiver);
+    }
+
+    pub(crate) fn poll_history_errors(&mut self) -> bool {
+        let received = if let Some(ref rx) = self.history_error_receiver {
+            let mut any = false;
+            while rx.try_recv().is_ok() {
+                any = true;
+            }
+            any
+        } else {
+            false
+        };
+        if received {
+            self.set_history_flash(HistoryFlash::WriteFailed);
+        }
+        received
     }
 
     pub(crate) fn is_mouse_capture_enabled(&self) -> bool {
@@ -670,6 +719,11 @@ impl App {
                 .unwrap_or(false),
             code_block_flash_active: self
                 .code_block_flash
+                .as_ref()
+                .map(|(_, t)| t.elapsed() < Duration::from_millis(FLASH_DURATION_MS))
+                .unwrap_or(false),
+            history_flash_active: self
+                .history_flash
                 .as_ref()
                 .map(|(_, t)| t.elapsed() < Duration::from_millis(FLASH_DURATION_MS))
                 .unwrap_or(false),

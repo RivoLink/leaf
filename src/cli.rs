@@ -37,6 +37,7 @@ pub(crate) struct CliOptions {
     pub(crate) editor: Option<String>,
     pub(crate) inline: Option<InlineSpec>,
     pub(crate) width: Option<usize>,
+    pub(crate) print_history: bool,
 }
 
 pub(crate) fn usage_text() -> &'static str {
@@ -54,6 +55,7 @@ pub(crate) fn usage_text() -> &'static str {
      \x20     --inline [SPEC]          Render to stdout (no TUI) [ansi|plain][:<width>]\n\
      \x20     --width <N>              Set maximum content width (min: 20)\n\
      \x20     --picker                 Open the file browser picker\n\
+     \x20 -H, --history                Open the file history picker\n\
      \x20     --config [reset|remove]  Open, reset or remove configuration\n\
      \x20     --update                 Update leaf to the latest version\n\
      \x20     --auto-complete [SPEC]   Install, dump or remove shell completions [<shell>][:dump|:remove]"
@@ -120,6 +122,7 @@ pub(crate) fn parse_cli(args: &[String]) -> Result<CliOptions> {
             "--debug-input" => options.debug_input = true,
             "--help" | "-h" => options.print_help = true,
             "--version" | "-V" => options.print_version = true,
+            "--history" | "-H" => options.print_history = true,
             "--theme" => {
                 let Some(name) = iter.next() else {
                     anyhow::bail!("Missing value for --theme");
@@ -177,6 +180,7 @@ pub(crate) fn parse_cli(args: &[String]) -> Result<CliOptions> {
         (options.update, "--update"),
         (options.config.is_some(), "--config"),
         (options.auto_complete.is_some(), "--auto-complete"),
+        (options.print_history, "--history"),
     ];
     let standalone_count = standalone.iter().filter(|(set, _)| *set).count();
     for &(set, name) in &standalone {

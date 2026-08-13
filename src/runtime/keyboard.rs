@@ -45,6 +45,27 @@ pub(super) fn handle_key_event(
             }
             _ => state_changed = false,
         }
+    } else if app.is_history_picker_loading() {
+        let has_content = app.has_content();
+        match key.code {
+            KeyCode::Esc => {
+                if has_content {
+                    app.close_history_picker();
+                } else {
+                    return Ok(HandleResult::Break);
+                }
+            }
+            KeyCode::Char('q') | KeyCode::Char('c')
+                if key.modifiers.contains(KeyModifiers::CONTROL) =>
+            {
+                if has_content {
+                    app.close_history_picker();
+                } else {
+                    return Ok(HandleResult::Break);
+                }
+            }
+            _ => state_changed = false,
+        }
     } else if app.is_picker_loading() {
         let has_content = app.has_content();
         match key.code {
@@ -82,6 +103,50 @@ pub(super) fn handle_key_event(
                 } else {
                     return Ok(HandleResult::Break);
                 }
+            }
+            _ => state_changed = false,
+        }
+    } else if app.is_history_picker_open() {
+        let has_content = app.has_content();
+        match key.code {
+            KeyCode::Enter => {
+                app.activate_history_picker_selection(ss, themes);
+                state_changed = true;
+            }
+            KeyCode::Esc => {
+                if !app.history_picker_query().is_empty() {
+                    app.clear_history_picker_query();
+                } else if has_content {
+                    app.close_history_picker();
+                } else {
+                    return Ok(HandleResult::Break);
+                }
+            }
+            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                if has_content {
+                    app.close_history_picker();
+                } else {
+                    return Ok(HandleResult::Break);
+                }
+            }
+            KeyCode::Char('h') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                if has_content {
+                    app.close_history_picker();
+                } else {
+                    return Ok(HandleResult::Break);
+                }
+            }
+            KeyCode::Down => app.move_history_picker_down(),
+            KeyCode::Up => app.move_history_picker_up(),
+            KeyCode::Char('j') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                app.move_history_picker_down()
+            }
+            KeyCode::Char('k') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                app.move_history_picker_up()
+            }
+            KeyCode::Backspace => app.pop_history_picker_query(),
+            KeyCode::Char(c) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
+                app.push_history_picker_query(c);
             }
             _ => state_changed = false,
         }
@@ -303,6 +368,11 @@ pub(super) fn handle_key_event(
             }
             KeyCode::Char('w') => {
                 app.toggle_watch();
+            }
+            KeyCode::Char('h') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                if !app.is_any_picker_active() {
+                    app.queue_history_picker();
+                }
             }
             KeyCode::Char('r') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 if app.filepath().is_none() {

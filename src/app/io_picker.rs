@@ -266,6 +266,19 @@ impl App {
         let (mode, dir) = match pending {
             PendingPicker::Browser(dir) => (FilePickerMode::Browser, dir),
             PendingPicker::Fuzzy(dir) => (FilePickerMode::Fuzzy, dir),
+            PendingPicker::History => {
+                let (tx, rx) = mpsc::channel();
+                thread::spawn(move || {
+                    let entries = super::history::load_history();
+                    let _ = tx.send(entries);
+                });
+                self.picker_load_state = PickerLoadState::LoadingHistory {
+                    started_at: Instant::now(),
+                    receiver: rx,
+                    pending_result: None,
+                };
+                return true;
+            }
             PendingPicker::None => return false,
         };
 

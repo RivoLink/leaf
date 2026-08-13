@@ -1,4 +1,6 @@
-use crate::{app::App, editor::EditorKind, theme::app_theme};
+use crate::{
+    app::history::MSG_LOADING_FILE_HISTORY, app::App, editor::EditorKind, theme::app_theme,
+};
 use ratatui::{
     layout::Rect,
     style::{Modifier, Style},
@@ -12,15 +14,19 @@ use super::popup::{
     highlighted_picker_label, picker_truncation_message, popup_footer, popup_footer_line,
 };
 
-fn file_picker_area(f: &Frame, app: &mut App) -> Rect {
+const HISTORY_POPUP_TITLE: &str = "Open from file history";
+const HISTORY_POPUP_BORDER: &str = "─ History ";
+const HISTORY_POPUP_FOOTER: &[&str] = &["↑/↓ move", "<char> filter", "enter open", "esc close"];
+
+fn picker_area(f: &Frame, app: &mut App, height: u16) -> Rect {
     let full = f.area();
     let width = app.refresh_picker_width_floor(full.width);
-    centered_rect(width, 20, full)
+    centered_rect(width, height, full)
 }
 
 pub(super) fn render_file_popup(f: &mut Frame, app: &mut App) {
     let theme = app_theme();
-    let area = file_picker_area(f, app);
+    let area = picker_area(f, app, 20);
     let title_style = Style::default()
         .fg(theme.markdown.heading_2)
         .add_modifier(Modifier::BOLD);
@@ -185,7 +191,7 @@ pub(super) fn render_file_popup(f: &mut Frame, app: &mut App) {
 
 pub(super) fn render_picker_loading_popup(f: &mut Frame, app: &mut App) {
     let theme = app_theme();
-    let area = file_picker_area(f, app);
+    let area = picker_area(f, app, 20);
     let title_style = Style::default()
         .fg(theme.markdown.heading_2)
         .add_modifier(Modifier::BOLD);
@@ -249,6 +255,295 @@ pub(super) fn render_picker_loading_popup(f: &mut Frame, app: &mut App) {
         Paragraph::new(lines).block(
             Block::default()
                 .title("─ Files ")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(theme.ui.toc_border))
+                .style(Style::default().bg(theme.ui.toc_bg))
+                .padding(Padding::new(1, 1, 0, 0)),
+        ),
+        area,
+    );
+}
+
+fn truncate_middle(path: &str, max_width: usize) -> String {
+    use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
+    let total = UnicodeWidthStr::width(path);
+    if total <= max_width || max_width <= 3 {
+        return path.to_string();
+    }
+    let ellipsis = "...";
+    let available = max_width.saturating_sub(3);
+    let left_budget = available / 2;
+    let right_budget = available - left_budget;
+
+    let mut left = String::new();
+    let mut left_width = 0usize;
+    for ch in path.chars() {
+        let w = ch.width().unwrap_or(0);
+        if left_width + w > left_budget {
+            break;
+        }
+        left.push(ch);
+        left_width += w;
+    }
+
+    let mut right_stack: Vec<char> = Vec::new();
+    let mut right_width = 0usize;
+    for ch in path.chars().rev() {
+        let w = ch.width().unwrap_or(0);
+        if right_width + w > right_budget {
+            break;
+        }
+        right_stack.push(ch);
+        right_width += w;
+    }
+    let right: String = right_stack.into_iter().rev().collect();
+    format!("{left}{ellipsis}{right}")
+}
+
+fn history_entry_spans(
+    path: &std::path::Path,
+    match_positions: &[usize],
+    max_width: usize,
+    bg: ratatui::style::Color,
+    selected: bool,
+    theme: &crate::theme::AppTheme,
+) -> Vec<Span<'static>> {
+    use std::path::MAIN_SEPARATOR;
+    use unicode_width::UnicodeWidthStr;
+
+    let filename = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+
+    let default_style = Style::default()
+        .fg(theme.ui.toc_primary_inactive)
+        .bg(bg)
+        .add_modifier(if selected {
+            Modifier::BOLD
+        } else {
+            Modifier::empty()
+        });
+
+    if filename.is_empty() {
+        return vec![Span::styled(
+            truncate_middle(&path.to_string_lossy(), max_width),
+            default_style,
+        )];
+    }
+
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .map(|p| {
+            let mut s = p.to_string_lossy().into_owned();
+            if !s.ends_with(MAIN_SEPARATOR) {
+                s.push(MAIN_SEPARATOR);
+            }
+            s
+        })
+        .unwrap_or_default();
+
+    let filename_width = UnicodeWidthStr::width(filename.as_str());
+    let parent_width = UnicodeWidthStr::width(parent.as_str());
+
+    if parent_width + filename_width <= max_width {
+        let mut spans = vec![Span::styled(parent, default_style)];
+        spans.extend(highlighted_picker_label(
+            &filename,
+            match_positions,
+            bg,
+            selected,
+        ));
+        return spans;
+    }
+
+    if filename_width + 4 <= max_width {
+        let available = max_width - filename_width;
+        let truncated_parent = truncate_middle(&parent, available);
+        let mut spans = vec![Span::styled(truncated_parent, default_style)];
+        spans.extend(highlighted_picker_label(
+            &filename,
+            match_positions,
+            bg,
+            selected,
+        ));
+        return spans;
+    }
+
+    vec![Span::styled(
+        truncate_middle(&path.to_string_lossy(), max_width),
+        default_style,
+    )]
+}
+
+pub(super) fn render_history_popup(f: &mut Frame, app: &mut App) {
+    let theme = app_theme();
+    let area = picker_area(f, app, 17);
+    let title_style = Style::default()
+        .fg(theme.markdown.heading_2)
+        .add_modifier(Modifier::BOLD);
+    let section_style = Style::default().fg(theme.ui.status_shortcut_fg);
+
+    let activation_error = app.history_picker_activation_error().map(str::to_string);
+    let inner_height = area.height.saturating_sub(2) as usize;
+    let header_lines = 3;
+    let reserved_footer_lines = if activation_error.is_some() { 3 } else { 2 };
+    let visible_slots = inner_height
+        .saturating_sub(header_lines + reserved_footer_lines)
+        .min(10);
+    let total = app.history_picker_filtered_indices().len();
+    let start = if visible_slots == 0 || app.history_picker_index() < visible_slots {
+        0
+    } else {
+        app.history_picker_index() + 1 - visible_slots
+    };
+    let end = (start + visible_slots).min(total);
+
+    let mut lines = vec![Line::from(vec![Span::styled(
+        HISTORY_POPUP_TITLE,
+        title_style,
+    )])];
+
+    lines.push(Line::from(vec![
+        Span::styled("Query: ", section_style),
+        Span::styled(
+            if app.history_picker_query().is_empty() {
+                " type to filter ".to_string()
+            } else {
+                format!(" {} ", app.history_picker_query())
+            },
+            Style::default()
+                .fg(if app.history_picker_query().is_empty() {
+                    theme.ui.toc_primary_inactive
+                } else {
+                    theme.ui.toc_primary_active
+                })
+                .bg(theme.markdown.inline_code_bg),
+        ),
+    ]));
+
+    lines.push(Line::from(""));
+
+    let inner_width = area.width.saturating_sub(4) as usize;
+    let label_max = inner_width.saturating_sub(2);
+
+    if let Some(err) = app.history_picker_error() {
+        lines.push(Line::from(vec![Span::styled(
+            err.to_string(),
+            Style::default().fg(theme.ui.toc_primary_inactive),
+        )]));
+    } else if total == 0 {
+        lines.push(Line::from(vec![Span::styled(
+            "No match for the current query",
+            Style::default().fg(theme.ui.toc_primary_inactive),
+        )]));
+    } else {
+        for (idx, entry_idx) in app.history_picker_filtered_indices()[start..end]
+            .iter()
+            .enumerate()
+        {
+            let actual_idx = start + idx;
+            let selected = actual_idx == app.history_picker_index();
+            let entry = &app.history_picker_entries()[*entry_idx];
+            let bg = if selected {
+                theme.ui.toc_active_bg
+            } else {
+                theme.ui.toc_bg
+            };
+            let marker = if selected { "▎ " } else { "  " };
+            let modifier = if selected {
+                Modifier::BOLD
+            } else {
+                Modifier::empty()
+            };
+            let mut spans = vec![Span::styled(
+                marker,
+                Style::default()
+                    .fg(theme.ui.toc_accent)
+                    .bg(bg)
+                    .add_modifier(modifier),
+            )];
+            spans.extend(history_entry_spans(
+                &entry.path,
+                app.history_picker_match_positions(actual_idx),
+                label_max,
+                bg,
+                selected,
+                &theme,
+            ));
+            lines.push(Line::from(spans));
+        }
+    }
+
+    while lines.len() < inner_height.saturating_sub(reserved_footer_lines) {
+        lines.push(Line::from(""));
+    }
+
+    if let Some(err) = activation_error {
+        lines.push(Line::from(""));
+        lines.push(Line::from(vec![Span::styled(
+            err,
+            Style::default().fg(theme.markdown.heading_3),
+        )]));
+    } else {
+        lines.push(Line::from(""));
+    }
+    lines.push(popup_footer_line(HISTORY_POPUP_FOOTER, theme.ui.toc_bg));
+
+    f.render_widget(Clear, area);
+    f.render_widget(
+        Paragraph::new(lines).block(
+            Block::default()
+                .title(HISTORY_POPUP_BORDER)
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(theme.ui.toc_border))
+                .style(Style::default().bg(theme.ui.toc_bg))
+                .padding(Padding::new(1, 1, 0, 0)),
+        ),
+        area,
+    );
+}
+
+pub(super) fn render_history_loading_popup(f: &mut Frame, app: &mut App) {
+    let theme = app_theme();
+    let area = picker_area(f, app, 17);
+    let title_style = Style::default()
+        .fg(theme.markdown.heading_2)
+        .add_modifier(Modifier::BOLD);
+    let section_style = Style::default().fg(theme.ui.status_shortcut_fg);
+
+    let inner_height = area.height.saturating_sub(2) as usize;
+
+    let mut lines = vec![
+        Line::from(vec![Span::styled(HISTORY_POPUP_TITLE, title_style)]),
+        Line::from(vec![
+            Span::styled("Query: ", section_style),
+            Span::styled(
+                " type to filter ",
+                Style::default()
+                    .fg(theme.ui.toc_primary_inactive)
+                    .bg(theme.markdown.inline_code_bg),
+            ),
+        ]),
+        Line::from(""),
+        Line::from(vec![Span::styled(
+            MSG_LOADING_FILE_HISTORY,
+            Style::default().fg(theme.ui.toc_primary_inactive),
+        )]),
+    ];
+
+    while lines.len() < inner_height.saturating_sub(2) {
+        lines.push(Line::from(""));
+    }
+    lines.push(Line::from(""));
+    lines.push(popup_footer_line(HISTORY_POPUP_FOOTER, theme.ui.toc_bg));
+
+    f.render_widget(Clear, area);
+    f.render_widget(
+        Paragraph::new(lines).block(
+            Block::default()
+                .title(HISTORY_POPUP_BORDER)
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(theme.ui.toc_border))
                 .style(Style::default().bg(theme.ui.toc_bg))

@@ -32,10 +32,17 @@ pub(crate) struct LeafConfig {
         deserialize_with = "deserialize_lenient_picker_width"
     )]
     pub(crate) file_picker_width: Option<PickerWidthSpec>,
+    #[serde(
+        rename = "file-history-length",
+        deserialize_with = "deserialize_lenient_i32"
+    )]
+    pub(crate) file_history_length: Option<i32>,
     pub(crate) themes: BTreeMap<String, CustomThemeConfig>,
     #[serde(skip)]
     pub(crate) config_dir: Option<PathBuf>,
 }
+
+pub(crate) const FILE_HISTORY_LENGTH_MAX: i32 = 50;
 
 fn deserialize_lenient_i32<'de, D>(deserializer: D) -> Result<Option<i32>, D::Error>
 where
@@ -136,6 +143,10 @@ pub(crate) fn config_path() -> Option<PathBuf> {
             .or_else(|| std::env::var("HOME").ok().map(|h| format!("{h}/.config")))?;
         Some(PathBuf::from(base).join("leaf").join("config.toml"))
     }
+}
+
+pub(crate) fn history_path() -> Option<PathBuf> {
+    config_path().and_then(|p| p.parent().map(|d| d.join("history.toml")))
 }
 
 pub(crate) fn run_config() -> anyhow::Result<()> {

@@ -42,6 +42,12 @@ pub(crate) enum CodeBlockFlash {
     NoneVisible,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum HistoryFlash {
+    WriteFailed,
+    LengthCapped { was: i32 },
+}
+
 impl App {
     pub(crate) fn set_editor_flash(&mut self, flash: EditorFlash) {
         self.editor_flash = Some((flash, Instant::now()));
@@ -175,5 +181,17 @@ impl App {
 
     pub(crate) fn code_block_flash(&self) -> Option<(&CodeBlockFlash, &Instant)> {
         self.code_block_flash.as_ref().map(|(f, t)| (f, t))
+    }
+
+    pub(crate) fn set_history_flash(&mut self, flash: HistoryFlash) {
+        self.history_flash = Some((flash, Instant::now()));
+    }
+
+    pub(crate) fn history_flash(&self) -> Option<(&HistoryFlash, &Instant)> {
+        self.history_flash.as_ref().map(|(f, t)| (f, t))
+    }
+
+    pub(crate) fn clear_history_flash(&mut self) {
+        self.history_flash = None;
     }
 }

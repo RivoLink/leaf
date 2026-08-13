@@ -92,6 +92,7 @@ pub(crate) enum PendingPicker {
     None,
     Browser(PathBuf),
     Fuzzy(PathBuf),
+    History,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -114,6 +115,11 @@ pub(crate) enum PickerLoadState {
         started_at: Instant,
         receiver: Receiver<std::io::Result<PickerIndexResult>>,
         pending_result: Option<std::io::Result<PickerIndexResult>>,
+    },
+    LoadingHistory {
+        started_at: Instant,
+        receiver: Receiver<Vec<super::history::HistoryEntry>>,
+        pending_result: Option<Vec<super::history::HistoryEntry>>,
     },
     Failed {
         mode: FilePickerMode,
@@ -154,7 +160,17 @@ impl App {
     }
 
     pub(crate) fn is_picker_loading(&self) -> bool {
-        matches!(self.picker_load_state, PickerLoadState::Loading { .. })
+        matches!(
+            self.picker_load_state,
+            PickerLoadState::Loading { .. } | PickerLoadState::LoadingHistory { .. }
+        )
+    }
+
+    pub(crate) fn is_history_picker_loading(&self) -> bool {
+        matches!(
+            self.picker_load_state,
+            PickerLoadState::LoadingHistory { .. }
+        )
     }
 
     pub(crate) fn is_picker_load_failed(&self) -> bool {
@@ -166,10 +182,11 @@ impl App {
             PickerLoadState::Loading { mode, .. } | PickerLoadState::Failed { mode, .. } => {
                 Some(*mode)
             }
+            PickerLoadState::LoadingHistory { .. } => None,
             PickerLoadState::Idle => match self.pending_picker {
                 PendingPicker::Browser(..) => Some(FilePickerMode::Browser),
                 PendingPicker::Fuzzy(..) => Some(FilePickerMode::Fuzzy),
-                PendingPicker::None => None,
+                PendingPicker::History | PendingPicker::None => None,
             },
         }
     }
@@ -179,9 +196,10 @@ impl App {
             PickerLoadState::Loading { dir, .. } | PickerLoadState::Failed { dir, .. } => {
                 Some(dir.as_path())
             }
+            PickerLoadState::LoadingHistory { .. } => None,
             PickerLoadState::Idle => match &self.pending_picker {
                 PendingPicker::Browser(dir) | PendingPicker::Fuzzy(dir) => Some(dir.as_path()),
-                PendingPicker::None => None,
+                PendingPicker::History | PendingPicker::None => None,
             },
         }
     }
@@ -189,7 +207,9 @@ impl App {
     pub(crate) fn picker_load_error(&self) -> Option<&str> {
         match &self.picker_load_state {
             PickerLoadState::Failed { message, .. } => Some(message.as_str()),
-            PickerLoadState::Idle | PickerLoadState::Loading { .. } => None,
+            PickerLoadState::Idle
+            | PickerLoadState::Loading { .. }
+            | PickerLoadState::LoadingHistory { .. } => None,
         }
     }
 
@@ -265,6 +285,43 @@ impl App {
                         self.picker_load_state = PickerLoadState::Loading {
                             mode,
                             dir,
+                            started_at,
+                            receiver,
+                            pending_result: None,
+                        };
+                        false
+                    }
+                }
+            }
+            PickerLoadState::LoadingHistory {
+                started_at,
+                receiver,
+                mut pending_result,
+            } => {
+                if pending_result.is_none() {
+                    pending_result = match receiver.try_recv() {
+                        Ok(entries) => Some(entries),
+                        Err(TryRecvError::Empty) => None,
+                        Err(TryRecvError::Disconnected) => Some(Vec::new()),
+                    };
+                }
+
+                if started_at.elapsed() < Self::min_picker_loading_duration() {
+                    self.picker_load_state = PickerLoadState::LoadingHistory {
+                        started_at,
+                        receiver,
+                        pending_result,
+                    };
+                    return false;
+                }
+
+                match pending_result {
+                    Some(entries) => {
+                        self.install_loaded_history_picker(entries);
+                        true
+                    }
+                    None => {
+                        self.picker_load_state = PickerLoadState::LoadingHistory {
                             started_at,
                             receiver,
                             pending_result: None,

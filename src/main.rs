@@ -200,6 +200,7 @@ fn main() -> Result<()> {
         editor: cli_editor,
         inline: mut inline_spec,
         width: cli_width,
+        print_history,
         ..
     } = options;
 
@@ -235,6 +236,36 @@ fn main() -> Result<()> {
     let tab_title_length = resolve_tab_title_length_n(user_config.tab_title_length);
     let tab_title_max_filename_len = tab_title_length.and_then(tab_title_n_to_max_filename_len);
     let file_picker_width = resolve_file_picker_width(user_config.file_picker_width);
+
+    let raw_file_history_length = user_config.file_history_length.unwrap_or(0);
+    let mut history_clamped_from: Option<i32> = None;
+    let effective_file_history_length = if raw_file_history_length > config::FILE_HISTORY_LENGTH_MAX
+    {
+        history_clamped_from = Some(raw_file_history_length);
+        Some(config::FILE_HISTORY_LENGTH_MAX)
+    } else if raw_file_history_length > 0 {
+        Some(raw_file_history_length)
+    } else {
+        None
+    };
+
+    let mut open_history_picker = false;
+    if print_history {
+        match effective_file_history_length {
+            None => {
+                eprintln!("{}", app::history::MSG_HISTORY_DISABLED);
+                return Ok(());
+            }
+            Some(_) => {
+                let entries = app::load_history();
+                if entries.is_empty() {
+                    eprintln!("{}", app::history::MSG_NO_FILE_HISTORY);
+                    return Ok(());
+                }
+                open_history_picker = true;
+            }
+        }
+    }
 
     if let Some(ref mut spec) = inline_spec {
         if spec.width.is_none() {
@@ -413,6 +444,15 @@ fn main() -> Result<()> {
     app.set_tab_title_max_filename_len(tab_title_max_filename_len);
     app.set_tab_title_length(tab_title_length);
     app.set_file_picker_width(file_picker_width);
+    app.set_file_history_length(effective_file_history_length);
+    if let Some(was) = history_clamped_from {
+        app.set_history_flash(app::HistoryFlash::LengthCapped { was });
+    }
+    if effective_file_history_length.is_some() {
+        let (history_err_tx, history_err_rx) = std::sync::mpsc::channel();
+        app::history::set_history_error_sender(history_err_tx);
+        app.set_history_error_receiver(history_err_rx);
+    }
     app.set_extras(user_config.extras);
     app.set_file_mode(file_mode);
     app.set_editor_config(Some(resolved_editor));
@@ -426,6 +466,15 @@ fn main() -> Result<()> {
     }
     if let Some(dir) = open_fuzzy_picker_dir {
         app.queue_fuzzy_file_picker(dir);
+    }
+    if open_history_picker {
+        app.queue_history_picker();
+    }
+
+    if let Some(n) = effective_file_history_length {
+        if let Some(fp) = app.filepath() {
+            app::history::record_open(fp.to_path_buf(), n as usize);
+        }
     }
     runtime::debug_log(
         debug_input,

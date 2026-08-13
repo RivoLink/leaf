@@ -111,6 +111,9 @@ impl App {
         let first_load = self.filepath.is_none();
         self.filename = filename;
         self.source = src;
+        if let Some(n) = self.file_history_length.filter(|n| *n > 0) {
+            super::history::record_open(path.clone(), n as usize);
+        }
         self.filepath = Some(path);
         if first_load && self.watch_from_config {
             self.watch = true;

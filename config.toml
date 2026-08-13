@@ -91,3 +91,9 @@ watch = false
 # Minimum accepted: 20. Any other value falls back to no truncation.
 # Default: -1 (no truncation)
 # tab-title-length = -1
+
+# Maximum number of recently opened files to keep in history
+# History is stored in "history.toml" next to this config file.
+# Maximum accepted: 50. Values above are clamped.
+# Default: 0 (disables history recording)
+# file-history-length = 0

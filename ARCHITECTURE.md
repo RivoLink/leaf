@@ -20,6 +20,8 @@
   - `file_picker.rs`  :  fuzzy and browser picker state, queue/pending lifecycle
   - `io_picker.rs`  :  filesystem scanning, async loading via thread + mpsc channel, fuzzy matching
   - `fuzzy.rs`  :  fuzzy matching algorithm and directory sort helpers
+  - `history.rs`  :  file history persistence (`history.toml`), async record via fs2 lock + atomic write
+  - `history_picker.rs`  :  history picker state and lifecycle (queue/load/close/activate)
   - `search.rs`  :  search state and match tracking
   - `theme_picker.rs`  :  theme picker state with preview cache
 
@@ -52,7 +54,7 @@
 
 - `src/runtime/`
   - `mod.rs`  :  event loop, polling, timers, resize synchronization
-  - `keyboard.rs`  :  keyboard handling with mode-aware branching (help → picker_loading → picker_failed → file_picker → theme_picker → editor_picker → path_popup → goto_line → search → normal)
+  - `keyboard.rs`  :  keyboard handling with mode-aware branching (popups, pickers, goto-line, search, normal)
   - `mouse.rs`  :  mouse handling (scroll, click, double-click, scrollbar drag, link hover)
 
 - `src/theme/`
@@ -123,8 +125,8 @@
 4. If `--inline` is active, `inline.rs` writes lines to stdout and exits.
 5. `App` stores the state and caches.
 6. `runtime.rs` runs the event loop:
-   - processes pending picker queue → spawns loading thread
-   - polls picker loading → installs results when ready
+   - processes the pending picker queue and spawns the loading thread
+   - polls picker loading, installing results when ready
    - handles input events through mode-aware branching
 7. `render/` draws each frame from `App`.
 
@@ -135,11 +137,11 @@
 
 ## Picker lifecycle
 
-1. `queue_fuzzy_file_picker()` / `queue_file_picker()` sets `PendingPicker`
-2. Main loop calls `start_pending_picker_loading()` → spawns thread, creates `mpsc::channel`
-3. `poll_picker_loading()` does non-blocking `try_recv()` each tick (50ms)
-4. Thread completes → result installed via `install_loaded_file_picker()`
-5. Cancel: `cancel_picker_loading()` resets state to `Idle`, `Receiver` is dropped, thread finishes naturally
+1. `queue_fuzzy_file_picker()` / `queue_file_picker()` / `queue_history_picker()` sets `PendingPicker`
+2. Main loop calls `start_pending_picker_loading()`, which spawns the thread and creates an `mpsc::channel`
+3. `poll_picker_loading()` does non-blocking `try_recv()` each tick (50ms), honoring a minimum 500ms loading state for uniform UX
+4. Once the thread completes, the result is installed via `install_loaded_file_picker()` or `install_loaded_history_picker()`
+5. Cancel / close: `cancel_picker_loading()` / `close_history_picker()` resets state to `Idle`, `Receiver` is dropped, thread finishes naturally
 
 ## Important state transitions
 

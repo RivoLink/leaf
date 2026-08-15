@@ -223,12 +223,21 @@ pub(super) fn render_picker_loading_popup(f: &mut Frame, app: &mut App) {
     ];
 
     if is_fuzzy {
+        let query = app.file_picker_query();
+        let (query_text, query_fg) = if query.is_empty() {
+            (
+                " type to filter ".to_string(),
+                theme.ui.toc_primary_inactive,
+            )
+        } else {
+            (format!(" {query} "), theme.ui.toc_primary_active)
+        };
         lines.push(Line::from(vec![
             Span::styled("Query: ", section_style),
             Span::styled(
-                " type to filter ",
+                query_text,
                 Style::default()
-                    .fg(theme.ui.toc_primary_inactive)
+                    .fg(query_fg)
                     .bg(theme.markdown.inline_code_bg),
             ),
         ]));

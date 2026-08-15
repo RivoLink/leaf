@@ -91,7 +91,7 @@ pub(crate) enum FilePickerMode {
 pub(crate) enum PendingPicker {
     None,
     Browser(PathBuf),
-    Fuzzy(PathBuf),
+    Fuzzy(PathBuf, Option<String>),
     History,
 }
 
@@ -152,7 +152,15 @@ impl App {
     }
 
     pub(crate) fn queue_fuzzy_file_picker(&mut self, dir: PathBuf) {
-        self.pending_picker = PendingPicker::Fuzzy(dir);
+        self.queue_fuzzy_file_picker_with_query(dir, None);
+    }
+
+    pub(crate) fn queue_fuzzy_file_picker_with_query(
+        &mut self,
+        dir: PathBuf,
+        query: Option<String>,
+    ) {
+        self.pending_picker = PendingPicker::Fuzzy(dir, query);
     }
 
     pub(crate) fn has_pending_picker(&self) -> bool {
@@ -198,7 +206,7 @@ impl App {
             }
             PickerLoadState::LoadingHistory { .. } => None,
             PickerLoadState::Idle => match &self.pending_picker {
-                PendingPicker::Browser(dir) | PendingPicker::Fuzzy(dir) => Some(dir.as_path()),
+                PendingPicker::Browser(dir) | PendingPicker::Fuzzy(dir, _) => Some(dir.as_path()),
                 PendingPicker::History | PendingPicker::None => None,
             },
         }
@@ -377,6 +385,7 @@ impl App {
             }
         };
 
+        self.file_picker.query.clear();
         match result {
             Ok(result) => self.install_loaded_file_picker(dir, mode, result),
             Err(_) => false,
@@ -409,6 +418,7 @@ impl App {
     pub(crate) fn cancel_picker_loading(&mut self) {
         self.picker_load_state = PickerLoadState::Idle;
         self.pending_picker = PendingPicker::None;
+        self.file_picker.query.clear();
         self.picker_width_floor_active = false;
     }
 

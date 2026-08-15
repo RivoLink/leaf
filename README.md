@@ -124,6 +124,11 @@ leaf -w TESTING.md
 # Open the fuzzy Markdown picker
 leaf
 
+# Open the fuzzy Markdown picker with a pre-filled filter
+# keyword: alphanumeric, max 15 chars
+leaf --fuzzy keyword
+leaf keyword
+
 # Open the classic directory browser picker
 leaf --picker
 

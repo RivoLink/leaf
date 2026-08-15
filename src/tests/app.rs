@@ -179,6 +179,97 @@ fn parse_cli_rejects_config_remove_with_other_flags() {
 }
 
 #[test]
+fn parse_cli_accepts_history_on_its_own() {
+    let args = vec!["leaf".to_string(), "--history".to_string()];
+    let options = parse_cli(&args).unwrap();
+    assert_eq!(options.history, Some(cli::HistoryAction::Picker));
+}
+
+#[test]
+fn parse_cli_accepts_history_short_on_its_own() {
+    let args = vec!["leaf".to_string(), "-H".to_string()];
+    let options = parse_cli(&args).unwrap();
+    assert_eq!(options.history, Some(cli::HistoryAction::Picker));
+}
+
+#[test]
+fn parse_cli_history_edit() {
+    let args = vec![
+        "leaf".to_string(),
+        "--history".to_string(),
+        "edit".to_string(),
+    ];
+    let options = parse_cli(&args).unwrap();
+    assert_eq!(options.history, Some(cli::HistoryAction::Edit));
+}
+
+#[test]
+fn parse_cli_history_short_edit() {
+    let args = vec!["leaf".to_string(), "-H".to_string(), "edit".to_string()];
+    let options = parse_cli(&args).unwrap();
+    assert_eq!(options.history, Some(cli::HistoryAction::Edit));
+}
+
+#[test]
+fn parse_cli_history_remove() {
+    let args = vec![
+        "leaf".to_string(),
+        "--history".to_string(),
+        "remove".to_string(),
+    ];
+    let options = parse_cli(&args).unwrap();
+    assert_eq!(options.history, Some(cli::HistoryAction::Remove));
+}
+
+#[test]
+fn parse_cli_history_short_remove() {
+    let args = vec!["leaf".to_string(), "-H".to_string(), "remove".to_string()];
+    let options = parse_cli(&args).unwrap();
+    assert_eq!(options.history, Some(cli::HistoryAction::Remove));
+}
+
+#[test]
+fn parse_cli_rejects_history_with_other_flags() {
+    let args = vec![
+        "leaf".to_string(),
+        "--history".to_string(),
+        "--watch".to_string(),
+    ];
+    let err = parse_cli(&args).unwrap_err();
+    assert!(err
+        .to_string()
+        .contains("--history must be used on its own"));
+}
+
+#[test]
+fn parse_cli_rejects_history_edit_with_other_flags() {
+    let args = vec![
+        "leaf".to_string(),
+        "--history".to_string(),
+        "edit".to_string(),
+        "--watch".to_string(),
+    ];
+    let err = parse_cli(&args).unwrap_err();
+    assert!(err
+        .to_string()
+        .contains("--history must be used on its own"));
+}
+
+#[test]
+fn parse_cli_rejects_history_remove_with_other_flags() {
+    let args = vec![
+        "leaf".to_string(),
+        "--history".to_string(),
+        "remove".to_string(),
+        "--watch".to_string(),
+    ];
+    let err = parse_cli(&args).unwrap_err();
+    assert!(err
+        .to_string()
+        .contains("--history must be used on its own"));
+}
+
+#[test]
 fn parse_cli_accepts_picker_on_its_own() {
     let args = vec!["leaf".to_string(), "--picker".to_string()];
     let options = parse_cli(&args).unwrap();

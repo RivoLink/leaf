@@ -38,6 +38,28 @@ pub(crate) struct CliOptions {
     pub(crate) inline: Option<InlineSpec>,
     pub(crate) width: Option<usize>,
     pub(crate) print_history: bool,
+    pub(crate) fuzzy: bool,
+    pub(crate) fuzzy_query: Option<String>,
+}
+
+pub(crate) const FUZZY_QUERY_MAX_LEN: usize = 15;
+const FUZZY_QUERY_CHARSET_DESC: &str = "[A-Za-z0-9._-]";
+
+pub(crate) fn is_valid_fuzzy_query(s: &str) -> bool {
+    !s.is_empty()
+        && s.chars().count() <= FUZZY_QUERY_MAX_LEN
+        && s.chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.'))
+}
+
+fn parse_fuzzy_query(value: String) -> Result<String> {
+    if !is_valid_fuzzy_query(&value) {
+        anyhow::bail!(
+            "--fuzzy: invalid value '{value}'\n\
+             \x20      allowed: {FUZZY_QUERY_CHARSET_DESC}, max {FUZZY_QUERY_MAX_LEN} chars"
+        );
+    }
+    Ok(value)
 }
 
 pub(crate) fn usage_text() -> &'static str {
@@ -54,6 +76,7 @@ pub(crate) fn usage_text() -> &'static str {
      \x20 -e, --editor <NAME>          Set external editor (nano|vim|code|subl|emacs)\n\
      \x20     --inline [SPEC]          Render to stdout (no TUI) [ansi|plain][:<width>]\n\
      \x20     --width <N>              Set maximum content width (min: 20)\n\
+     \x20     --fuzzy [KEYWORD]        Open the fuzzy file picker (KEYWORD pre-fills the filter)\n\
      \x20     --picker                 Open the file browser picker\n\
      \x20 -H, --history                Open the file history picker\n\
      \x20     --config [reset|remove]  Open, reset or remove configuration\n\
@@ -90,6 +113,20 @@ pub(crate) fn parse_cli(args: &[String]) -> Result<CliOptions> {
 
         match arg.as_str() {
             "--picker" => options.picker = true,
+            "--fuzzy" => {
+                options.fuzzy = true;
+                let take_value = iter
+                    .peek()
+                    .map(|next| !next.starts_with('-'))
+                    .unwrap_or(false);
+                if take_value {
+                    options.fuzzy_query = Some(parse_fuzzy_query(iter.next().unwrap().clone())?);
+                }
+            }
+            _ if arg.starts_with("--fuzzy=") => {
+                options.fuzzy = true;
+                options.fuzzy_query = Some(parse_fuzzy_query(arg["--fuzzy=".len()..].to_string())?);
+            }
             "--watch" | "-w" => options.watch = true,
             "--update" => options.update = true,
             "--config" => {
@@ -190,6 +227,7 @@ pub(crate) fn parse_cli(args: &[String]) -> Result<CliOptions> {
         let has_other = standalone_count > 1
             || options.watch
             || options.picker
+            || options.fuzzy
             || options.debug_input
             || options.file_arg.is_some()
             || options.theme.is_some()
@@ -205,6 +243,18 @@ pub(crate) fn parse_cli(args: &[String]) -> Result<CliOptions> {
         }
         if options.picker {
             anyhow::bail!("--inline cannot be combined with --picker");
+        }
+        if options.fuzzy {
+            anyhow::bail!("--inline cannot be combined with --fuzzy");
+        }
+    }
+
+    if options.fuzzy {
+        if options.picker {
+            anyhow::bail!("--fuzzy cannot be combined with --picker");
+        }
+        if options.file_arg.is_some() {
+            anyhow::bail!("--fuzzy cannot be combined with a file argument");
         }
     }
 

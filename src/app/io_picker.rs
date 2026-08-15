@@ -244,7 +244,6 @@ impl App {
         self.file_picker.mode = mode;
         self.file_picker.dir = dir;
         self.file_picker.entries = result.entries;
-        self.file_picker.query.clear();
         self.file_picker.index = 0;
         self.file_picker.truncation = if mode == FilePickerMode::Fuzzy {
             result.truncated
@@ -263,9 +262,13 @@ impl App {
         }
 
         let pending = std::mem::replace(&mut self.pending_picker, PendingPicker::None);
+        self.file_picker.query.clear();
         let (mode, dir) = match pending {
             PendingPicker::Browser(dir) => (FilePickerMode::Browser, dir),
-            PendingPicker::Fuzzy(dir) => (FilePickerMode::Fuzzy, dir),
+            PendingPicker::Fuzzy(dir, query) => {
+                self.file_picker.query = query.unwrap_or_default();
+                (FilePickerMode::Fuzzy, dir)
+            }
             PendingPicker::History => {
                 let (tx, rx) = mpsc::channel();
                 thread::spawn(move || {

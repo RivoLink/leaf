@@ -1,6 +1,10 @@
 use anyhow::{bail, Context, Result};
 use ratatui::{backend::CrosstermBackend, Terminal};
-use std::{fs::OpenOptions, io, io::IsTerminal, io::Read, io::Write, path::PathBuf};
+use std::{
+    fs::OpenOptions,
+    io::{self, IsTerminal, Read, Write},
+    path::PathBuf,
+};
 use syntect::{highlighting::ThemeSet, parsing::SyntaxSet};
 
 mod app;
@@ -201,8 +205,11 @@ fn main() -> Result<()> {
         inline: mut inline_spec,
         width: cli_width,
         print_history,
+        fuzzy: _fuzzy,
+        fuzzy_query,
         ..
     } = options;
+    let mut fuzzy_initial_query = fuzzy_query;
 
     let overrides = config::CliOverrides {
         width: cli_width,
@@ -292,11 +299,11 @@ fn main() -> Result<()> {
     let mut dir_arg = None;
     let (src, filename, filepath) = if let Some(f) = file_arg {
         let path = PathBuf::from(&f);
+        if picker && !path.is_dir() {
+            anyhow::bail!("--picker cannot be combined with a file path");
+        }
         if path.is_dir() {
-            let label = path
-                .file_name()
-                .map(|name| name.to_string_lossy().to_string())
-                .unwrap_or_else(|| path.display().to_string());
+            let label = app::path_label(&path);
             if picker {
                 open_browser_picker_dir = Some(path.clone());
             } else {
@@ -304,24 +311,24 @@ fn main() -> Result<()> {
             }
             dir_arg = Some(path);
             (String::new(), label, None)
-        } else if picker {
-            anyhow::bail!("--picker cannot be combined with a file path");
-        } else {
+        } else if path.is_file() {
             let content = std::fs::read_to_string(&path)
                 .with_context(|| format!("Cannot read: {}", path.display()))?;
-            let name = path
-                .file_name()
-                .map(|n| n.to_string_lossy().to_string())
-                .unwrap_or(f);
+            let name = app::path_label(&path);
             (content, name, Some(path))
+        } else if cli::is_valid_fuzzy_query(&f) {
+            let cwd = std::env::current_dir().context("Cannot read current directory")?;
+            let label = app::path_label(&cwd);
+            open_fuzzy_picker_dir = Some(cwd);
+            fuzzy_initial_query = Some(f);
+            (String::new(), label, None)
+        } else {
+            anyhow::bail!("Not a valid file, directory or keyword: {}", f);
         }
     } else {
         if io::stdin().is_terminal() {
             let cwd = std::env::current_dir().context("Cannot read current directory")?;
-            let label = cwd
-                .file_name()
-                .map(|name| name.to_string_lossy().to_string())
-                .unwrap_or_else(|| cwd.display().to_string());
+            let label = app::path_label(&cwd);
             if picker {
                 open_browser_picker_dir = Some(cwd);
             } else {
@@ -465,7 +472,7 @@ fn main() -> Result<()> {
         app.queue_file_picker(dir);
     }
     if let Some(dir) = open_fuzzy_picker_dir {
-        app.queue_fuzzy_file_picker(dir);
+        app.queue_fuzzy_file_picker_with_query(dir, fuzzy_initial_query.take());
     }
     if open_history_picker {
         app.queue_history_picker();

@@ -87,10 +87,7 @@ impl App {
             Ok(src) => src,
             Err(_) => return false,
         };
-        let filename = path
-            .file_name()
-            .map(|name| name.to_string_lossy().to_string())
-            .unwrap_or_else(|| path.display().to_string());
+        let filename = super::path_label(&path);
         let file_state = read_file_state(&path);
         let content_hash = hash_str(&src);
         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");

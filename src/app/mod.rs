@@ -10,9 +10,15 @@ use crate::{
 use ratatui::{layout::Rect, text::Line};
 use std::{
     collections::HashMap,
-    path::PathBuf,
+    path::{Path, PathBuf},
     time::{Duration, Instant},
 };
+
+pub(crate) fn path_label(path: &Path) -> String {
+    path.file_name()
+        .map(|name| name.to_string_lossy().to_string())
+        .unwrap_or_else(|| path.display().to_string())
+}
 
 mod search;
 pub(crate) use search::SearchState;

@@ -161,6 +161,23 @@ pub(crate) fn run_config() -> anyhow::Result<()> {
     open_config_in_editor(&path)
 }
 
+pub(crate) fn reset_config() -> anyhow::Result<()> {
+    let path = config_path().context("Cannot determine config directory")?;
+
+    let (old_config, _) = load_config(&CliOverrides::default());
+    let editor = crate::editor::resolve_editor(None, old_config.editor.as_deref());
+
+    if !confirm("Reset leaf configuration to defaults?")? {
+        println!("Reset cancelled.");
+        return Ok(());
+    }
+
+    write_default_config(&path)?;
+    println!("Configuration reset: {}", path.display());
+    launch_editor(&editor, &path);
+    Ok(())
+}
+
 pub(crate) fn remove_config() -> anyhow::Result<()> {
     let dir = config_path()
         .and_then(|p| p.parent().map(Path::to_path_buf))
@@ -182,20 +199,34 @@ pub(crate) fn remove_config() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub(crate) fn reset_config() -> anyhow::Result<()> {
-    let path = config_path().context("Cannot determine config directory")?;
+pub(crate) fn edit_history() -> anyhow::Result<()> {
+    let path = history_path().context("Cannot determine history file path")?;
 
-    let (old_config, _) = load_config(&CliOverrides::default());
-    let editor = crate::editor::resolve_editor(None, old_config.editor.as_deref());
-
-    if !confirm("Reset leaf configuration to defaults?")? {
-        println!("Reset cancelled.");
+    if !path.exists() {
+        println!("No file history to edit: {}", path.display());
         return Ok(());
     }
 
-    write_default_config(&path)?;
-    println!("Configuration reset: {}", path.display());
-    launch_editor(&editor, &path);
+    println!("File history: {}", path.display());
+    open_config_in_editor(&path)
+}
+
+pub(crate) fn remove_history() -> anyhow::Result<()> {
+    let path = history_path().context("Cannot determine history file path")?;
+
+    if !path.exists() {
+        println!("No file history to remove: {}", path.display());
+        return Ok(());
+    }
+
+    if !confirm("Remove file history?")? {
+        println!("Remove cancelled.");
+        return Ok(());
+    }
+
+    std::fs::remove_file(&path)
+        .with_context(|| format!("Cannot remove file history: {}", path.display()))?;
+    println!("File history removed: {}", path.display());
     Ok(())
 }
 
@@ -216,7 +247,7 @@ fn write_default_config(dest: &Path) -> anyhow::Result<()> {
         .with_context(|| format!("Cannot write config file: {}", dest.display()))
 }
 
-fn open_config_in_editor(path: &Path) -> anyhow::Result<()> {
+pub(crate) fn open_config_in_editor(path: &Path) -> anyhow::Result<()> {
     let (config, _) = load_config(&CliOverrides::default());
     let editor = crate::editor::resolve_editor(None, config.editor.as_deref());
     launch_editor(&editor, path);

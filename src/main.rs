@@ -191,6 +191,19 @@ fn main() -> Result<()> {
         }
         return Ok(());
     }
+    if let Some(ref history_action) = options.history {
+        match history_action {
+            cli::HistoryAction::Edit => {
+                config::edit_history()?;
+                return Ok(());
+            }
+            cli::HistoryAction::Remove => {
+                config::remove_history()?;
+                return Ok(());
+            }
+            cli::HistoryAction::Picker => {}
+        }
+    }
     if let Some(ref ac_arg) = options.auto_complete {
         completions::run_auto_complete(ac_arg)?;
         return Ok(());
@@ -204,7 +217,7 @@ fn main() -> Result<()> {
         editor: cli_editor,
         inline: mut inline_spec,
         width: cli_width,
-        print_history,
+        history,
         fuzzy: _fuzzy,
         fuzzy_query,
         ..
@@ -257,7 +270,7 @@ fn main() -> Result<()> {
     };
 
     let mut open_history_picker = false;
-    if print_history {
+    if matches!(history, Some(cli::HistoryAction::Picker)) {
         match effective_file_history_length {
             None => {
                 eprintln!("{}", app::history::MSG_HISTORY_DISABLED);

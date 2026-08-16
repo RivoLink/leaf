@@ -19,6 +19,8 @@ _leaf() {
         '--fuzzy[Open the fuzzy file picker (KEYWORD pre-fills the filter)]::keyword:'
         '-H[Open picker, or edit/remove/list file history]::action:(edit remove list)'
         '--history[Open picker, or edit/remove/list file history]::action:(edit remove list)'
+        '-l[Open the most recent from file history]'
+        '--last[Open the most recent from file history]'
         '--config[Open, reset or remove configuration file]::action:(reset remove)'
         '--update[Update leaf to the latest version]'
         '--auto-complete[Install, dump or remove shell completions]::shell:(bash zsh fish powershell dump remove)'

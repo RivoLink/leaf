@@ -34,6 +34,7 @@ pub(crate) struct AutoCompleteArg {
 pub(crate) struct CliOptions {
     pub(crate) picker: bool,
     pub(crate) watch: bool,
+    pub(crate) last: bool,
     pub(crate) update: bool,
     pub(crate) config: Option<ConfigAction>,
     pub(crate) auto_complete: Option<AutoCompleteArg>,
@@ -87,6 +88,7 @@ pub(crate) fn usage_text() -> &'static str {
      \x20     --fuzzy [KEYWORD]        Open the fuzzy file picker (KEYWORD pre-fills the filter)\n\
      \x20     --picker                 Open the file browser picker\n\
      \x20 -H, --history [SPEC]         Open picker, or [edit|remove|list:<n>] file history\n\
+     \x20 -l, --last                   Open the most recent from file history\n\
      \x20     --config [reset|remove]  Open, reset or remove configuration\n\
      \x20     --update                 Update leaf to the latest version\n\
      \x20     --auto-complete [SPEC]   Install, dump or remove shell completions [<shell>][:dump|:remove]"
@@ -185,6 +187,7 @@ pub(crate) fn parse_cli(args: &[String]) -> Result<CliOptions> {
                 };
                 options.history = Some(action);
             }
+            "--last" | "-l" => options.last = true,
             "--theme" => {
                 let Some(name) = iter.next() else {
                     anyhow::bail!("Missing value for --theme");
@@ -253,6 +256,7 @@ pub(crate) fn parse_cli(args: &[String]) -> Result<CliOptions> {
             || options.watch
             || options.picker
             || options.fuzzy
+            || options.last
             || options.debug_input
             || options.file_arg.is_some()
             || options.theme.is_some()
@@ -280,6 +284,18 @@ pub(crate) fn parse_cli(args: &[String]) -> Result<CliOptions> {
         }
         if options.file_arg.is_some() {
             anyhow::bail!("--fuzzy cannot be combined with a file argument");
+        }
+    }
+
+    if options.last {
+        if options.file_arg.is_some() {
+            anyhow::bail!("--last cannot be combined with a file argument");
+        }
+        if options.picker {
+            anyhow::bail!("--last cannot be combined with --picker");
+        }
+        if options.fuzzy {
+            anyhow::bail!("--last cannot be combined with --fuzzy");
         }
     }
 

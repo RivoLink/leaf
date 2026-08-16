@@ -59,8 +59,8 @@ $global:LeafCompleter = {
 
     if ($wordToComplete -like '-*') {
         @('--help', '--version', '--watch', '--theme', '--editor', '--inline',
-          '--width', '--picker', '--fuzzy', '--history', '--config', '--update', '--auto-complete',
-          '-h', '-V', '-w', '-e', '-H') |
+          '--width', '--picker', '--fuzzy', '--history', '--last', '--config', '--update', '--auto-complete',
+          '-h', '-V', '-w', '-e', '-H', '-l') |
             Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
                 [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterName', $_)
             }

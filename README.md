@@ -145,6 +145,13 @@ leaf -- -notes.md
 leaf --history
 leaf -H
 
+# Open the most recent from file history
+leaf --last
+leaf -l
+
+# Combine with watch mode
+leaf --last --watch
+
 # Pick a color theme
 leaf --theme forest TESTING.md
 

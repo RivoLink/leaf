@@ -169,7 +169,7 @@ fn append_config_warning(warning: &mut Option<String>, next: Option<String>) {
 
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().collect();
-    let options = parse_cli(&args)?;
+    let mut options = parse_cli(&args)?;
 
     if options.print_help {
         print_usage();
@@ -214,6 +214,18 @@ fn main() -> Result<()> {
             }
             cli::HistoryAction::Picker => {}
         }
+    }
+    if options.last {
+        let entries = app::load_history();
+        let Some(entry) = entries.into_iter().next() else {
+            eprintln!("{}", app::history::MSG_NO_FILE_HISTORY);
+            return Ok(());
+        };
+        if !entry.path.is_file() {
+            eprintln!("{}", app::history::MSG_FILE_NO_LONGER_AVAILABLE);
+            return Ok(());
+        }
+        options.file_arg = Some(entry.path.display().to_string());
     }
     if let Some(ref ac_arg) = options.auto_complete {
         completions::run_auto_complete(ac_arg)?;

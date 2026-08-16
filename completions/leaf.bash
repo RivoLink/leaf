@@ -20,6 +20,10 @@ _leaf() {
             COMPREPLY=($(compgen -W "reset remove" -- "$cur"))
             return
             ;;
+        --history|-H)
+            COMPREPLY=($(compgen -W "edit remove list" -- "$cur"))
+            return
+            ;;
         --auto-complete)
             COMPREPLY=($(compgen -W "bash zsh fish powershell dump remove" -- "$cur"))
             return
@@ -27,7 +31,7 @@ _leaf() {
     esac
 
     if [[ "$cur" == -* ]]; then
-        COMPREPLY=($(compgen -W "--help --version --watch --theme --editor --inline --width --picker --config --update --auto-complete -h -V -w -e" -- "$cur"))
+        COMPREPLY=($(compgen -W "--help --version --watch --theme --editor --inline --width --picker --fuzzy --history --config --update --auto-complete -h -V -w -e -H" -- "$cur"))
         return
     fi
 

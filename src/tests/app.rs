@@ -229,6 +229,129 @@ fn parse_cli_history_short_remove() {
 }
 
 #[test]
+fn parse_cli_history_list_no_count() {
+    let args = vec![
+        "leaf".to_string(),
+        "--history".to_string(),
+        "list".to_string(),
+    ];
+    let options = parse_cli(&args).unwrap();
+    assert_eq!(
+        options.history,
+        Some(cli::HistoryAction::List { count: None })
+    );
+}
+
+#[test]
+fn parse_cli_history_list_with_count() {
+    let args = vec![
+        "leaf".to_string(),
+        "--history".to_string(),
+        "list:3".to_string(),
+    ];
+    let options = parse_cli(&args).unwrap();
+    assert_eq!(
+        options.history,
+        Some(cli::HistoryAction::List { count: Some(3) })
+    );
+}
+
+#[test]
+fn parse_cli_history_short_list_with_count() {
+    let args = vec!["leaf".to_string(), "-H".to_string(), "list:7".to_string()];
+    let options = parse_cli(&args).unwrap();
+    assert_eq!(
+        options.history,
+        Some(cli::HistoryAction::List { count: Some(7) })
+    );
+}
+
+#[test]
+fn parse_cli_history_bare_number_implies_list() {
+    let args = vec!["leaf".to_string(), "--history".to_string(), "5".to_string()];
+    let options = parse_cli(&args).unwrap();
+    assert_eq!(
+        options.history,
+        Some(cli::HistoryAction::List { count: Some(5) })
+    );
+}
+
+#[test]
+fn parse_cli_history_short_bare_number_implies_list() {
+    let args = vec!["leaf".to_string(), "-H".to_string(), "10".to_string()];
+    let options = parse_cli(&args).unwrap();
+    assert_eq!(
+        options.history,
+        Some(cli::HistoryAction::List { count: Some(10) })
+    );
+}
+
+#[test]
+fn parse_cli_history_list_zero_is_rejected() {
+    let args = vec![
+        "leaf".to_string(),
+        "--history".to_string(),
+        "list:0".to_string(),
+    ];
+    let err = parse_cli(&args).unwrap_err();
+    assert!(err
+        .to_string()
+        .contains("--history: invalid value 'list:0'"));
+}
+
+#[test]
+fn parse_cli_history_bare_zero_is_rejected() {
+    let args = vec!["leaf".to_string(), "--history".to_string(), "0".to_string()];
+    let err = parse_cli(&args).unwrap_err();
+    assert!(err.to_string().contains("--history: invalid value '0'"));
+}
+
+#[test]
+fn parse_cli_history_uppercase_list_is_rejected() {
+    let args = vec![
+        "leaf".to_string(),
+        "--history".to_string(),
+        "List".to_string(),
+    ];
+    let err = parse_cli(&args).unwrap_err();
+    assert!(err.to_string().contains("--history: invalid value 'List'"));
+}
+
+#[test]
+fn parse_cli_history_list_with_non_digit_count_is_rejected() {
+    let args = vec![
+        "leaf".to_string(),
+        "-H".to_string(),
+        "list:test".to_string(),
+    ];
+    let err = parse_cli(&args).unwrap_err();
+    assert!(err
+        .to_string()
+        .contains("--history: invalid value 'list:test'"));
+}
+
+#[test]
+fn parse_cli_history_bare_non_digit_is_rejected() {
+    let args = vec!["leaf".to_string(), "-H".to_string(), "test".to_string()];
+    let err = parse_cli(&args).unwrap_err();
+    assert!(err.to_string().contains("--history: invalid value 'test'"));
+}
+
+#[test]
+fn parse_cli_rejects_history_list_with_other_flags() {
+    let args = vec![
+        "leaf".to_string(),
+        "--history".to_string(),
+        "list:5".to_string(),
+        "--watch".to_string(),
+    ];
+    let err = parse_cli(&args).unwrap_err();
+    assert!(err
+        .to_string()
+        .contains("--history must be used on its own"));
+}
+
+#[test]
 fn parse_cli_rejects_history_with_other_flags() {
     let args = vec![
         "leaf".to_string(),

@@ -41,6 +41,13 @@ $global:LeafCompleter = {
                 }
             return
         }
+        { $_ -in '--history', '-H' } {
+            @('edit', 'remove', 'list') |
+                Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
+                    [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+                }
+            return
+        }
         '--auto-complete' {
             @('bash', 'zsh', 'fish', 'powershell', 'dump', 'remove') |
                 Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
@@ -52,8 +59,8 @@ $global:LeafCompleter = {
 
     if ($wordToComplete -like '-*') {
         @('--help', '--version', '--watch', '--theme', '--editor', '--inline',
-          '--width', '--picker', '--config', '--update', '--auto-complete',
-          '-h', '-V', '-w', '-e') |
+          '--width', '--picker', '--fuzzy', '--history', '--config', '--update', '--auto-complete',
+          '-h', '-V', '-w', '-e', '-H') |
             Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
                 [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterName', $_)
             }

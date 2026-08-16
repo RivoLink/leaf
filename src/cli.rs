@@ -70,7 +70,7 @@ fn parse_fuzzy_query(value: String) -> Result<String> {
 }
 
 pub(crate) fn usage_text() -> &'static str {
-    "Usage:  leaf [OPTIONS] [file.md | directory]\n\
+    "Usage:  leaf [OPTIONS] [file.md|directory|keyword]\n\
      \x20       leaf [--watch] --picker\n\
      \x20       leaf --update\n\
      \x20       echo '# Hello' | leaf\n\

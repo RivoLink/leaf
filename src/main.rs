@@ -201,6 +201,17 @@ fn main() -> Result<()> {
                 config::remove_history()?;
                 return Ok(());
             }
+            cli::HistoryAction::List { count } => {
+                let entries = app::load_history();
+                if entries.is_empty() {
+                    eprintln!("{}", app::history::MSG_NO_FILE_HISTORY);
+                    return Ok(());
+                }
+                for entry in entries.iter().take(count.unwrap_or(usize::MAX)) {
+                    println!("{}", entry.path.display());
+                }
+                return Ok(());
+            }
             cli::HistoryAction::Picker => {}
         }
     }

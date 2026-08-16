@@ -14,6 +14,7 @@ pub(crate) enum HistoryAction {
     Picker,
     Edit,
     Remove,
+    List { count: Option<usize> },
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -85,7 +86,7 @@ pub(crate) fn usage_text() -> &'static str {
      \x20     --width <N>              Set maximum content width (min: 20)\n\
      \x20     --fuzzy [KEYWORD]        Open the fuzzy file picker (KEYWORD pre-fills the filter)\n\
      \x20     --picker                 Open the file browser picker\n\
-     \x20 -H, --history [edit|remove]  Open picker, edit or remove file history\n\
+     \x20 -H, --history [SPEC]         Open picker, or [edit|remove|list:<n>] file history\n\
      \x20     --config [reset|remove]  Open, reset or remove configuration\n\
      \x20     --update                 Update leaf to the latest version\n\
      \x20     --auto-complete [SPEC]   Install, dump or remove shell completions [<shell>][:dump|:remove]"
@@ -175,6 +176,10 @@ pub(crate) fn parse_cli(args: &[String]) -> Result<CliOptions> {
                     Some("remove") => {
                         iter.next();
                         HistoryAction::Remove
+                    }
+                    Some(next) if !next.starts_with('-') => {
+                        let value = iter.next().unwrap();
+                        parse_history_list_spec(value)?
                     }
                     _ => HistoryAction::Picker,
                 };
@@ -311,6 +316,20 @@ fn parse_auto_complete_value(s: &str) -> Result<AutoCompleteArg> {
         None => None,
     };
     Ok(AutoCompleteArg { shell, mode })
+}
+
+fn parse_history_list_spec(s: &str) -> Result<HistoryAction> {
+    if s == "list" {
+        return Ok(HistoryAction::List { count: None });
+    }
+    let count_str = s.strip_prefix("list:").unwrap_or(s);
+    if let Some(n) = count_str.parse::<usize>().ok().filter(|&n| n > 0) {
+        return Ok(HistoryAction::List { count: Some(n) });
+    }
+    bail!(
+        "--history: invalid value '{s}'\n\
+         \x20       expected: edit, remove, list[:<n>], with n positive"
+    )
 }
 
 fn parse_width_value(s: &str) -> Result<usize> {

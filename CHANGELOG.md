@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- next-version -->
 
+## [[1.28.0](https://github.com/RivoLink/leaf/releases/tag/1.28.0)] - 2026-08-16
+
+### Added
+
+- open last file from history ([#252](https://github.com/RivoLink/leaf/pull/252))
+- fuzzy picker cli pre-fill ([#247](https://github.com/RivoLink/leaf/pull/247))
+- file history picker ([#245](https://github.com/RivoLink/leaf/pull/245))
+
+### Changed
+
+- fuzzy and history completion ([#250](https://github.com/RivoLink/leaf/pull/250))
+- file history list ([#251](https://github.com/RivoLink/leaf/pull/251))
+- keyword in cli usage ([#249](https://github.com/RivoLink/leaf/pull/249))
+- file history edit or remove ([#248](https://github.com/RivoLink/leaf/pull/248))
+
 ## [[1.27.1](https://github.com/RivoLink/leaf/releases/tag/1.27.1)] - 2026-08-12
 
 ### Docs

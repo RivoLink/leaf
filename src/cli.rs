@@ -310,7 +310,7 @@ fn parse_theme_name(name: &str) -> Result<String> {
     Ok(name.to_string())
 }
 
-const KNOWN_SHELLS: &[&str] = &["bash", "zsh", "fish", "powershell"];
+const KNOWN_SHELLS: &[&str] = &["bash", "zsh", "fish", "powershell", "nushell"];
 
 fn parse_auto_complete_value(s: &str) -> Result<AutoCompleteArg> {
     let (shell_part, mode) = match s.split_once(':') {
@@ -318,7 +318,7 @@ fn parse_auto_complete_value(s: &str) -> Result<AutoCompleteArg> {
         Some((shell, "remove")) => (Some(shell), AutoCompleteMode::Remove),
         Some(_) => bail!(
             "Invalid argument for --auto-complete: '{s}'. \
-             Expected: bash, zsh, fish, powershell, dump, remove, SHELL:dump, or SHELL:remove"
+             Expected: bash, zsh, fish, powershell, nushell, dump, remove, SHELL:dump, or SHELL:remove"
         ),
         None => match s {
             "dump" => (None, AutoCompleteMode::Dump),
@@ -328,7 +328,9 @@ fn parse_auto_complete_value(s: &str) -> Result<AutoCompleteArg> {
     };
     let shell = match shell_part {
         Some(name) if KNOWN_SHELLS.contains(&name) => Some(name.to_string()),
-        Some(name) => bail!("Unknown shell: '{name}'. Expected: bash, zsh, fish, powershell"),
+        Some(name) => {
+            bail!("Unknown shell: '{name}'. Expected: bash, zsh, fish, powershell, nushell")
+        }
         None => None,
     };
     Ok(AutoCompleteArg { shell, mode })

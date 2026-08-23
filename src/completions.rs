@@ -8,12 +8,14 @@ const PS1_COMPLETION: &str = include_str!("../completions/leaf.ps1");
 const ZSH_COMPLETION: &str = include_str!("../completions/leaf.zsh");
 const BASH_COMPLETION: &str = include_str!("../completions/leaf.bash");
 const FISH_COMPLETION: &str = include_str!("../completions/leaf.fish");
+const NU_COMPLETION: &str = include_str!("../completions/leaf.nu");
 
 enum Shell {
     Pwsh,
     Zsh,
     Bash,
     Fish,
+    Nushell,
 }
 
 impl Shell {
@@ -23,6 +25,7 @@ impl Shell {
             Shell::Zsh => "zsh",
             Shell::Fish => "fish",
             Shell::Pwsh => "powershell",
+            Shell::Nushell => "nushell",
         }
     }
 }
@@ -33,6 +36,7 @@ fn completion_filename(shell: &Shell) -> &'static str {
         Shell::Zsh => "_leaf",
         Shell::Fish => "leaf.fish",
         Shell::Pwsh => "leaf.ps1",
+        Shell::Nushell => "leaf.nu",
     }
 }
 
@@ -40,7 +44,7 @@ fn source_line_for(shell: &Shell, path: &std::path::Path) -> Option<String> {
     match shell {
         Shell::Bash | Shell::Zsh => Some(format!("source {}", path.display())),
         Shell::Pwsh => Some(format!(". {}", path.display())),
-        Shell::Fish => None,
+        Shell::Fish | Shell::Nushell => None,
     }
 }
 
@@ -54,6 +58,7 @@ fn detect_shell() -> Result<Shell> {
             "zsh" => return Ok(Shell::Zsh),
             "bash" => return Ok(Shell::Bash),
             "fish" => return Ok(Shell::Fish),
+            "nu" => return Ok(Shell::Nushell),
             _ => {}
         }
     }
@@ -67,12 +72,14 @@ fn detect_shell() -> Result<Shell> {
             ("/bin/zsh", Shell::Zsh),
             ("/bin/bash", Shell::Bash),
             ("/bin/fish", Shell::Fish),
+            ("/bin/nu", Shell::Nushell),
+            ("/usr/bin/nu", Shell::Nushell),
         ] {
             if std::path::Path::new(path).exists() {
                 return Ok(shell);
             }
         }
-        bail!("Cannot detect shell. Set $SHELL to bash, zsh, or fish")
+        bail!("Cannot detect shell. Set $SHELL to bash, zsh, fish, or nu")
     }
 }
 
@@ -101,6 +108,22 @@ fn fish_completion_dir() -> Result<PathBuf> {
         .join("completions"))
 }
 
+fn nushell_completion_dir() -> Result<PathBuf> {
+    #[cfg(target_os = "windows")]
+    {
+        let base = std::env::var("APPDATA").context("Cannot determine APPDATA directory")?;
+        Ok(PathBuf::from(base).join("nushell").join("autoload"))
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let home = std::env::var("HOME").context("Cannot determine HOME directory")?;
+        Ok(PathBuf::from(home)
+            .join(".config")
+            .join("nushell")
+            .join("autoload"))
+    }
+}
+
 fn write_completion(dir: &std::path::Path, filename: &str, content: &str) -> Result<PathBuf> {
     std::fs::create_dir_all(dir)
         .with_context(|| format!("Cannot create directory: {}", dir.display()))?;
@@ -120,7 +143,7 @@ fn rc_path(shell: &Shell) -> Result<PathBuf> {
             let home = std::env::var("HOME").context("Cannot determine HOME directory")?;
             Ok(PathBuf::from(home).join(".bashrc"))
         }
-        Shell::Pwsh | Shell::Fish => {
+        Shell::Pwsh | Shell::Fish | Shell::Nushell => {
             bail!("No RC file for this shell")
         }
     }
@@ -165,6 +188,7 @@ fn parse_shell(name: &str) -> Result<Shell> {
         "zsh" => Ok(Shell::Zsh),
         "fish" => Ok(Shell::Fish),
         "powershell" => Ok(Shell::Pwsh),
+        "nushell" => Ok(Shell::Nushell),
         _ => bail!("Unknown shell: '{name}'"),
     }
 }
@@ -175,6 +199,7 @@ fn completion_content(shell: &Shell) -> &'static str {
         Shell::Zsh => ZSH_COMPLETION,
         Shell::Fish => FISH_COMPLETION,
         Shell::Pwsh => PS1_COMPLETION,
+        Shell::Nushell => NU_COMPLETION,
     }
 }
 
@@ -196,15 +221,15 @@ pub(crate) fn run_auto_complete(arg: &AutoCompleteArg) -> Result<()> {
 
 fn check_shell_os_compat(shell: &Shell) -> Result<()> {
     #[cfg(target_os = "windows")]
-    if !matches!(shell, Shell::Pwsh) {
+    if !matches!(shell, Shell::Pwsh | Shell::Nushell) {
         bail!(
-            "Shell '{}' is not supported. Use 'powershell' instead.",
+            "Shell '{}' is not supported. Use 'powershell' or 'nushell' instead.",
             shell.name()
         );
     }
     #[cfg(not(target_os = "windows"))]
     if matches!(shell, Shell::Pwsh) {
-        bail!("Shell 'powershell' is not supported. Use bash, zsh, or fish.");
+        bail!("Shell 'powershell' is not supported. Use bash, zsh, fish, or nushell.");
     }
     Ok(())
 }
@@ -249,6 +274,11 @@ fn install_completions(shell: &Shell) -> Result<()> {
             let dest = write_completion(&fish_completion_dir()?, filename, content)?;
             println!("Completion file installed: {}", dest.display());
             println!("\nCompletions are available in new fish sessions automatically.");
+        }
+        Shell::Nushell => {
+            let dest = write_completion(&nushell_completion_dir()?, filename, content)?;
+            println!("Completion file installed: {}", dest.display());
+            println!("\nRestart nushell to activate (requires 0.94+ for autoload).");
         }
     }
 
@@ -325,6 +355,12 @@ impl RemovalPlan {
             }
             Shell::Fish => {
                 let path = fish_completion_dir()?.join(filename);
+                if path.exists() {
+                    files.push(path);
+                }
+            }
+            Shell::Nushell => {
+                let path = nushell_completion_dir()?.join(filename);
                 if path.exists() {
                     files.push(path);
                 }

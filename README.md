@@ -203,7 +203,7 @@ Enable Tab completion for all arguments:
 leaf --auto-complete
 ```
 
-Supports **bash**, **zsh**, **fish**, and **PowerShell**. Restart your shell to activate.
+Supports **bash**, **zsh**, **fish**, **Nushell**, and **PowerShell**. Restart your shell to activate.
 
 ## Vim Integration
 Add the following to your `~/.vimrc` to preview the current Markdown file in a vertical split:
@@ -360,7 +360,7 @@ See [`gruvbox.toml`](gruvbox.toml) for a complete example with all available col
 - **Terminal UX** : *Theme picker, help popup, file path popup, mouse and keyboard support*.
 - **Custom themes** : *TOML theme files inheriting from built-in presets with color overrides*.
 - **Inline mode** : *Render to stdout with `--inline` for pipes and fzf previews*.
-- **Shell completions** : *Tab completion for bash, zsh, fish, and PowerShell via `leaf --auto-complete`*.
+- **Shell completions** : *Tab completion for bash, zsh, fish, Nushell, and PowerShell via `leaf --auto-complete`*.
 - **CLI friendly** : *stdin support and `leaf --update` with SHA256 verification*.
 
 ## Typical AI Workflow

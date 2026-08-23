@@ -23,7 +23,7 @@ _leaf() {
         '--last[Open the most recent from file history]'
         '--config[Open, reset or remove configuration file]::action:(reset remove)'
         '--update[Update leaf to the latest version]'
-        '--auto-complete[Install, dump or remove shell completions]::shell:(bash zsh fish powershell dump remove)'
+        '--auto-complete[Install, dump or remove shell completions]::shell:(bash zsh fish powershell nushell dump remove)'
     )
 
     _arguments -s $flags '*:file:_files'

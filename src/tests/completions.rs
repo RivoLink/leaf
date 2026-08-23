@@ -159,6 +159,57 @@ fn auto_complete_rejects_with_config() {
 }
 
 #[test]
+fn parse_cli_auto_complete_nushell() {
+    let args = vec![
+        "leaf".to_string(),
+        "--auto-complete".to_string(),
+        "nushell".to_string(),
+    ];
+    let options = parse_cli(&args).unwrap();
+    assert_eq!(
+        options.auto_complete,
+        Some(AutoCompleteArg {
+            shell: Some("nushell".to_string()),
+            mode: AutoCompleteMode::Install,
+        })
+    );
+}
+
+#[test]
+fn parse_cli_auto_complete_nushell_dump() {
+    let args = vec![
+        "leaf".to_string(),
+        "--auto-complete".to_string(),
+        "nushell:dump".to_string(),
+    ];
+    let options = parse_cli(&args).unwrap();
+    assert_eq!(
+        options.auto_complete,
+        Some(AutoCompleteArg {
+            shell: Some("nushell".to_string()),
+            mode: AutoCompleteMode::Dump,
+        })
+    );
+}
+
+#[test]
+fn parse_cli_auto_complete_nushell_remove() {
+    let args = vec![
+        "leaf".to_string(),
+        "--auto-complete".to_string(),
+        "nushell:remove".to_string(),
+    ];
+    let options = parse_cli(&args).unwrap();
+    assert_eq!(
+        options.auto_complete,
+        Some(AutoCompleteArg {
+            shell: Some("nushell".to_string()),
+            mode: AutoCompleteMode::Remove,
+        })
+    );
+}
+
+#[test]
 fn auto_complete_rejects_with_theme() {
     let args = vec![
         "leaf".to_string(),

@@ -331,7 +331,7 @@ See [`gruvbox.toml`](gruvbox.toml) for a complete example with all available col
 | `1-9` / `0+1-9` | Jump / reverse jump (TOC) | `Shift+M` | Toggle mouse capture |
 | `J/K` / `U/D` | Navigate TOC | `Ctrl+P` | Open fuzzy picker |
 | `y/Y` / `c/C` | Focus code block | `Ctrl+H` | Open file history picker |
-| `Ctrl+L` | Go to line | `Ctrl+E` | Open in editor |
+| `Ctrl+L` / `:` | Go to line | `Ctrl+E` | Open in editor |
 | `Ctrl+F` / `/` | Find | `Ctrl+Click` | Open link |
 | `n` / `N` | Next / prev match | `Double-Click` (link) | Copy link |
 | `w` | Toggle watch mode | `Double-Click` (code) | Copy code block |
@@ -350,7 +350,7 @@ See [`gruvbox.toml`](gruvbox.toml) for a complete example with all available col
 - **GitHub extras** : *Alert callouts, task list checkboxes, and `==mark==` text highlighting*.
 - **Extra file types** : *Open any file; code files get syntax highlighting, text files render as Markdown*.
 - **Syntax highlighting** : *Common aliases like `py`, `cpp`, `json`, `toml`, `ps1`, `dockerfile`*.
-- **Line numbers** : *Toggle display with `Shift+L`, jump to a line with `Ctrl+L`*.
+- **Line numbers** : *Toggle display with `Shift+L`, jump to a line with `Ctrl+L` or `:`*.
 - **LaTeX support** : *Inline, block, and `latex` / `tex` code blocks rendered as formulas*.
 - **Mermaid diagrams** : *`mermaid` code blocks rendered as ASCII diagrams*.
 - **Clickable links** : *`Ctrl+Click` to open, double-click to copy, hover feedback*.

@@ -343,6 +343,9 @@ pub(super) fn handle_key_event(
             KeyCode::Char('k') | KeyCode::Up => app.scroll_up(1),
             KeyCode::Char('d') | KeyCode::PageDown => app.scroll_down(20),
             KeyCode::Char('u') | KeyCode::PageUp => app.scroll_up(20),
+            KeyCode::Char('g') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                app.begin_goto_line()
+            }
             KeyCode::Char('g') | KeyCode::Home => app.scroll_top(),
             KeyCode::Char('G') | KeyCode::End => app.scroll_bottom(),
             KeyCode::Char('J') if app.can_scroll_toc() => app.focus_next_top_level_toc(),
@@ -402,6 +405,7 @@ pub(super) fn handle_key_event(
                 app.clear_active_goto_line();
                 app.begin_search()
             }
+            KeyCode::Char(':') => app.begin_goto_line(),
             KeyCode::Char('n') => app.next_match(),
             KeyCode::Char('N') => app.prev_match(),
             KeyCode::Char('R') => {

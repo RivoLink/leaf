@@ -1,5 +1,8 @@
 use anyhow::{bail, Context, Result};
-use ratatui::{backend::CrosstermBackend, Terminal};
+use ratatui::{
+    backend::{Backend as _, ClearType, CrosstermBackend},
+    Terminal,
+};
 use std::{
     fs::OpenOptions,
     io::{self, IsTerminal, Read, Write},
@@ -535,7 +538,7 @@ fn main() -> Result<()> {
     runtime::debug_log(debug_input, "terminal enter done");
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout))?;
     runtime::debug_log(debug_input, "terminal new done");
-    terminal.clear()?;
+    terminal.backend_mut().clear_region(ClearType::All)?;
     runtime::debug_log(debug_input, "terminal clear done");
     let initial_draw_result = (|| -> Result<()> {
         let area = terminal.size()?;

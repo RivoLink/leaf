@@ -59,6 +59,29 @@ jobs:
 
           echo "Valid commit message"
 
+      - name: Validate commit signature
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_SHA: ${{ github.sha }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            SHA="$PR_SHA"
+          else
+            SHA="$PUSH_SHA"
+          fi
+
+          VERIFIED=$(gh api \
+            "repos/${{ github.repository }}/commits/$SHA" \
+            --jq '.commit.verification.verified')
+
+          if [ "$VERIFIED" = "true" ]; then
+            echo "Valid commit signature"
+          else
+            echo "::warning::Unsigned commit, maintainer will re-sign on merge."
+          fi
+
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:

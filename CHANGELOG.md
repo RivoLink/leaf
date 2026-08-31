@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- next-version -->
 
+## [[1.28.1](https://github.com/RivoLink/leaf/releases/tag/1.28.1)] - 2026-08-31
+
+### Changed
+
+- nushell auto completion ([#257](https://github.com/RivoLink/leaf/pull/257))
+- goto line with colon ([#256](https://github.com/RivoLink/leaf/pull/256))
+
 ## [[1.28.0](https://github.com/RivoLink/leaf/releases/tag/1.28.0)] - 2026-08-16
 
 ### Added

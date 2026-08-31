@@ -45,16 +45,24 @@ cargo build --release
 1. Create a feature branch from `main`.
 2. Make focused changes.
 3. Keep documentation in sync when behavior changes.
-4. Ensure all checks pass.
-5. Open a PR with a clear description of:
+4. Squash your work into a single commit.
+5. Ensure all checks pass.
+6. Open a PR with a clear description of:
    - what changed;
    - why it changed;
    - how it was tested.
 
+## Commit Signing
+
+The `main` branch enforces verified commits, so sign yours with GPG if you can.\
+Otherwise the maintainer will re-sign them on merge, keeping you as the original author.
+
+See [GitHub GPG signing guide](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits).
+
 ## Commit Messages
 
 - Use clear, direct messages.
-- Keep the first line short.
+- Keep the first line short (max 35 characters).
 - Prefer the existing prefixes used in the repository when they fit.
 
 Examples:

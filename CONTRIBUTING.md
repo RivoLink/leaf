@@ -51,6 +51,13 @@ cargo build --release
    - why it changed;
    - how it was tested.
 
+## Commit Signing
+
+The `main` branch enforces verified commits, so sign yours with GPG if you can.\
+Otherwise the maintainer will re-sign them on merge, keeping you as the original author.
+
+See [GitHub GPG signing guide](https://docs.github.com/en/authentication/managing-commit-signature-verification/signing-commits).
+
 ## Commit Messages
 
 - Use clear, direct messages.

@@ -334,10 +334,6 @@ pub(super) fn push_special_block_lines<F: Fn(&str) -> Vec<Span<'static>>>(
     item_stack: &mut [ItemState],
     ctx: SpecialBlockCtx<'_, F>,
 ) -> BlockLayout {
-    let label = ctx.label;
-    let content_lines = ctx.content_lines;
-    let show_line_numbers = ctx.show_line_numbers;
-    let center = ctx.center;
     let prefix = if !item_stack.is_empty() {
         list_item_prefix(blockquote_depth, list_stack, item_stack, theme, None)
     } else if blockquote_depth > 0 {
@@ -345,6 +341,20 @@ pub(super) fn push_special_block_lines<F: Fn(&str) -> Vec<Span<'static>>>(
     } else {
         Vec::new()
     };
+    push_special_block_lines_with_prefix(lines, render_width, theme, prefix, ctx)
+}
+
+fn push_special_block_lines_with_prefix<F: Fn(&str) -> Vec<Span<'static>>>(
+    lines: &mut Vec<Line<'static>>,
+    render_width: usize,
+    theme: &MarkdownTheme,
+    prefix: Vec<Span<'static>>,
+    ctx: SpecialBlockCtx<'_, F>,
+) -> BlockLayout {
+    let label = ctx.label;
+    let content_lines = ctx.content_lines;
+    let show_line_numbers = ctx.show_line_numbers;
+    let center = ctx.center;
     let prefix_width: usize = prefix
         .iter()
         .map(|span| display_width(span.content.as_ref()))
@@ -500,7 +510,26 @@ pub(super) fn push_mermaid_block_lines(
     ctx: EmbeddedBlockCtx<'_>,
     item_stack: &mut [ItemState],
 ) -> BlockLayout {
-    let rendered = mermaid::render(content);
+    let prefix = if !item_stack.is_empty() {
+        list_item_prefix(
+            ctx.blockquote_depth,
+            ctx.list_stack,
+            item_stack,
+            ctx.theme,
+            None,
+        )
+    } else if ctx.blockquote_depth > 0 {
+        block_prefix(ctx.blockquote_depth, ctx.theme, None)
+    } else {
+        Vec::new()
+    };
+    let prefix_width: usize = prefix
+        .iter()
+        .map(|span| display_width(span.content.as_ref()))
+        .sum();
+    // The frame, gutter, and right-side padding consume four columns.
+    let max_diagram_width = ctx.render_width.saturating_sub(prefix_width + 4);
+    let rendered = mermaid::render(content, max_diagram_width);
     let use_rendered = rendered.is_some();
     let content_lines: Vec<&str> = if let Some(ref r) = rendered {
         r.lines().collect()
@@ -508,13 +537,11 @@ pub(super) fn push_mermaid_block_lines(
         content.lines().collect()
     };
     let content_style = Style::default().fg(ctx.theme.mermaid_block_fg);
-    push_special_block_lines(
+    push_special_block_lines_with_prefix(
         lines,
         ctx.render_width,
         ctx.theme,
-        ctx.blockquote_depth,
-        ctx.list_stack,
-        item_stack,
+        prefix,
         SpecialBlockCtx {
             label: "mermaid",
             content_lines: &content_lines,

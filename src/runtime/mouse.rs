@@ -4,6 +4,7 @@ use crate::{
     editor::{self, classify, open_in_editor, split_editor_cmd, EditorResult},
     markdown::display_width,
     render::{CONTENT_HORIZONTAL_PADDING, SCROLLBAR_WIDTH},
+    terminal::TerminalSession,
 };
 use anyhow::Result;
 use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
@@ -310,19 +311,16 @@ fn try_open_editor(
         }
         Ok(EditorResult::NeedsSameTerminal) => {
             let (bin, args) = split_editor_cmd(editor_cmd);
-            crossterm::terminal::disable_raw_mode()?;
-            crossterm::execute!(io::stdout(), crossterm::terminal::LeaveAlternateScreen)?;
+            let mouse_capture = app.is_mouse_capture_enabled();
+            let mut stdout = io::stdout();
+            TerminalSession::suspend(&mut stdout, mouse_capture)?;
 
             let status = std::process::Command::new(bin)
                 .args(&args)
                 .arg(filepath)
                 .status();
 
-            crossterm::terminal::enable_raw_mode()?;
-            crossterm::execute!(io::stdout(), crossterm::terminal::EnterAlternateScreen)?;
-            if app.is_mouse_capture_enabled() {
-                crossterm::execute!(io::stdout(), crossterm::event::EnableMouseCapture)?;
-            }
+            TerminalSession::resume(&mut stdout, mouse_capture)?;
             terminal.clear()?;
             app.reload(ss, themes);
 

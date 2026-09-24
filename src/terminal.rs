@@ -117,6 +117,26 @@ impl TerminalSession {
         Ok(())
     }
 
+    pub(crate) fn suspend(stdout: &mut io::Stdout, mouse_capture: bool) -> Result<()> {
+        if mouse_capture {
+            execute!(stdout, DisableMouseCapture, LeaveAlternateScreen)?;
+        } else {
+            execute!(stdout, LeaveAlternateScreen)?;
+        }
+        disable_raw_mode()?;
+        Ok(())
+    }
+
+    pub(crate) fn resume(stdout: &mut io::Stdout, mouse_capture: bool) -> Result<()> {
+        enable_raw_mode()?;
+        if mouse_capture {
+            let _ = execute!(stdout, EnterAlternateScreen, EnableMouseCapture);
+        } else {
+            let _ = execute!(stdout, EnterAlternateScreen);
+        }
+        Ok(())
+    }
+
     pub(crate) fn restore(
         &mut self,
         terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,

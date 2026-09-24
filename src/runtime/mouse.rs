@@ -313,10 +313,12 @@ fn try_open_editor(
             crossterm::terminal::disable_raw_mode()?;
             crossterm::execute!(io::stdout(), crossterm::terminal::LeaveAlternateScreen)?;
 
-            let status = std::process::Command::new(bin)
-                .args(&args)
-                .arg(filepath)
-                .status();
+            let status = crate::suspend::with_foreground_child(|| {
+                std::process::Command::new(bin)
+                    .args(&args)
+                    .arg(filepath)
+                    .status()
+            });
 
             crossterm::terminal::enable_raw_mode()?;
             crossterm::execute!(io::stdout(), crossterm::terminal::EnterAlternateScreen)?;

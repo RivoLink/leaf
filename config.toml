@@ -36,7 +36,7 @@ theme = "ocean"
 # For paths with spaces AND arguments, use inner quotes:
 # editor = '"C:\Program Files\Notepad++\notepad++.exe" --some-flag'
 #
-# Use {$line} to open the editor at the first visible source line at Ctrl+E:
+# Use {$line} to open the editor at the viewport middle line (Ctrl+E):
 # editor = 'nano +{$line}'
 # editor = 'nvim +{$line} +"normal! zz"'
 #

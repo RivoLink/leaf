@@ -15,6 +15,10 @@ concurrency:
   group: ci-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   ci-check:
     name: CI check
@@ -63,6 +67,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_SHA: ${{ github.event.pull_request.head.sha }}
           PUSH_SHA: ${{ github.sha }}
         run: |
@@ -80,6 +85,15 @@ jobs:
             echo "Valid commit signature"
           else
             echo "::warning::Unsigned commit, maintainer will re-sign on merge."
+            if [ "$EVENT_NAME" = "pull_request" ]; then
+              WARN=(
+                "> [!WARNING]"
+                "> The head commit isn't GPG-signed."
+                "> Maintainers will re-sign it on merge."
+              )
+              BODY=$(printf '%s\n' "${WARN[@]}")
+              gh pr comment "$PR_NUMBER" --body "$BODY"
+            fi
           fi
 
       - name: Setup Rust toolchain

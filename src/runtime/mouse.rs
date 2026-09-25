@@ -265,8 +265,10 @@ pub(super) fn handle_open_in_editor(
 
     let editor_cmd = match app.editor_config() {
         Some(e) => {
-            let visible_source_line = app.source_line_at(app.scroll());
-            editor::expand_editor_placeholders(e, visible_source_line, &filepath)
+            let content_height = app.content_area.height as usize;
+            let mid = (app.scroll() + content_height / 2).min(app.total().saturating_sub(1));
+            let middle_source_line = app.source_line_at(mid);
+            editor::expand_editor_placeholders(e, middle_source_line, &filepath)
         }
         None => {
             app.set_editor_flash(EditorFlash::EditorNotFound("no editor configured".into()));

@@ -338,7 +338,7 @@ See [`gruvbox.toml`](gruvbox.toml) for a complete example with all available col
 | `w` | Toggle watch mode | `Double-Click` (code) | Copy code block |
 | `r` | Force reload (watch mode) | `Shift+Drag` | Select text |
 | `t` | Toggle TOC sidebar | `Option+Drag` | Select text (iTerm2) |
-| `q` | Quit |  |  |
+| `q` | Quit | `Ctrl+Z` | Suspend (Unix) |
 
 ## Features
 

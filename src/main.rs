@@ -21,6 +21,7 @@ mod markdown;
 mod picker_width;
 mod render;
 mod runtime;
+mod suspend;
 mod terminal;
 #[cfg(test)]
 mod tests;
@@ -551,6 +552,9 @@ fn main() -> Result<()> {
     runtime::debug_log(debug_input, "terminal enter start");
     let mut session = TerminalSession::enter(&mut stdout)?;
     runtime::debug_log(debug_input, "terminal enter done");
+    if let Err(err) = suspend::install_signal_handlers() {
+        runtime::debug_log(debug_input, &format!("signal handlers unavailable: {err}"));
+    }
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout))?;
     runtime::debug_log(debug_input, "terminal new done");
     terminal.backend_mut().clear_region(ClearType::All)?;

@@ -317,10 +317,12 @@ fn try_open_editor(
             let mut stdout = io::stdout();
             TerminalSession::suspend(&mut stdout, mouse_capture)?;
 
-            let status = std::process::Command::new(bin)
-                .args(&args)
-                .arg(filepath)
-                .status();
+            let status = crate::suspend::with_foreground_child(|| {
+                std::process::Command::new(bin)
+                    .args(&args)
+                    .arg(filepath)
+                    .status()
+            });
 
             TerminalSession::resume(&mut stdout, mouse_capture)?;
             terminal.clear()?;

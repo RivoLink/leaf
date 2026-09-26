@@ -90,6 +90,15 @@ While running `cat TESTING.md | leaf`:
 - confirm the content matches file-backed rendering
 - confirm watch mode is not available
 
+### Suspend
+
+On Unix, while viewing a file:
+
+- press `Ctrl+Z`, confirm the shell prompt works, then run `fg`
+- repeat from search mode and confirm no `z` is typed
+- run `kill -TSTP <pid>` from another terminal, then `fg`
+- press `Ctrl+Z` inside a terminal editor opened with `Ctrl+E`, then `fg`
+
 ### Startup And Error Handling
 
 Run these checks manually:

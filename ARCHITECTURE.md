@@ -87,6 +87,9 @@
   - ANSI/plain format resolution and line wrapping
   - ratatui Style-to-ANSI escape code serialization
 
+- `src/suspend.rs`
+  - suspend / resume: `Ctrl+Z`, `SIGTSTP`, `SIGCONT`
+
 - `src/terminal.rs`
   - raw mode / alternate screen lifecycle
   - terminal restore guarantees

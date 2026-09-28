@@ -34,3 +34,6 @@ fs2           = "0.4"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 crossterm     = { version = "0.29", features = ["use-dev-tty"] }
+
+[target.'cfg(unix)'.dependencies]
+signal-hook   = "0.3"

@@ -51,7 +51,9 @@ jobs:
                 "repos/${{ github.repository }}/issues/comments/$EXISTING" \
                 -f body="$BODY"
             else
-              gh pr comment "$PR_NUMBER" --body "$BODY"
+              gh api --method POST \
+                "repos/${{ github.repository }}/issues/$PR_NUMBER/comments" \
+                -f body="$BODY"
             fi
           else
             echo "Valid commit count"
@@ -98,6 +100,8 @@ jobs:
                 "repos/${{ github.repository }}/issues/comments/$EXISTING" \
                 -f body="$BODY"
             else
-              gh pr comment "$PR_NUMBER" --body "$BODY"
+              gh api --method POST \
+                "repos/${{ github.repository }}/issues/$PR_NUMBER/comments" \
+                -f body="$BODY"
             fi
           fi

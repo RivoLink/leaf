@@ -348,6 +348,14 @@ pub(crate) fn try_new_tab_command(
 
     match emulator {
         TerminalEmulator::Kitty => {
+            // kitty @ blocks waiting for a terminal response when
+            // allow_remote_control is disabled, so only attempt it when the
+            // parent kitty exposes a socket to talk to.
+            let has_listen_socket =
+                std::env::var_os("KITTY_LISTEN_ON").is_some_and(|value| !value.is_empty());
+            if !has_listen_socket {
+                return None;
+            }
             let mut cmd = Command::new("kitty");
             cmd.arg("@")
                 .arg("launch")

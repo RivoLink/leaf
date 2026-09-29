@@ -381,25 +381,23 @@ fn main() -> Result<()> {
         } else {
             anyhow::bail!("Not a valid file, directory or keyword: {}", f);
         }
-    } else {
-        if io::stdin().is_terminal() {
-            let cwd = std::env::current_dir().context("Cannot read current directory")?;
-            let label = app::path_label(&cwd);
-            if picker {
-                open_browser_picker_dir = Some(cwd);
-            } else {
-                open_fuzzy_picker_dir = Some(cwd);
-            }
-            (String::new(), label, None)
+    } else if io::stdin().is_terminal() {
+        let cwd = std::env::current_dir().context("Cannot read current directory")?;
+        let label = app::path_label(&cwd);
+        if picker {
+            open_browser_picker_dir = Some(cwd);
         } else {
-            if watch_from_cli {
-                eprintln!("Error: --watch requires a file path (stdin cannot be watched)");
-                std::process::exit(1);
-            }
-            let mut stdin = io::stdin().lock();
-            let buf = read_stdin_limited(&mut stdin, MAX_STDIN_BYTES)?;
-            (buf, "stdin".to_string(), None)
+            open_fuzzy_picker_dir = Some(cwd);
         }
+        (String::new(), label, None)
+    } else {
+        if watch_from_cli {
+            eprintln!("Error: --watch requires a file path (stdin cannot be watched)");
+            std::process::exit(1);
+        }
+        let mut stdin = io::stdin().lock();
+        let buf = read_stdin_limited(&mut stdin, MAX_STDIN_BYTES)?;
+        (buf, "stdin".to_string(), None)
     };
 
     let is_file_input = filepath.is_some();

@@ -203,11 +203,35 @@ fn try_new_tab_command_windows_terminal_non_wsl_returns_spawn() {
 }
 
 #[test]
-fn try_new_tab_command_kitty_returns_run_and_check() {
+fn try_new_tab_command_kitty_without_listen_socket_returns_none() {
+    let guard = crate::tests::THEME_TEST_MUTEX.lock().unwrap();
+    let previous = std::env::var_os("KITTY_LISTEN_ON");
+    std::env::remove_var("KITTY_LISTEN_ON");
     let emulator = TerminalEmulator::Kitty;
-    let strategy =
-        try_new_tab_command("nano", Path::new("/tmp/test.md"), &emulator, false, None).unwrap();
-    assert!(matches!(strategy, LaunchStrategy::RunAndCheck(_)));
+    let strategy = try_new_tab_command("nano", Path::new("/tmp/test.md"), &emulator, false, None);
+    if let Some(value) = previous {
+        std::env::set_var("KITTY_LISTEN_ON", value);
+    } else {
+        std::env::remove_var("KITTY_LISTEN_ON");
+    }
+    drop(guard);
+    assert!(strategy.is_none());
+}
+
+#[test]
+fn try_new_tab_command_kitty_with_listen_socket_returns_run_and_check() {
+    let guard = crate::tests::THEME_TEST_MUTEX.lock().unwrap();
+    let previous = std::env::var_os("KITTY_LISTEN_ON");
+    std::env::set_var("KITTY_LISTEN_ON", "unix:/tmp/kitty-test.sock");
+    let emulator = TerminalEmulator::Kitty;
+    let strategy = try_new_tab_command("nano", Path::new("/tmp/test.md"), &emulator, false, None);
+    if let Some(value) = previous {
+        std::env::set_var("KITTY_LISTEN_ON", value);
+    } else {
+        std::env::remove_var("KITTY_LISTEN_ON");
+    }
+    drop(guard);
+    assert!(matches!(strategy, Some(LaunchStrategy::RunAndCheck(_))));
 }
 
 #[test]
@@ -522,14 +546,23 @@ fn format_editor_tab_title_name_with_single_quote() {
 
 #[test]
 fn kitty_tab_title_uses_filename() {
+    let guard = crate::tests::THEME_TEST_MUTEX.lock().unwrap();
+    let previous = std::env::var_os("KITTY_LISTEN_ON");
+    std::env::set_var("KITTY_LISTEN_ON", "unix:/tmp/kitty-test.sock");
     let strategy = try_new_tab_command(
         "nano",
         Path::new("/tmp/readme.md"),
         &TerminalEmulator::Kitty,
         false,
         None,
-    )
-    .unwrap();
+    );
+    if let Some(value) = previous {
+        std::env::set_var("KITTY_LISTEN_ON", value);
+    } else {
+        std::env::remove_var("KITTY_LISTEN_ON");
+    }
+    drop(guard);
+    let strategy = strategy.unwrap();
     let cmd = match strategy {
         LaunchStrategy::RunAndCheck(cmd) => cmd,
         LaunchStrategy::SpawnAndAssume(_) => panic!("expected RunAndCheck for Kitty"),

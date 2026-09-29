@@ -320,6 +320,10 @@ heading_1 = "#fabd2f"
 
 See [`gruvbox.toml`](gruvbox.toml) for a complete example with all available color keys.
 
+### Community Themes
+
+- [Rosé Pine](https://github.com/rose-pine/leaf): Rosé Pine, Rosé Pine Moon and Rosé Pine Dawn
+
 ## Keybindings
 
 | Key | Action | Key | Action |

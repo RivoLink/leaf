@@ -355,7 +355,7 @@ See [`gruvbox.toml`](gruvbox.toml) for a complete example with all available col
 - **Syntax highlighting** : *Common aliases like `py`, `cpp`, `json`, `toml`, `ps1`, `dockerfile`*.
 - **Line numbers** : *Toggle display with `Shift+L`, jump to a line with `Ctrl+L` or `:`*.
 - **LaTeX support** : *Inline, block, and `latex` / `tex` code blocks rendered as formulas*.
-- **Mermaid diagrams** : *`mermaid` code blocks rendered as ASCII diagrams*.
+- **Mermaid diagrams** : *`mermaid` code blocks rendered as ASCII diagrams, or shown as source with the width they need when they don't fit*.
 - **Clickable links** : *`Ctrl+Click` to open, double-click to copy, hover feedback*.
 - **Code block interactions** : *Focus and copy with `y/Y` / `c/C`, or double-click on a block*.
 - **Mouse capture** : *`Shift+M` to toggle mouse capture and let the terminal handle selection*.

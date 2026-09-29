@@ -1,4 +1,5 @@
 use super::{rendered_non_empty_lines, test_assets, test_md_theme};
+use crate::markdown::width::display_width;
 use crate::markdown::{parse_markdown, parse_markdown_with_width};
 use crate::*;
 
@@ -247,6 +248,73 @@ fn oversized_mermaid_falls_back_instead_of_wrapping_diagram_rows() {
     assert!(
         rendered.iter().any(|line| line.contains("flowchart TD")),
         "fallback should retain the Mermaid source"
+    );
+}
+
+fn mermaid_header(src: &str, width: usize) -> String {
+    let (ss, theme) = test_assets();
+    let (lines, _, _, _) =
+        parse_markdown_with_width(src, &ss, &theme, width, &test_md_theme(), false, true).into();
+    rendered_non_empty_lines(&lines)
+        .into_iter()
+        .find(|line| line.contains("┌─ mermaid"))
+        .expect("expected mermaid block header")
+}
+
+fn oversized_flowchart() -> String {
+    format!(
+        "```mermaid\nflowchart TD\n  A[{}]\n```\n",
+        "oversized ".repeat(10)
+    )
+}
+
+#[test]
+fn oversized_mermaid_header_says_how_wide_it_needs_to_be() {
+    let src = oversized_flowchart();
+    let header = mermaid_header(&src, 60);
+    let needed: usize = header
+        .split("needs ")
+        .nth(1)
+        .and_then(|rest| rest.split(' ').next())
+        .and_then(|n| n.parse().ok())
+        .unwrap_or_else(|| panic!("expected the needed width in {header:?}"));
+
+    assert!(
+        header.contains("not rendered") && header.contains("has 60"),
+        "header should say the diagram was not rendered: {header:?}"
+    );
+    assert!(
+        mermaid_header(&src, needed - 1).contains("not rendered"),
+        "one column less than needed should still fall back"
+    );
+    assert!(
+        !mermaid_header(&src, needed).contains("not rendered"),
+        "the needed width should be enough to render the diagram"
+    );
+}
+
+#[test]
+fn oversized_mermaid_header_drops_detail_to_fit() {
+    let src = oversized_flowchart();
+    for width in [20, 30, 40, 50, 60] {
+        let header = mermaid_header(&src, width);
+        assert!(
+            display_width(&header) <= width,
+            "header should fit {width} columns: {header:?}"
+        );
+    }
+    assert!(mermaid_header(&src, 40).contains("not rendered"));
+    assert!(!mermaid_header(&src, 40).contains("needs"));
+}
+
+#[test]
+fn unsupported_mermaid_header_has_no_width_note() {
+    let src = "```mermaid\ngantt\n  title Schedule\n  section Dev\n```\n";
+    let header = mermaid_header(src, 80);
+
+    assert!(
+        !header.contains("not rendered"),
+        "unsupported diagrams are not a width problem: {header:?}"
     );
 }
 

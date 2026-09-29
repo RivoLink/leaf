@@ -533,11 +533,19 @@ pub(super) fn push_mermaid_block_lines(
         .render_width
         .saturating_sub(prefix_width + MERMAID_CHROME_WIDTH);
     let rendered = mermaid::render(content, max_diagram_width);
-    let use_rendered = rendered.is_some();
-    let content_lines: Vec<&str> = if let Some(ref r) = rendered {
-        r.lines().collect()
-    } else {
-        content.lines().collect()
+    let use_rendered = rendered.is_ok();
+    let content_lines: Vec<&str> = match rendered {
+        Ok(ref r) => r.lines().collect(),
+        Err(_) => content.lines().collect(),
+    };
+    let label = match rendered {
+        Err(mermaid::Fallback::TooWide(needed)) => too_wide_label(
+            needed + prefix_width + MERMAID_CHROME_WIDTH,
+            ctx.render_width,
+            // The header frames the label as "┌─ label ┐".
+            ctx.render_width.saturating_sub(prefix_width + 5),
+        ),
+        _ => "mermaid".to_string(),
     };
     let content_style = Style::default().fg(ctx.theme.mermaid_block_fg);
     push_special_block_lines_with_prefix(
@@ -546,7 +554,7 @@ pub(super) fn push_mermaid_block_lines(
         ctx.theme,
         prefix,
         SpecialBlockCtx {
-            label: "mermaid",
+            label: &label,
             content_lines: &content_lines,
             show_line_numbers: !use_rendered && ctx.code_line_numbers,
             center: use_rendered,
@@ -559,6 +567,19 @@ pub(super) fn push_mermaid_block_lines(
             },
         },
     )
+}
+
+/// Says why the source shows instead of the diagram, in terminal columns.
+/// Drops detail from the end until the label fits the header.
+fn too_wide_label(needed: usize, has: usize, max_label_width: usize) -> String {
+    [
+        format!("mermaid · not rendered, needs {needed} columns, has {has}"),
+        format!("mermaid · not rendered, needs {needed} columns"),
+        "mermaid · not rendered".to_string(),
+    ]
+    .into_iter()
+    .find(|label| UnicodeWidthStr::width(label.as_str()) <= max_label_width)
+    .unwrap_or_else(|| "mermaid".to_string())
 }
 
 pub(super) fn push_rule_line(

@@ -277,7 +277,12 @@ fn main() -> Result<()> {
         .filter(|s| !s.is_empty())
         .as_deref()
     {
-        resolve_theme_selection(theme_name, &user_config.themes, None).unwrap_or_default()
+        resolve_theme_selection(
+            theme_name,
+            &user_config.themes,
+            user_config.config_dir.as_deref(),
+        )
+        .unwrap_or_default()
     } else if let Some(theme_name) = user_config.theme.as_deref() {
         resolve_theme_selection(
             theme_name,

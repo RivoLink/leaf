@@ -302,7 +302,7 @@ Create a `.toml` file that inherits from a built-in theme and overrides specific
 theme = "/path/to/custom-theme.toml"
 ```
 
-Relative paths are resolved from the config file directory.
+Relative paths, here or in `LEAF_THEME`, are resolved from the config file directory.
 
 ```toml
 # custom-theme.toml

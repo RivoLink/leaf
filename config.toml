@@ -109,3 +109,11 @@ watch = false
 # Any single non-space character. Set to "" to show no prefix.
 # Default: "#"
 # hyper-link-prefix = "#"
+
+# Scroll the preview with Enter
+# Enter scrolls down and Alt+Enter scrolls up, one line at a time.
+# During an active search, Enter still jumps to the next match.
+# Some terminals capture Alt+Enter (e.g. Windows Terminal toggles fullscreen),
+# and macOS terminals need "Use Option as Meta" enabled for Alt to work.
+# Default: false
+# scroll-with-enter = false

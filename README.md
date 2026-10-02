@@ -237,6 +237,7 @@ code-line-numbers = true   # show line numbers inside fenced code blocks
 tab-title-length = -1      # terminal tab title truncation (min: 20, -1: no truncation)
 file-history-length = 0    # recent file history length (0 disables, max: 50)
 hyper-link-prefix = "#"    # single character before link text ("" for none)
+scroll-with-enter = false  # Enter scrolls down, Alt+Enter scrolls up
 ```
 
 To reset the configuration to defaults:

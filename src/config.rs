@@ -42,6 +42,8 @@ pub(crate) struct LeafConfig {
     pub(crate) file_history_length: Option<i32>,
     #[serde(rename = "hyper-link-prefix")]
     pub(crate) hyper_link_prefix: Option<String>,
+    #[serde(rename = "scroll-with-enter")]
+    pub(crate) scroll_with_enter: Option<bool>,
     pub(crate) themes: BTreeMap<String, CustomThemeConfig>,
     #[serde(skip)]
     pub(crate) config_dir: Option<PathBuf>,

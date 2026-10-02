@@ -521,6 +521,7 @@ fn main() -> Result<()> {
     app.set_editor_config(Some(resolved_editor));
     app.set_line_numbers_visible(main_line_numbers);
     app.set_code_line_numbers(code_line_numbers);
+    app.set_scroll_with_enter(user_config.scroll_with_enter.unwrap_or(false));
     app.set_config_warning(config_warning);
     if let Some(dir) = dir_arg {
         app.set_dir_arg(dir);

@@ -333,6 +333,27 @@ fn parse_hyper_link_prefix() {
 }
 
 #[test]
+fn parse_scroll_with_enter_true() {
+    let toml = r#"scroll-with-enter = true"#;
+    let config: LeafConfig = toml::from_str(toml).unwrap();
+    assert_eq!(config.scroll_with_enter, Some(true));
+}
+
+#[test]
+fn parse_scroll_with_enter_false() {
+    let toml = r#"scroll-with-enter = false"#;
+    let config: LeafConfig = toml::from_str(toml).unwrap();
+    assert_eq!(config.scroll_with_enter, Some(false));
+}
+
+#[test]
+fn parse_scroll_with_enter_missing_defaults_to_none() {
+    let toml = r#"theme = "ocean""#;
+    let config: LeafConfig = toml::from_str(toml).unwrap();
+    assert_eq!(config.scroll_with_enter, None);
+}
+
+#[test]
 fn validate_hyper_link_prefix_graphemes() {
     use crate::config::is_valid_hyper_link_prefix;
     assert!(is_valid_hyper_link_prefix(""));

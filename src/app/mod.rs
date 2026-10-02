@@ -186,6 +186,7 @@ pub(crate) struct App {
     reverse_mode: bool,
     pub(super) file_mode: bool,
     pub(super) code_line_numbers: bool,
+    scroll_with_enter: bool,
     max_width: Option<usize>,
     tab_title_max_filename_len: Option<usize>,
     tab_title_length: Option<i32>,
@@ -353,6 +354,7 @@ impl App {
             reverse_mode: false,
             file_mode: false,
             code_line_numbers: true,
+            scroll_with_enter: false,
             max_width: None,
             tab_title_max_filename_len: None,
             tab_title_length: None,
@@ -379,6 +381,10 @@ impl App {
 
     pub(crate) fn set_code_line_numbers(&mut self, value: bool) {
         self.code_line_numbers = value;
+    }
+
+    pub(crate) fn set_scroll_with_enter(&mut self, value: bool) {
+        self.scroll_with_enter = value;
     }
 
     pub(crate) fn set_max_width(&mut self, max_width: Option<usize>) {
@@ -480,6 +486,10 @@ impl App {
 
     pub(crate) fn is_line_number_visible(&self) -> bool {
         self.line_number_visible
+    }
+
+    pub(crate) fn scroll_with_enter(&self) -> bool {
+        self.scroll_with_enter
     }
 
     pub(crate) fn line_number_total(&self) -> usize {

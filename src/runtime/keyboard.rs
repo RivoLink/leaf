@@ -326,6 +326,12 @@ pub(super) fn handle_key_event(
             KeyCode::Esc if app.has_active_goto_line() => app.clear_active_goto_line(),
             KeyCode::Esc if app.has_active_search() => app.clear_active_search(),
             KeyCode::Enter if app.has_active_search() => app.next_match(),
+            KeyCode::Enter
+                if app.scroll_with_enter() && key.modifiers.contains(KeyModifiers::ALT) =>
+            {
+                app.scroll_up(1)
+            }
+            KeyCode::Enter if app.scroll_with_enter() => app.scroll_down(1),
             KeyCode::Char('q') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 app.queue_fuzzy_file_picker(app.picker_dir());
             }

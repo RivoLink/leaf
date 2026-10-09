@@ -75,7 +75,14 @@ pub(super) fn popup_footer_line(segments: &[&'static str], bg: Color) -> Line<'s
     Line::from(spans)
 }
 
-pub(super) fn render_help_popup(f: &mut Frame, _app: &App) {
+pub(super) fn render_help_popup(f: &mut Frame, app: &App) {
+    match app.mode() {
+        crate::app::AppMode::Diff => render_help_diff(f, app),
+        crate::app::AppMode::Document => render_help_document(f, app),
+    }
+}
+
+fn render_help_document(f: &mut Frame, _app: &App) {
     let theme = app_theme();
     let area = centered_rect(53, 26, f.area());
 
@@ -205,6 +212,71 @@ pub(super) fn render_help_popup(f: &mut Frame, _app: &App) {
             Span::styled("?           ", key_style),
             Span::styled("help", text_style),
         ]),
+        Line::from(""),
+        popup_footer_line(&["esc close", "? close"], theme.ui.toc_bg),
+    ];
+
+    f.render_widget(Clear, area);
+    f.render_widget(
+        Paragraph::new(lines).block(
+            Block::default()
+                .title("─ Help ")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(theme.ui.toc_border))
+                .style(Style::default().bg(theme.ui.toc_bg))
+                .padding(Padding::new(1, 1, 0, 0)),
+        ),
+        area,
+    );
+}
+
+fn render_help_diff(f: &mut Frame, _app: &App) {
+    let theme = app_theme();
+    let area = centered_rect(54, 17, f.area());
+
+    let section_style = Style::default()
+        .fg(theme.ui.toc_primary_active)
+        .add_modifier(Modifier::BOLD);
+    let key_style = Style::default()
+        .fg(theme.ui.toc_accent)
+        .add_modifier(Modifier::BOLD);
+    let text_style = Style::default().fg(theme.ui.toc_primary_inactive);
+    let title_style = Style::default()
+        .fg(theme.markdown.heading_2)
+        .add_modifier(Modifier::BOLD);
+
+    let row = |left_key: &str, left_desc: &str, right_key: &str, right_desc: &str| {
+        Line::from(vec![
+            Span::styled(format!("{left_key:<11}"), key_style),
+            Span::styled(format!("{left_desc:<18}"), text_style),
+            Span::styled(format!("{right_key:<9}"), key_style),
+            Span::styled(right_desc.to_string(), text_style),
+        ])
+    };
+    let two_section_headers = |left: &str, right: &str| {
+        Line::from(vec![
+            Span::styled(format!("{left:<29}"), section_style),
+            Span::styled(right.to_string(), section_style),
+        ])
+    };
+
+    let lines = vec![
+        Line::from(vec![Span::styled(version_text().to_string(), title_style)]),
+        Line::from(vec![Span::styled(
+            "keyboard shortcuts",
+            Style::default().fg(theme.ui.status_shortcut_fg),
+        )]),
+        Line::from(""),
+        two_section_headers("Navigation", "Search"),
+        row("j/k, ↑/↓", "scroll line", "ctrl+f", "find"),
+        row("u/d", "page up/down", "n/N", "next/prev"),
+        row("g/G", "top/bottom", "", ""),
+        row("n/N", "next/prev", "", ""),
+        Line::from(""),
+        Line::from(vec![Span::styled("Actions", section_style)]),
+        row("v", "view/layout", "t", "file list"),
+        row("p, enter", "preview file", "l", "line numbers"),
+        row("r, space", "recenter file", "q", "quit"),
         Line::from(""),
         popup_footer_line(&["esc close", "? close"], theme.ui.toc_bg),
     ];

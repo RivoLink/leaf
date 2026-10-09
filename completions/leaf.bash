@@ -16,6 +16,10 @@ _leaf() {
             COMPREPLY=($(compgen -W "ansi plain" -- "$cur"))
             return
             ;;
+        --diff|-d)
+            COMPREPLY=($(compgen -W "working cached staged" -- "$cur"))
+            return
+            ;;
         --config)
             COMPREPLY=($(compgen -W "reset remove" -- "$cur"))
             return
@@ -31,7 +35,7 @@ _leaf() {
     esac
 
     if [[ "$cur" == -* ]]; then
-        COMPREPLY=($(compgen -W "--help --version --watch --theme --editor --inline --width --picker --fuzzy --history --last --config --update --auto-complete -h -V -w -e -H -l" -- "$cur"))
+        COMPREPLY=($(compgen -W "--help --version --watch --theme --editor --inline --diff --width --picker --fuzzy --history --last --config --update --auto-complete -h -V -w -e -d -H -l" -- "$cur"))
         return
     fi
 

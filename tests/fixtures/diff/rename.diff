@@ -1,0 +1,14 @@
+diff --git a/src/old_name.rs b/src/new_name.rs
+similarity index 92%
+rename from src/old_name.rs
+rename to src/new_name.rs
+index abc1234..def5678 100644
+--- a/src/old_name.rs
++++ b/src/new_name.rs
+@@ -10,7 +10,7 @@ fn helper() {
+     let x = 1;
+     let y = 2;
+-    println!("old");
++    println!("new");
+     let z = 3;
+ }

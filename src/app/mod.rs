@@ -37,9 +37,20 @@ use navigation::NumkeyCycleState;
 mod content;
 pub(crate) use content::{FileChange, FileState};
 
+pub(crate) mod mode;
+pub(crate) use mode::{AppMode, DiffSource, DiffSpec, DiffState, HunkRange, PreviewPair};
+
+mod diff_nav;
+mod diff_preview;
+mod diff_toggles;
+pub(crate) use diff_preview::build_preview_pair;
+#[cfg(test)]
+pub(crate) use diff_preview::{fetch_before, reconstruct_after_from_hunks};
+
 mod flash;
 pub(crate) use flash::{
-    CodeBlockFlash, EditorFlash, HistoryFlash, LinkFlash, PathFlash, WatchFlash, FLASH_DURATION_MS,
+    CodeBlockFlash, DiffFlash, EditorFlash, HistoryFlash, LinkFlash, PathFlash, WatchFlash,
+    FLASH_DURATION_MS,
 };
 
 pub(crate) mod history;
@@ -100,8 +111,12 @@ pub(crate) struct StatusCacheKey {
     path_flash_active: bool,
     code_block_flash_active: bool,
     history_flash_active: bool,
+    diff_flash_active: bool,
+    preview_reconstruct_error: bool,
     mouse_capture: bool,
     toc_scroll_hint_visible: bool,
+    diff_tree_scroll_hint_visible: bool,
+    diff_sticky_file_idx: Option<usize>,
 }
 
 pub(crate) struct AppConfig {
@@ -156,6 +171,9 @@ pub(crate) struct App {
     pub(super) picker_load_state: PickerLoadState,
     pub(super) file_history_length: Option<i32>,
     pub(super) history_flash: Option<(HistoryFlash, std::time::Instant)>,
+    pub(super) diff_flash: Option<(DiffFlash, std::time::Instant)>,
+    pub(super) pending_split_build:
+        Option<std::sync::mpsc::Receiver<crate::render::BuiltSplitLines>>,
     pub(super) history_error_receiver:
         Option<std::sync::mpsc::Receiver<history::HistoryWriteError>>,
     pub(super) history_pending_removals: Vec<std::path::PathBuf>,
@@ -164,6 +182,8 @@ pub(crate) struct App {
     pub(super) render_width: usize,
     pub(crate) content_area: Rect,
     pub(crate) toc_list_area: Option<Rect>,
+    pub(crate) diff_tree_list_area: Option<Rect>,
+    pub(crate) diff_tree_scroll_hint_dismissed: bool,
     pub(crate) mouse_position: (u16, u16),
     pub(crate) scrollbar_dragging: bool,
     pub(super) editor_config: Option<String>,
@@ -192,6 +212,8 @@ pub(crate) struct App {
     file_picker_width: crate::picker_width::PickerWidthSpec,
     pub(super) picker_width_floor_active: bool,
     mouse_capture: bool,
+    pub(super) mode: AppMode,
+    pub(super) diff_state: Option<DiffState>,
 }
 
 impl App {
@@ -314,6 +336,8 @@ impl App {
             picker_load_state: PickerLoadState::Idle,
             file_history_length: None,
             history_flash: None,
+            diff_flash: None,
+            pending_split_build: None,
             history_error_receiver: None,
             history_pending_removals: Vec::new(),
             theme_picker: ThemePickerState {
@@ -331,6 +355,8 @@ impl App {
             render_width: 80,
             content_area: Rect::default(),
             toc_list_area: None,
+            diff_tree_list_area: None,
+            diff_tree_scroll_hint_dismissed: false,
             mouse_position: (0, 0),
             scrollbar_dragging: false,
             editor_config: None,
@@ -359,6 +385,8 @@ impl App {
             file_picker_width: crate::picker_width::DEFAULT_PICKER_WIDTH,
             picker_width_floor_active: false,
             mouse_capture: true,
+            mode: AppMode::Document,
+            diff_state: None,
         };
         app.store_current_theme_preview();
         app.refresh_static_caches();
@@ -737,8 +765,16 @@ impl App {
                 .as_ref()
                 .map(|(_, t)| t.elapsed() < Duration::from_millis(FLASH_DURATION_MS))
                 .unwrap_or(false),
+            diff_flash_active: self
+                .diff_flash
+                .as_ref()
+                .map(|(_, t)| t.elapsed() < Duration::from_millis(FLASH_DURATION_MS))
+                .unwrap_or(false),
+            preview_reconstruct_error: self.is_diff_preview_reconstruction_error(),
             mouse_capture: self.mouse_capture,
             toc_scroll_hint_visible: self.is_toc_scroll_hint_visible(),
+            diff_tree_scroll_hint_visible: self.is_diff_tree_scroll_hint_visible(),
+            diff_sticky_file_idx: self.diff_current_file_from_scroll(),
         };
 
         if self.status_cache_key.as_ref() == Some(&cache_key) {
@@ -775,6 +811,174 @@ impl App {
         self.filepath.is_some() || !self.source.is_empty()
     }
 
+    pub(crate) fn mode(&self) -> AppMode {
+        self.mode
+    }
+
+    pub(crate) fn set_mode(&mut self, mode: AppMode) {
+        self.mode = mode;
+    }
+
+    pub(crate) fn diff(&self) -> Option<&DiffState> {
+        self.diff_state.as_ref()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn diff_mut(&mut self) -> Option<&mut DiffState> {
+        self.diff_state.as_mut()
+    }
+
+    pub(crate) fn is_diff_preview_visible(&self) -> bool {
+        self.diff_state.as_ref().is_some_and(|s| s.preview_visible)
+    }
+
+    pub(crate) fn is_diff_preview_reconstruction_error(&self) -> bool {
+        let Some(state) = self.diff_state.as_ref() else {
+            return false;
+        };
+        if !state.preview_visible || state.files.is_empty() {
+            return false;
+        }
+        let active_idx = state
+            .tree_active_idx
+            .min(state.files.len().saturating_sub(1));
+        state
+            .preview_cache
+            .get(&active_idx)
+            .is_some_and(|p| p.after_error.is_some())
+    }
+
+    pub(crate) fn is_diff_mode(&self) -> bool {
+        self.mode == AppMode::Diff
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_source_for_test(&mut self, src: String) {
+        self.source = src;
+    }
+
+    pub(crate) fn install_diff_from_src(
+        &mut self,
+        src: &str,
+        spec: DiffSpec,
+        ss: &syntect::parsing::SyntaxSet,
+        themes: &syntect::highlighting::ThemeSet,
+    ) {
+        let files = crate::diff::parse_unified_diff(src);
+        let ss_arc = std::sync::Arc::new(ss.clone());
+        let theme_arc = std::sync::Arc::new(crate::theme::current_syntect_theme(themes).clone());
+        self.install_diff(files, spec, ss_arc, theme_arc);
+    }
+
+    pub(crate) fn install_diff(
+        &mut self,
+        files: Vec<crate::diff::DiffFile>,
+        spec: DiffSpec,
+        ss: std::sync::Arc<syntect::parsing::SyntaxSet>,
+        theme: std::sync::Arc<syntect::highlighting::Theme>,
+    ) {
+        self.mode = AppMode::Diff;
+        let carry_tree_visible = self.diff_state.as_ref().is_some_and(|s| s.tree_visible);
+        let carry_layout = self
+            .diff_state
+            .as_ref()
+            .map(|s| s.layout)
+            .unwrap_or_default();
+        let built = crate::render::build_diff_lines(&files, &ss, &theme);
+        let files_arc = std::sync::Arc::new(files);
+        let mut state = DiffState::new(files_arc.clone(), spec);
+        state.hunk_ranges = built.hunk_ranges;
+        state.line_owner = built.line_owner;
+        state.line_old_num = built.line_old_num;
+        state.line_new_num = built.line_new_num;
+        state.file_header_status = built.file_header_status;
+        state.file_owner = built.file_owner;
+        state.file_top_idx = built.file_top_idx;
+        state.file_bottom_idx = built.file_bottom_idx;
+        state.meta_only_bottom_rows = built.meta_only_bottom_rows;
+        state.tree_visible = carry_tree_visible;
+        state.layout = carry_layout;
+        state.split_ready = false;
+        state.preview_cache = std::collections::HashMap::new();
+        state.preview_visible = false;
+        state.pre_preview_scroll = None;
+        state.pre_preview_file_idx = None;
+        state.preview_scroll_cache = std::collections::HashMap::new();
+        state.nav_pinned_file_idx = None;
+        self.diff_state = Some(state);
+        self.diff_tree_scroll_hint_dismissed = false;
+        self.replace_content(crate::markdown::ParseResult {
+            lines: built.lines,
+            toc: Vec::new(),
+            link_spans: Vec::new(),
+            line_number_map: Vec::new(),
+            source_line_map: Vec::new(),
+            code_blocks: Vec::new(),
+        });
+        self.scroll = 0;
+        self.line_number_visible = true;
+
+        let prewarm = !files_arc.is_empty()
+            && std::thread::available_parallelism()
+                .map(|n| n.get() > 1)
+                .unwrap_or(false);
+        if prewarm {
+            let (tx, rx) = std::sync::mpsc::channel();
+            let files_for_worker = std::sync::Arc::clone(&files_arc);
+            let ss_for_worker = std::sync::Arc::clone(&ss);
+            let theme_for_worker = std::sync::Arc::clone(&theme);
+            std::thread::spawn(move || {
+                let built = crate::render::build_split_lines(
+                    &files_for_worker,
+                    &ss_for_worker,
+                    &theme_for_worker,
+                );
+                let _ = tx.send(built);
+            });
+            self.pending_split_build = Some(rx);
+        } else {
+            self.pending_split_build = None;
+        }
+    }
+
+    pub(crate) fn has_pending_split_build(&self) -> bool {
+        self.pending_split_build.is_some()
+    }
+
+    pub(crate) fn poll_pending_split_build(&mut self) -> bool {
+        let Some(rx) = self.pending_split_build.as_ref() else {
+            return false;
+        };
+        let Ok(built) = rx.try_recv() else {
+            return false;
+        };
+        self.pending_split_build = None;
+        let Some(state) = self.diff_state.as_mut() else {
+            return false;
+        };
+        apply_split_build(state, built);
+        true
+    }
+}
+
+pub(crate) fn apply_split_build(state: &mut DiffState, built: crate::render::BuiltSplitLines) {
+    state.split_lines = built.lines;
+    state.split_line_old_num_left = built.line_old_num_left;
+    state.split_line_new_num_left = built.line_new_num_left;
+    state.split_line_old_num_right = built.line_old_num_right;
+    state.split_line_new_num_right = built.line_new_num_right;
+    state.split_file_header_status = built.file_header_status;
+    state.split_file_owner = built.file_owner;
+    state.split_file_top_idx = built.file_top_idx;
+    state.split_file_bottom_idx = built.file_bottom_idx;
+    state.split_meta_only_frame_rows = built.meta_only_frame_rows;
+    state.split_single_column_body_rows = built.single_column_body_rows;
+    state.split_left_gutter_disabled = built.left_gutter_disabled;
+    state.split_right_gutter_disabled = built.right_gutter_disabled;
+    state.split_ready = true;
+}
+
+impl App {
     pub(crate) fn set_dir_arg(&mut self, dir: PathBuf) {
         self.dir_arg = Some(dir);
     }

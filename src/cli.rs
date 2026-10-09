@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
 
+use crate::app::{DiffSource, DiffSpec};
 use crate::inline::{self, InlineSpec};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -49,6 +50,28 @@ pub(crate) struct CliOptions {
     pub(crate) history: Option<HistoryAction>,
     pub(crate) fuzzy: bool,
     pub(crate) fuzzy_query: Option<String>,
+    pub(crate) diff: Option<DiffSpec>,
+}
+
+pub(crate) fn is_diff_spec(value: &str) -> bool {
+    if value.is_empty() || value.starts_with('-') {
+        return false;
+    }
+
+    true
+}
+
+pub(crate) fn parse_diff_spec(value: &str) -> Result<DiffSpec> {
+    let value = value.trim();
+    if value.is_empty() {
+        bail!("Empty --diff spec");
+    }
+    let source = match value {
+        "cached" | "staged" => DiffSource::Cached,
+        "working" => DiffSource::Working,
+        other => DiffSource::Ref(other.to_string()),
+    };
+    Ok(DiffSpec { source })
 }
 
 pub(crate) const FUZZY_QUERY_MAX_LEN: usize = 15;
@@ -84,6 +107,7 @@ pub(crate) fn usage_text() -> &'static str {
      \x20     --theme <NAME>           Set color theme preset or custom config theme\n\
      \x20 -e, --editor <NAME>          Set external editor (nano|vim|code|subl|emacs)\n\
      \x20     --inline [SPEC]          Render to stdout (no TUI) [ansi|plain][:<width>]\n\
+     \x20 -d, --diff [SPEC] [PATH]     View git diff [working|cached|<ref>]\n\
      \x20     --width <N>              Set maximum content width (min: 20)\n\
      \x20     --fuzzy [KEYWORD]        Open the fuzzy file picker (KEYWORD pre-fills the filter)\n\
      \x20     --picker                 Open the file browser picker\n\
@@ -224,6 +248,24 @@ pub(crate) fn parse_cli(args: &[String]) -> Result<CliOptions> {
                 let value = &arg["--inline=".len()..];
                 options.inline = Some(inline::parse_inline_spec(value)?);
             }
+            "--diff" | "-d" => {
+                let spec = match iter.peek() {
+                    Some(next) if is_diff_spec(next) => {
+                        let value = iter.next().unwrap();
+                        parse_diff_spec(value)?
+                    }
+                    _ => DiffSpec::default(),
+                };
+                options.diff = Some(spec);
+            }
+            _ if arg.starts_with("--diff=") => {
+                let value = &arg["--diff=".len()..];
+                options.diff = Some(parse_diff_spec(value)?);
+            }
+            _ if arg.starts_with("-d=") => {
+                let value = &arg["-d=".len()..];
+                options.diff = Some(parse_diff_spec(value)?);
+            }
             "--width" => {
                 let Some(value) = iter.next() else {
                     anyhow::bail!("Missing value for --width");
@@ -275,6 +317,21 @@ pub(crate) fn parse_cli(args: &[String]) -> Result<CliOptions> {
         }
         if options.fuzzy {
             anyhow::bail!("--inline cannot be combined with --fuzzy");
+        }
+    }
+
+    if options.diff.is_some() {
+        if options.watch {
+            anyhow::bail!("--diff cannot be combined with --watch");
+        }
+        if options.inline.is_some() {
+            anyhow::bail!("--diff cannot be combined with --inline");
+        }
+        if options.picker {
+            anyhow::bail!("--diff cannot be combined with --picker");
+        }
+        if options.fuzzy {
+            anyhow::bail!("--diff cannot be combined with --fuzzy");
         }
     }
 

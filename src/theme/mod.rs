@@ -33,6 +33,28 @@ pub(crate) struct AppTheme {
     pub(crate) syntax_theme_name: Cow<'static, str>,
     pub(crate) ui: UiTheme,
     pub(crate) markdown: MarkdownTheme,
+    pub(crate) diff: DiffTheme,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct DiffTheme {
+    pub(crate) add_fg: Color,
+    pub(crate) add_bg: Color,
+    pub(crate) del_fg: Color,
+    pub(crate) del_bg: Color,
+    pub(crate) context_fg: Color,
+    pub(crate) hunk_header_fg: Color,
+    pub(crate) filename_fg: Color,
+    pub(crate) frame_fg: Color,
+    pub(crate) tree_active: Color,
+    pub(crate) intra_add: Color,
+    pub(crate) intra_del: Color,
+    pub(crate) meta_note_fg: Color,
+    pub(crate) meta_note_bg: Color,
+    pub(crate) meta_note_sigil_fg: Color,
+    pub(crate) file_separator_fg: Color,
+    pub(crate) tree_tag_change: Color,
+    pub(crate) tree_tag_renamed: Color,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -60,6 +82,7 @@ pub(crate) struct UiTheme {
     pub(crate) status_error_bg: Color,
     pub(crate) status_shortcut_fg: Color,
     pub(crate) status_percent_fg: Color,
+    pub(crate) status_dot_fg: Color,
     pub(crate) toc_hover_fg: Color,
     pub(crate) toc_header_fg: Color,
     pub(crate) toc_active_bg: Color,

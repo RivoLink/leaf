@@ -48,6 +48,11 @@ pub(crate) enum HistoryFlash {
     LengthCapped { was: i32 },
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum DiffFlash {
+    SplitBuilding,
+}
+
 impl App {
     pub(crate) fn set_editor_flash(&mut self, flash: EditorFlash) {
         self.editor_flash = Some((flash, Instant::now()));
@@ -197,5 +202,17 @@ impl App {
 
     pub(crate) fn clear_history_flash(&mut self) {
         self.history_flash = None;
+    }
+
+    pub(crate) fn set_diff_flash(&mut self, flash: DiffFlash) {
+        self.diff_flash = Some((flash, Instant::now()));
+    }
+
+    pub(crate) fn diff_flash(&self) -> Option<(&DiffFlash, &Instant)> {
+        self.diff_flash.as_ref().map(|(f, t)| (f, t))
+    }
+
+    pub(crate) fn clear_diff_flash(&mut self) {
+        self.diff_flash = None;
     }
 }

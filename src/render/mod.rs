@@ -1,10 +1,22 @@
 mod content;
+mod diff;
+mod diff_tree;
 mod popup;
 mod popup_picker;
 mod status;
 mod toc;
 
-use crate::app::App;
+use crate::app::{App, AppMode};
+#[cfg(test)]
+#[allow(unused_imports)]
+pub(crate) use diff::{
+    apply_number_gutter, close_frame_right, compute_sticky_top_idx, truncate_unified_body_row,
+    FrameDecorations,
+};
+pub(crate) use diff::{
+    build_diff_lines, build_split_lines, mode_change_label, resolve_file_syntax, syntect_to_color,
+    BuiltSplitLines,
+};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     Frame,
@@ -25,24 +37,54 @@ pub(crate) fn ui(f: &mut Frame, app: &mut App) {
         .constraints([Constraint::Min(0), Constraint::Length(1)])
         .split(area);
 
-    let (toc_area, content_area): (Option<Rect>, Rect) = if app.is_toc_visible() && app.has_toc() {
+    let mode = app.mode();
+
+    let preview_active = mode == AppMode::Diff && app.is_diff_preview_visible();
+    let diff_tree_visible =
+        mode == AppMode::Diff && !preview_active && app.diff().is_some_and(|d| d.tree_visible);
+    let toc_active = mode == AppMode::Document && app.is_toc_visible() && app.has_toc();
+
+    let (side_area, content_area): (Option<Rect>, Rect) = if toc_active {
         let cols = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([Constraint::Length(30), Constraint::Min(0)])
+            .split(root[0]);
+        (Some(cols[0]), cols[1])
+    } else if diff_tree_visible {
+        let cols = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Length(diff_tree::DIFF_TREE_WIDTH),
+                Constraint::Min(0),
+            ])
             .split(root[0]);
         (Some(cols[0]), cols[1])
     } else {
         (None, root[0])
     };
 
-    if let Some(ta) = toc_area {
-        toc::render_toc_panel(f, app, ta);
+    if toc_active {
+        if let Some(ta) = side_area {
+            toc::render_toc_panel(f, app, ta);
+        }
     } else {
         app.toc_list_area = None;
+        if diff_tree_visible {
+            if let Some(ta) = side_area {
+                diff_tree::render_diff_tree_panel(f, app, ta);
+            }
+        }
+    }
+
+    if !diff_tree_visible {
+        app.diff_tree_list_area = None;
     }
 
     app.content_area = content_area;
-    content::render_content_panel(f, app, content_area);
+    match mode {
+        AppMode::Document => content::render_content_panel(f, app, content_area),
+        AppMode::Diff => diff::render_diff_panel(f, app, content_area),
+    }
     content::render_status_bar(f, app, root[1]);
 
     if app.is_help_open() {

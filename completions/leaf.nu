@@ -8,6 +8,7 @@ def "nu-complete leaf editors" [] {
 }
 
 def "nu-complete leaf inline" [] { [ansi plain] }
+def "nu-complete leaf diff" [] { [working cached staged] }
 def "nu-complete leaf config" [] { [reset remove] }
 def "nu-complete leaf history" [] { [edit remove list] }
 def "nu-complete leaf shells" [] { [bash zsh fish powershell nushell dump remove] }
@@ -20,6 +21,7 @@ export extern "leaf" [
   --theme: string@"nu-complete leaf themes"
   --editor(-e): string@"nu-complete leaf editors"
   --inline: string@"nu-complete leaf inline"
+  --diff(-d): string@"nu-complete leaf diff"
   --width: int
   --picker
   --fuzzy: string

@@ -12,6 +12,26 @@ pub(super) struct NumkeyCycleState {
 
 impl App {
     pub(crate) fn max_scroll(&self) -> usize {
+        if let Some(state) = self.diff() {
+            if state.preview_visible && !state.files.is_empty() {
+                let idx = state
+                    .tree_active_idx
+                    .min(state.files.len().saturating_sub(1));
+                if let Some(pair) = state.preview_cache.get(&idx) {
+                    let longest = pair.before_lines.len().max(pair.after_lines.len());
+
+                    let avail = (self.content_area.height as usize).saturating_sub(2);
+                    return longest.saturating_sub(avail);
+                }
+            }
+
+            if matches!(state.layout, crate::diff::DiffLayout::Split) {
+                return state
+                    .split_lines
+                    .len()
+                    .saturating_sub(self.content_area.height as usize);
+            }
+        }
         self.total()
             .saturating_sub(self.content_area.height as usize)
     }
@@ -33,6 +53,35 @@ impl App {
         self.reverse_mode = false;
     }
 
+    pub(super) fn sync_diff_file_from_scroll(&mut self) {
+        if self.diff_state.is_none() {
+            return;
+        }
+        let scroll = self.scroll;
+        let resolved: Option<usize> = {
+            let state = self.diff_state.as_ref().expect("checked");
+            if state.preview_visible || state.files.is_empty() {
+                return;
+            }
+            let owner: &[Option<usize>] = match state.layout {
+                crate::diff::DiffLayout::Unified => &state.file_owner,
+                crate::diff::DiffLayout::Split => &state.split_file_owner,
+            };
+
+            owner
+                .get(scroll)
+                .copied()
+                .flatten()
+                .or_else(|| owner[..scroll].iter().rev().flatten().next().copied())
+                .or_else(|| owner.iter().skip(scroll).flatten().next().copied())
+        };
+        let state = self.diff_state.as_mut().expect("checked");
+        state.nav_pinned_file_idx = None;
+        if let Some(fi) = resolved {
+            state.current_file_idx = fi.min(state.files.len() - 1);
+        }
+    }
+
     pub(crate) fn toggle_reverse_mode(&mut self) {
         self.reverse_mode = !self.reverse_mode;
     }
@@ -40,31 +89,41 @@ impl App {
     pub(crate) fn scroll_down(&mut self, n: usize) {
         self.reset_numkey_state();
         self.reset_toc_scroll_mode();
+        self.dismiss_diff_tree_hint_if_visible();
         self.scroll = (self.scroll + n).min(self.max_scroll());
+        self.sync_diff_file_from_scroll();
     }
 
     pub(crate) fn scroll_up(&mut self, n: usize) {
         self.reset_numkey_state();
         self.reset_toc_scroll_mode();
+        self.dismiss_diff_tree_hint_if_visible();
         self.scroll = self.scroll.saturating_sub(n);
+        self.sync_diff_file_from_scroll();
     }
 
     pub(crate) fn scroll_top(&mut self) {
         self.reset_numkey_state();
         self.reset_toc_scroll_mode();
+        self.dismiss_diff_tree_hint_if_visible();
         self.scroll = 0;
+        self.sync_diff_file_from_scroll();
     }
 
     pub(crate) fn scroll_bottom(&mut self) {
         self.reset_numkey_state();
         self.reset_toc_scroll_mode();
+        self.dismiss_diff_tree_hint_if_visible();
         self.scroll = self.max_scroll();
+        self.sync_diff_file_from_scroll();
     }
 
     pub(crate) fn scroll_to(&mut self, position: usize) {
         self.reset_numkey_state();
         self.reset_toc_scroll_mode();
+        self.dismiss_diff_tree_hint_if_visible();
         self.scroll = position.min(self.max_scroll());
+        self.sync_diff_file_from_scroll();
     }
 
     pub(crate) fn toggle_toc(&mut self) {
@@ -207,6 +266,153 @@ impl App {
         self.set_toc_manual_offset(current.saturating_sub(n));
     }
 
+    pub(crate) fn can_scroll_diff_tree(&self) -> bool {
+        self.diff_state
+            .as_ref()
+            .is_some_and(|s| s.tree_visible && !s.files.is_empty() && !s.preview_visible)
+    }
+
+    fn diff_tree_view_rows(&self) -> usize {
+        self.diff_tree_list_area.map_or(0, |r| r.height as usize)
+    }
+
+    fn max_diff_tree_scroll(&self) -> usize {
+        let Some(state) = self.diff_state.as_ref() else {
+            return 0;
+        };
+        state.files.len().saturating_sub(self.diff_tree_view_rows())
+    }
+
+    pub(crate) fn scroll_diff_tree_down(&mut self, n: usize) {
+        self.dismiss_diff_tree_hint_if_visible();
+        let max = self.max_diff_tree_scroll();
+        if let Some(state) = self.diff_state.as_mut() {
+            state.tree_scroll = (state.tree_scroll + n).min(max);
+
+            state.tree_scroll_manual = true;
+        }
+    }
+
+    pub(crate) fn scroll_diff_tree_up(&mut self, n: usize) {
+        self.dismiss_diff_tree_hint_if_visible();
+        if let Some(state) = self.diff_state.as_mut() {
+            state.tree_scroll = state.tree_scroll.saturating_sub(n);
+            state.tree_scroll_manual = true;
+        }
+    }
+
+    pub(super) fn dismiss_diff_tree_hint_if_visible(&mut self) {
+        if self.is_diff_tree_scroll_hint_visible() {
+            self.diff_tree_scroll_hint_dismissed = true;
+        }
+    }
+
+    pub(crate) fn is_diff_tree_scroll_hint_visible(&self) -> bool {
+        if self.diff_tree_scroll_hint_dismissed {
+            return false;
+        }
+        let open = self
+            .diff_state
+            .as_ref()
+            .is_some_and(|s| s.tree_visible && !s.files.is_empty() && !s.preview_visible);
+        if !open {
+            return false;
+        }
+        self.diff_tree_overflows()
+    }
+
+    pub(crate) fn focus_next_diff_tree_file(&mut self) {
+        self.step_diff_tree_cursor(1);
+    }
+
+    pub(crate) fn focus_prev_diff_tree_file(&mut self) {
+        self.step_diff_tree_cursor(-1);
+    }
+
+    pub(crate) fn focus_next_diff_tree_file_by(&mut self, n: isize) {
+        self.step_diff_tree_cursor(n);
+    }
+
+    pub(crate) fn focus_prev_diff_tree_file_by(&mut self, n: isize) {
+        self.step_diff_tree_cursor(-n);
+    }
+
+    fn step_diff_tree_cursor(&mut self, delta: isize) {
+        self.dismiss_diff_tree_hint_if_visible();
+        let view = self.diff_tree_view_rows();
+        let target_file = {
+            let Some(state) = self.diff_state.as_mut() else {
+                return;
+            };
+            if state.files.is_empty() {
+                return;
+            }
+            let last = (state.files.len() - 1) as isize;
+            let next = (state.tree_active_idx as isize + delta).clamp(0, last) as usize;
+            state.tree_active_idx = next;
+
+            state.tree_scroll_manual = false;
+            if view > 0 && next >= state.tree_scroll + view {
+                state.tree_scroll = next + 1 - view;
+            } else if next < state.tree_scroll {
+                state.tree_scroll = next;
+            }
+            next
+        };
+        self.warp_main_content_to_tree_file(target_file);
+    }
+
+    pub(crate) fn ensure_diff_tree_cursor_visible(&mut self) {
+        let view = self.diff_tree_view_rows();
+        if view == 0 {
+            return;
+        }
+
+        if self
+            .diff_state
+            .as_ref()
+            .is_some_and(|s| s.tree_scroll_manual)
+        {
+            return;
+        }
+        let Some(active) = self.diff_current_file_from_scroll() else {
+            return;
+        };
+        if let Some(state) = self.diff_state.as_mut() {
+            if active < state.tree_scroll {
+                state.tree_scroll = active;
+            } else if active >= state.tree_scroll + view {
+                state.tree_scroll = active + 1 - view;
+            }
+        }
+    }
+
+    pub(crate) fn diff_tree_overflows(&self) -> bool {
+        let view = self.diff_tree_view_rows();
+        if view == 0 {
+            return false;
+        }
+        self.diff_state
+            .as_ref()
+            .is_some_and(|s| s.tree_visible && s.files.len() > view)
+    }
+
+    fn warp_main_content_to_tree_file(&mut self, target_file: usize) {
+        let target_line = self
+            .diff_state
+            .as_ref()
+            .and_then(|s| s.first_scroll_target_of_file(target_file));
+        if let Some(state) = self.diff_state.as_mut() {
+            state.current_file_idx = target_file;
+            state.nav_pinned_file_idx = Some(target_file);
+            state.tree_scroll_manual = false;
+        }
+        if let Some(line) = target_line {
+            self.scroll = line;
+        }
+        self.clamp_scroll();
+    }
+
     pub(crate) fn focus_next_top_level_toc(&mut self) {
         self.cycle_visible_top_level(CycleDirection::Forward);
     }
@@ -274,13 +480,13 @@ impl App {
     }
 
     fn current_toc_offset(&self) -> usize {
-        let list_height = self.toc_list_area.map(|r| r.height).unwrap_or(0);
+        let list_height = self.toc_list_area.map_or(0, |r| r.height);
         self.toc_scroll_offset(list_height)
     }
 
     fn set_toc_manual_offset(&mut self, offset: usize) {
         self.dismiss_toc_scroll_hint_if_visible();
-        let list_height = self.toc_list_area.map(|r| r.height).unwrap_or(0);
+        let list_height = self.toc_list_area.map_or(0, |r| r.height);
         let max_offset = self.max_toc_scroll_offset(list_height);
         self.toc_scroll_mode = TocScrollMode::Manual(offset.min(max_offset));
         self.hovered_toc_idx = None;

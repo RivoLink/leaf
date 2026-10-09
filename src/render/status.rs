@@ -1,8 +1,8 @@
 use crate::{
     app::{
         history::{msg_history_capped, MSG_HISTORY_WRITE_FAILED},
-        App, CodeBlockFlash, EditorFlash, HistoryFlash, LinkFlash, PathFlash, WatchFlash,
-        FLASH_DURATION_MS,
+        App, AppMode, CodeBlockFlash, DiffFlash, DiffSource, EditorFlash, HistoryFlash, LinkFlash,
+        PathFlash, WatchFlash, FLASH_DURATION_MS,
     },
     theme::app_theme,
 };
@@ -13,12 +13,6 @@ use ratatui::{
 
 pub(crate) fn status_bar_bg() -> Color {
     app_theme().ui.status_bg
-}
-
-pub(crate) fn status_separator_style(bar_bg: Color) -> Style {
-    Style::default()
-        .fg(app_theme().ui.status_separator)
-        .bg(bar_bg)
 }
 
 pub(crate) fn join_span_sections(
@@ -187,21 +181,21 @@ pub(crate) fn status_hint_segments(app: &App) -> &'static [&'static str] {
     } else if app.has_active_search() {
         &["n/N next/prev", "esc cancel"]
     } else {
-        &["ctrl+e edit", "ctrl+f find", "t toc", "? help", "q quit"]
+        match app.mode() {
+            AppMode::Diff => &["n/N file", "v view", "p preview", "? help", "q quit"],
+            AppMode::Document => &["ctrl+e edit", "ctrl+f find", "t toc", "? help", "q quit"],
+        }
     }
 }
 
 pub(crate) fn status_shortcuts_section(app: &App, bar_bg: Color) -> Vec<Span<'static>> {
     let theme = app_theme();
-    let separator = Span::styled(" · ", status_separator_style(bar_bg));
+    let shortcut_style = Style::default().fg(theme.ui.status_shortcut_fg).bg(bar_bg);
+    let separator_style = Style::default().fg(theme.ui.status_dot_fg).bg(bar_bg);
+    let separator = Span::styled(" · ", separator_style);
     let sections = status_hint_segments(app)
         .iter()
-        .map(|segment| {
-            vec![Span::styled(
-                *segment,
-                Style::default().fg(theme.ui.status_shortcut_fg).bg(bar_bg),
-            )]
-        })
+        .map(|segment| vec![Span::styled(*segment, shortcut_style)])
         .collect();
     join_span_sections(sections, separator)
 }
@@ -283,6 +277,22 @@ fn code_block_flash_section(app: &App) -> Option<Vec<Span<'static>>> {
         CodeBlockFlash::NoneVisible => (" No code block in view ", theme.ui.status_error_fg),
     };
     Some(vec![Span::styled(text, Style::default().fg(fg).bg(bar_bg))])
+}
+
+fn diff_flash_section(app: &App) -> Option<Vec<Span<'static>>> {
+    let (flash, started) = app.diff_flash()?;
+    if started.elapsed() >= std::time::Duration::from_millis(FLASH_DURATION_MS) {
+        return None;
+    }
+    let theme = app_theme();
+    let bar_bg = status_bar_bg();
+    let text = match flash {
+        DiffFlash::SplitBuilding => " Building split view, try again later ",
+    };
+    Some(vec![Span::styled(
+        text,
+        Style::default().fg(theme.ui.status_warning_fg).bg(bar_bg),
+    )])
 }
 
 fn history_flash_section(app: &App) -> Option<Vec<Span<'static>>> {
@@ -382,6 +392,22 @@ pub(crate) fn build_status_bar(app: &App, pct: u16) -> Vec<Span<'static>> {
         return join_span_sections(vec![left], outer_separator);
     }
 
+    if let Some(flash_section) = diff_flash_section(app) {
+        let mut left = status_brand_section();
+        left.extend(flash_section);
+        return join_span_sections(vec![left], outer_separator);
+    }
+
+    if app.is_diff_preview_reconstruction_error() {
+        let theme = app_theme();
+        let mut left = status_brand_section();
+        left.push(Span::styled(
+            " Partial preview, source file unavailable ",
+            Style::default().fg(theme.ui.status_warning_fg).bg(bar_bg),
+        ));
+        return join_span_sections(vec![left], outer_separator);
+    }
+
     if app.is_toc_scroll_hint_visible() {
         let theme = app_theme();
         let mut left = status_brand_section();
@@ -392,6 +418,30 @@ pub(crate) fn build_status_bar(app: &App, pct: u16) -> Vec<Span<'static>> {
         return join_span_sections(vec![left], outer_separator);
     }
 
+    if app.mode() == AppMode::Diff && app.is_diff_tree_scroll_hint_visible() {
+        let theme = app_theme();
+        let mut left = status_brand_section();
+        left.push(Span::styled(
+            " Navigate with shift+j/k and shift+u/d ",
+            Style::default().fg(theme.ui.status_warning_fg).bg(bar_bg),
+        ));
+        return join_span_sections(vec![left], outer_separator);
+    }
+
+    let file_open = app.has_content() || (!app.is_file_picker_open() && !app.is_picker_loading());
+    let sections = match app.mode() {
+        AppMode::Diff => build_diff_sections(app, bar_bg, pct, file_open),
+        AppMode::Document => build_document_sections(app, bar_bg, pct, file_open),
+    };
+    join_span_sections(sections, outer_separator)
+}
+
+fn build_document_sections(
+    app: &App,
+    bar_bg: Color,
+    pct: u16,
+    file_open: bool,
+) -> Vec<Vec<Span<'static>>> {
     let mut left_section = status_brand_section();
     left_section.extend(status_filename_section(app.filename()));
 
@@ -403,7 +453,6 @@ pub(crate) fn build_status_bar(app: &App, pct: u16) -> Vec<Span<'static>> {
         left_section.extend(section);
     }
 
-    let file_open = app.has_content() || (!app.is_file_picker_open() && !app.is_picker_loading());
     if file_open {
         if let Some(section) = status_watch_section(app) {
             left_section.extend(section);
@@ -414,6 +463,85 @@ pub(crate) fn build_status_bar(app: &App, pct: u16) -> Vec<Span<'static>> {
     if file_open {
         sections.push(status_percent_section(pct, bar_bg));
     }
+    sections
+}
 
-    join_span_sections(sections, outer_separator)
+fn build_diff_sections(
+    app: &App,
+    bar_bg: Color,
+    pct: u16,
+    file_open: bool,
+) -> Vec<Vec<Span<'static>>> {
+    let mut left_section = status_brand_section();
+    left_section.extend(status_diff_source_section(app, bar_bg));
+    if let Some(section) = status_diff_delta_section(app, bar_bg) {
+        left_section.extend(section);
+    }
+    if let Some(section) = status_diff_position_section(app, bar_bg) {
+        left_section.extend(section);
+    }
+    if let Some(section) = status_search_section(app) {
+        left_section.extend(section);
+    }
+    if let Some(section) = status_goto_line_section(app) {
+        left_section.extend(section);
+    }
+
+    let mut sections = vec![left_section, status_shortcuts_section(app, bar_bg)];
+    if file_open {
+        sections.push(status_percent_section(pct, bar_bg));
+    }
+    sections
+}
+
+pub(crate) fn status_diff_source_section(app: &App, _bar_bg: Color) -> Vec<Span<'static>> {
+    let theme = app_theme();
+    let style = Style::default()
+        .fg(theme.ui.status_filename_fg)
+        .bg(theme.ui.status_filename_bg);
+    let label: Span<'static> = match app.diff().map(|s| &s.spec.source) {
+        Some(DiffSource::Working) => Span::styled(" diff · working ", style),
+        Some(DiffSource::Cached) => Span::styled(" diff · staged ", style),
+        Some(DiffSource::Ref(r)) => Span::styled(format!(" diff · {r} "), style),
+        None => Span::styled(" diff ", style),
+    };
+    vec![label]
+}
+
+pub(crate) fn status_diff_position_section(app: &App, bar_bg: Color) -> Option<Vec<Span<'static>>> {
+    let theme = app_theme();
+    let state = app.diff()?;
+    let files_total = state.files.len();
+    if files_total == 0 {
+        return None;
+    }
+
+    let dynamic_idx = app
+        .diff_current_file_from_scroll()
+        .unwrap_or(state.current_file_idx);
+    let display_idx = dynamic_idx.min(files_total - 1);
+    let text = format!(" {}/{} files ", display_idx + 1, files_total);
+    Some(vec![Span::styled(
+        text,
+        Style::default().fg(theme.ui.status_dot_fg).bg(bar_bg),
+    )])
+}
+
+pub(crate) fn status_diff_delta_section(app: &App, bar_bg: Color) -> Option<Vec<Span<'static>>> {
+    let theme = app_theme();
+    let state = app.diff()?;
+    let (adds, dels) = state.totals();
+    if adds == 0 && dels == 0 {
+        return None;
+    }
+    Some(vec![
+        Span::styled(
+            format!(" +{adds} "),
+            Style::default().fg(theme.diff.add_fg).bg(bar_bg),
+        ),
+        Span::styled(
+            format!("−{dels} "),
+            Style::default().fg(theme.diff.del_fg).bg(bar_bg),
+        ),
+    ])
 }

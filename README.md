@@ -195,6 +195,50 @@ fzf --preview 'leaf --inline ansi {}'
 fzf --preview 'leaf --inline ansi:$FZF_PREVIEW_COLUMNS {}'
 ```
 
+## Git Diff Viewer
+
+View Git diffs in a navigable TUI with syntax highlighting, side-by-side layout, and file previews.
+
+```bash
+# Show the working tree diff (unstaged changes)
+leaf --diff
+leaf -d
+
+# Show staged changes
+leaf --diff cached
+leaf --diff staged
+
+# Show changes against a specific ref
+leaf --diff HEAD~2
+leaf --diff main..feature
+
+# Restrict to a path
+leaf --diff -- src/app/
+leaf --diff HEAD~1 src/main.rs
+```
+
+If the diff is empty, `leaf --diff` prints `No changes to display` and exits. Git errors are forwarded to stderr.
+
+### Keybindings in Diff mode
+
+| Key | Action |
+|-----|--------|
+| `n` / `N` | Next / previous file |
+| `v` | Toggle layout (unified or split) |
+| `t` | Toggle file-tree sidebar |
+| `p` | Toggle file preview (before \| after) |
+| `Space` | Recenter the view on the current file |
+| `Shift+J` / `Shift+K` | Scroll the file-tree down / up |
+| `Shift+U` / `Shift+D` | Page the file-tree up / down |
+
+### Layouts
+
+- **Unified** : classic `+ / -` diff with per-file boxes.
+- **Split** : side-by-side columns, old on the left, new on the right.
+- **Preview** : preview file content before and after changes.
+
+Standard navigation keys (`j`/`k`, `g`/`G`, `/`, mouse scroll) all work in Diff mode.
+
 ## Shell Completions
 
 Enable Tab completion for all arguments:
@@ -347,6 +391,7 @@ See [`gruvbox.toml`](gruvbox.toml) for a complete example with all available col
 - **File picker** : *Fuzzy Markdown picker, directory browser, and watch after selection*.
 - **File history** : *Recently opened files stored in `history.toml`, picker via `Ctrl+H` or `leaf --history`*.
 - **Editor integration** : *Open the current file in your preferred editor*.
+- **Git diff viewer** : *Navigable diffs with syntax highlighting, side-by-side layout, and before/after previews*.
 - **Frontmatter support** : *YAML frontmatter rendered as a table (horizontal or vertical based on key count)*.
 - **Rich Markdown rendering** : *Tables, lists, blockquotes, rules, bold, italic, and strikethrough*.
 - **GitHub extras** : *Alert callouts, task list checkboxes, and `==mark==` text highlighting*.

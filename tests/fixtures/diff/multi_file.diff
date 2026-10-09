@@ -1,0 +1,15 @@
+diff --git a/first.rs b/first.rs
+index 111..222 100644
+--- a/first.rs
++++ b/first.rs
+@@ -1 +1 @@
+-a
++b
+diff --git a/second.rs b/second.rs
+index 333..444 100644
+--- a/second.rs
++++ b/second.rs
+@@ -1,2 +1,2 @@
+ keep
+-remove
++add

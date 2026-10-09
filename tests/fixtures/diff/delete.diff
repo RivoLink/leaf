@@ -1,0 +1,8 @@
+diff --git a/src/old.rs b/src/old.rs
+deleted file mode 100644
+index abcdef1..0000000
+--- a/src/old.rs
++++ /dev/null
+@@ -1,2 +0,0 @@
+-fn main() {}
+-

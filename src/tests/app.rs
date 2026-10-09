@@ -688,6 +688,67 @@ fn reload_returns_false_when_file_cannot_be_read() {
     assert!(!app.reload(&ss, &ts));
 }
 
+fn picker_app() -> App {
+    App::new_with_source(
+        Vec::new(),
+        Vec::new(),
+        AppConfig {
+            filename: "picker".to_string(),
+            source: String::new(),
+            debug_input: false,
+            watch: false,
+            filepath: None,
+            last_file_state: None,
+        },
+    )
+}
+
+#[test]
+fn load_path_diff_extension_switches_to_diff_mode() {
+    let (ss, _theme) = test_assets();
+    let ts = ThemeSet::load_defaults();
+    let fixture =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/diff/basic.diff");
+
+    let mut app = picker_app();
+    assert!(app.load_path(fixture, &ss, &ts));
+    assert_eq!(app.mode(), crate::app::AppMode::Diff);
+    assert!(app.diff().is_some());
+}
+
+#[test]
+fn load_path_markdown_extension_keeps_document_mode() {
+    let (ss, _theme) = test_assets();
+    let ts = ThemeSet::load_defaults();
+    let path = super::unique_temp_dir("leaf-load-md").with_extension("md");
+    fs::write(&path, "# Hello\n").unwrap();
+
+    let mut app = picker_app();
+    assert!(app.load_path(path.clone(), &ss, &ts));
+    assert_eq!(app.mode(), crate::app::AppMode::Document);
+    assert!(app.diff().is_none());
+
+    let _ = fs::remove_file(path);
+}
+
+#[test]
+fn load_path_diff_content_sniff_without_extension() {
+    let (ss, _theme) = test_assets();
+    let ts = ThemeSet::load_defaults();
+    let path = super::unique_temp_dir("leaf-load-sniff");
+    fs::write(
+        &path,
+        "diff --git a/x b/x\nindex 1..2 100644\n--- a/x\n+++ b/x\n@@ -1 +1 @@\n-a\n+b\n",
+    )
+    .unwrap();
+
+    let mut app = picker_app();
+    assert!(app.load_path(path.clone(), &ss, &ts));
+    assert_eq!(app.mode(), crate::app::AppMode::Diff);
+
+    let _ = fs::remove_file(path);
+}
+
 #[test]
 fn sync_render_width_preserves_scroll_proportion() {
     let (ss, theme) = test_assets();

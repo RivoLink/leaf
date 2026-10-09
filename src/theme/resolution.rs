@@ -107,6 +107,7 @@ pub(super) fn custom_theme_selection(
     }
     custom_config.ui.apply_to(&mut theme.ui);
     custom_config.markdown.apply_to(&mut theme.markdown);
+    custom_config.diff.apply_to(&mut theme.diff);
 
     Ok(ThemeSelection::Custom(Box::new(CustomTheme {
         name: name.to_string(),

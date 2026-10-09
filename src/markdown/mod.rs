@@ -352,6 +352,7 @@ fn record_code_block(
     });
 }
 
+#[derive(Clone)]
 pub(crate) struct ParseResult {
     pub(crate) lines: Vec<Line<'static>>,
     pub(crate) toc: Vec<TocEntry>,
@@ -359,19 +360,6 @@ pub(crate) struct ParseResult {
     pub(crate) line_number_map: Vec<usize>,
     pub(crate) source_line_map: Vec<usize>,
     pub(crate) code_blocks: Vec<CodeBlockInfo>,
-}
-
-impl ParseResult {
-    pub(crate) fn preview(lines: Vec<Line<'static>>, toc: Vec<TocEntry>) -> Self {
-        Self {
-            lines,
-            toc,
-            link_spans: Vec::new(),
-            line_number_map: Vec::new(),
-            source_line_map: Vec::new(),
-            code_blocks: Vec::new(),
-        }
-    }
 }
 
 #[cfg(test)]

@@ -155,7 +155,7 @@
   - Markdown is reparsed width-aware
 
 - theme preview:
-  - previewed content is reparsed and cached per preset
+  - previewed content is reparsed and the full parse result is cached per preset
   - `Esc` restores the original theme
 
 - search:

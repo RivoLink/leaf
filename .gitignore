@@ -11,5 +11,9 @@
 npm/platforms/*/leaf
 npm/platforms/*/leaf.exe
 
+# Nix
+/result
+/.direnv
+
 # Logs
 *.log

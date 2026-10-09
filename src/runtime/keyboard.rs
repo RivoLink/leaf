@@ -1,4 +1,5 @@
 use crate::app::{App, WatchFlash};
+use crate::suspend;
 use crossterm::event::{DisableMouseCapture, EnableMouseCapture, KeyCode, KeyEvent, KeyModifiers};
 use crossterm::execute;
 use ratatui::{backend::CrosstermBackend, Terminal};
@@ -19,6 +20,14 @@ pub(super) fn handle_key_event(
     ss: &SyntaxSet,
     themes: &ThemeSet,
 ) -> anyhow::Result<HandleResult> {
+    // Suspend works in every mode.
+    if matches!(key.code, KeyCode::Char('z') | KeyCode::Char('Z'))
+        && key.modifiers.contains(KeyModifiers::CONTROL)
+    {
+        suspend::suspend(terminal, app.is_mouse_capture_enabled())?;
+        return Ok(HandleResult::Continue { redraw: true });
+    }
+
     if matches!(key.code, KeyCode::Char('m') | KeyCode::Char('M'))
         && !key.modifiers.contains(KeyModifiers::CONTROL)
     {

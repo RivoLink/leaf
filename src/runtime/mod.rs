@@ -6,6 +6,7 @@ mod mouse;
 use crate::{
     app::{App, FileChange, FLASH_DURATION_MS},
     render::{ui, CONTENT_HORIZONTAL_PADDING, SCROLLBAR_WIDTH},
+    suspend,
 };
 use anyhow::Result;
 use crossterm::event::{self, poll, Event, KeyEventKind};
@@ -30,6 +31,11 @@ const PATH_COPY_FLASH_DURATION: Duration = Duration::from_millis(FLASH_DURATION_
 const HISTORY_FLASH_DURATION: Duration = Duration::from_millis(FLASH_DURATION_MS);
 const DOUBLE_CLICK_THRESHOLD: Duration = Duration::from_millis(400);
 const MOUSE_SCROLL_STEP: usize = 3;
+// Bounds idle waits so SIGTSTP/SIGCONT requests are noticed promptly.
+#[cfg(unix)]
+const SIGNAL_POLL_INTERVAL: Duration = Duration::from_millis(100);
+#[cfg(not(unix))]
+const SIGNAL_POLL_INTERVAL: Duration = Duration::MAX;
 
 pub(crate) fn should_handle_key(kind: KeyEventKind) -> bool {
     !matches!(kind, KeyEventKind::Release)
@@ -94,6 +100,10 @@ pub(crate) fn run(
     sync_render_width(terminal, app, ss, themes)?;
 
     loop {
+        if suspend::handle_signals(terminal, app.is_mouse_capture_enabled())? {
+            sync_render_width(terminal, app, ss, themes)?;
+            needs_redraw = true;
+        }
         if app.has_pending_picker() && !app.is_picker_loading() {
             let _ = app.start_pending_picker_loading();
             needs_redraw = true;
@@ -184,7 +194,8 @@ pub(crate) fn run(
         .into_iter()
         .flatten()
         .min()
-        .unwrap_or(Duration::MAX);
+        .unwrap_or(Duration::MAX)
+        .min(SIGNAL_POLL_INTERVAL);
 
         let event_available = if poll_timeout == Duration::MAX {
             true

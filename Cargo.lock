@@ -1059,6 +1059,7 @@ dependencies = [
  "semver",
  "serde",
  "sha2",
+ "signal-hook",
  "syntect",
  "toml",
  "unicode-segmentation",

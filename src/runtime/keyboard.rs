@@ -313,133 +313,33 @@ pub(super) fn handle_key_event(
         }
     } else {
         let mut mode_exited = false;
-        if app.is_code_select_mode() {
-            let mode_handled = handle_code_select_key(app, &key);
-            if mode_handled {
+
+        if app.mode() == crate::app::AppMode::Document {
+            if app.is_code_select_mode() {
+                let mode_handled = super::code_select_keys::handle_code_select_key(app, &key);
+                if mode_handled {
+                    return Ok(HandleResult::Continue { redraw: true });
+                }
+                mode_exited = app.exit_code_select_mode();
+            } else if super::code_select_keys::try_code_select_entry(app, &key) {
                 return Ok(HandleResult::Continue { redraw: true });
             }
-            mode_exited = app.exit_code_select_mode();
-        } else if try_code_select_entry(app, &key) {
-            return Ok(HandleResult::Continue { redraw: true });
         }
-        match key.code {
-            KeyCode::Esc if app.has_active_goto_line() => app.clear_active_goto_line(),
-            KeyCode::Esc if app.has_active_search() => app.clear_active_search(),
-            KeyCode::Enter if app.has_active_search() => app.next_match(),
-            KeyCode::Char('q') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                app.queue_fuzzy_file_picker(app.picker_dir());
-            }
-            KeyCode::Char('q') | KeyCode::Char('Q') => return Ok(HandleResult::Break),
-            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                if app.has_active_search() {
-                    app.clear_active_search();
-                } else if app.has_active_goto_line() {
-                    app.clear_active_goto_line();
-                } else {
-                    return Ok(HandleResult::Break);
+
+        match handle_shared_keys(terminal, app, &key, ss, themes)? {
+            SharedOutcome::Break => return Ok(HandleResult::Break),
+            SharedOutcome::Handled => {}
+            SharedOutcome::NotHandled => {
+                let handled = match app.mode() {
+                    crate::app::AppMode::Diff => {
+                        super::diff_keys::handle_diff_keys(app, &key, ss, themes)
+                    }
+                    crate::app::AppMode::Document => handle_document_keys(app, &key),
+                };
+                if !handled {
+                    state_changed = false;
                 }
             }
-            KeyCode::Char('j') | KeyCode::Down => app.scroll_down(1),
-            KeyCode::Char('k') | KeyCode::Up => app.scroll_up(1),
-            KeyCode::Char('d') | KeyCode::PageDown => app.scroll_down(20),
-            KeyCode::Char('u') | KeyCode::PageUp => app.scroll_up(20),
-            KeyCode::Char('g') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                app.begin_goto_line()
-            }
-            KeyCode::Char('g') | KeyCode::Home => app.scroll_top(),
-            KeyCode::Char('G') | KeyCode::End => app.scroll_bottom(),
-            KeyCode::Char('J') if app.can_scroll_toc() => app.focus_next_top_level_toc(),
-            KeyCode::Char('K') if app.can_scroll_toc() => app.focus_prev_top_level_toc(),
-            KeyCode::Char('D') if app.can_scroll_toc() => {
-                app.scroll_toc_down(app.toc_half_page_step());
-            }
-            KeyCode::Char('U') if app.can_scroll_toc() => {
-                app.scroll_toc_up(app.toc_half_page_step());
-            }
-            KeyCode::Char('t') => app.toggle_toc(),
-            KeyCode::Char('T') => {
-                app.open_theme_picker();
-            }
-            KeyCode::Char('E') => {
-                app.open_editor_picker();
-            }
-            KeyCode::Char('?') => {
-                app.open_help();
-            }
-            KeyCode::Char('w') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                app.toggle_watch();
-            }
-            KeyCode::Char('w') => {
-                app.toggle_watch();
-            }
-            KeyCode::Char('h') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                if !app.is_any_picker_active() {
-                    app.queue_history_picker();
-                }
-            }
-            KeyCode::Char('r') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                if app.filepath().is_none() {
-                    let flash = app.watch_flash_for_no_file();
-                    app.set_watch_flash(flash);
-                } else if !app.is_watch_enabled() {
-                    app.set_watch_flash(WatchFlash::NotActive);
-                } else if !app.request_reload(ss, themes) {
-                    app.set_watch_flash(WatchFlash::FileNotFound);
-                }
-            }
-            KeyCode::Char('r') => {
-                if app.filepath().is_none() {
-                    let flash = app.watch_flash_for_no_file();
-                    app.set_watch_flash(flash);
-                } else if !app.is_watch_enabled() {
-                    app.set_watch_flash(WatchFlash::NotActive);
-                } else if !app.request_reload(ss, themes) {
-                    app.set_watch_flash(WatchFlash::FileNotFound);
-                }
-            }
-            KeyCode::Char('f') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                app.clear_active_goto_line();
-                app.begin_search()
-            }
-            KeyCode::Char('/') => {
-                app.clear_active_goto_line();
-                app.begin_search()
-            }
-            KeyCode::Char(':') => app.begin_goto_line(),
-            KeyCode::Char('n') => app.next_match(),
-            KeyCode::Char('N') => app.prev_match(),
-            KeyCode::Char('R') => {
-                app.copy_path_to_clipboard_relative();
-            }
-            KeyCode::Char('A') => {
-                app.copy_path_to_clipboard_absolute();
-            }
-            KeyCode::Char('l') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                app.begin_goto_line()
-            }
-            KeyCode::Char('l') | KeyCode::Char('L') => app.toggle_line_numbers(),
-            KeyCode::Char('e') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                handle_open_in_editor(terminal, app, ss, themes)?;
-            }
-            KeyCode::Char('p') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                app.queue_fuzzy_file_picker(app.picker_dir());
-            }
-            KeyCode::Char('P') => {
-                app.queue_file_picker(app.picker_dir());
-            }
-            KeyCode::Char('p') => {
-                app.open_path_popup();
-            }
-            KeyCode::Char('0') => {
-                app.toggle_reverse_mode();
-                state_changed = false;
-            }
-            KeyCode::Char(c) if c.is_ascii_digit() && c != '0' => {
-                if let Some(n) = c.to_digit(10) {
-                    app.cycle_numkey(n as u8);
-                }
-            }
-            _ => state_changed = false,
         }
         if mode_exited {
             state_changed = true;
@@ -451,48 +351,225 @@ pub(super) fn handle_key_event(
     })
 }
 
-fn handle_code_select_key(app: &mut App, key: &KeyEvent) -> bool {
-    let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
+enum SharedOutcome {
+    Handled,
+    NotHandled,
+    Break,
+}
+
+fn handle_shared_keys(
+    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    app: &mut App,
+    key: &KeyEvent,
+    ss: &SyntaxSet,
+    themes: &ThemeSet,
+) -> anyhow::Result<SharedOutcome> {
     match key.code {
-        KeyCode::Char('c') if ctrl => {
-            app.exit_code_select_mode();
-            true
-        }
-        KeyCode::Char('y') if ctrl => {
-            app.copy_selected_code_block();
-            true
-        }
-        KeyCode::Char('c') | KeyCode::Char('y') if !ctrl => {
-            app.code_select_next();
-            true
-        }
-        KeyCode::Char('C') | KeyCode::Char('Y') => {
-            app.code_select_prev();
-            true
-        }
-        KeyCode::Enter => {
-            app.copy_selected_code_block();
-            true
-        }
         KeyCode::Esc => {
-            app.exit_code_select_mode();
-            true
+            if app.is_diff_preview_visible() {
+                let theme = crate::theme::current_syntect_theme(themes);
+                app.diff_toggle_preview(ss, theme);
+                return Ok(SharedOutcome::Handled);
+            }
+            if app.has_active_goto_line() {
+                app.clear_active_goto_line();
+                return Ok(SharedOutcome::Handled);
+            }
+            if app.has_active_search() {
+                app.clear_active_search();
+                return Ok(SharedOutcome::Handled);
+            }
+            Ok(SharedOutcome::NotHandled)
         }
-        _ => false,
+        KeyCode::Enter if app.has_active_search() => {
+            app.next_match();
+            Ok(SharedOutcome::Handled)
+        }
+        KeyCode::Char('q') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            app.queue_fuzzy_file_picker(app.picker_dir());
+            Ok(SharedOutcome::Handled)
+        }
+        KeyCode::Char('q') | KeyCode::Char('Q') => Ok(SharedOutcome::Break),
+        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            if app.is_diff_preview_visible() {
+                let theme = crate::theme::current_syntect_theme(themes);
+                app.diff_toggle_preview(ss, theme);
+                return Ok(SharedOutcome::Handled);
+            }
+            if app.has_active_search() {
+                app.clear_active_search();
+                Ok(SharedOutcome::Handled)
+            } else if app.has_active_goto_line() {
+                app.clear_active_goto_line();
+                Ok(SharedOutcome::Handled)
+            } else {
+                Ok(SharedOutcome::Break)
+            }
+        }
+        KeyCode::Char('j') | KeyCode::Down => {
+            app.scroll_down(1);
+            Ok(SharedOutcome::Handled)
+        }
+        KeyCode::Char('k') | KeyCode::Up => {
+            app.scroll_up(1);
+            Ok(SharedOutcome::Handled)
+        }
+        KeyCode::Char('d') | KeyCode::PageDown => {
+            app.scroll_down(20);
+            Ok(SharedOutcome::Handled)
+        }
+        KeyCode::Char('u') | KeyCode::PageUp => {
+            app.scroll_up(20);
+            Ok(SharedOutcome::Handled)
+        }
+        KeyCode::Char('g') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            app.begin_goto_line();
+            Ok(SharedOutcome::Handled)
+        }
+        KeyCode::Char('g') | KeyCode::Home => {
+            app.scroll_top();
+            Ok(SharedOutcome::Handled)
+        }
+        KeyCode::Char('G') | KeyCode::End => {
+            app.scroll_bottom();
+            Ok(SharedOutcome::Handled)
+        }
+        KeyCode::Char('T') => {
+            app.open_theme_picker();
+            Ok(SharedOutcome::Handled)
+        }
+        KeyCode::Char('E') => {
+            app.open_editor_picker();
+            Ok(SharedOutcome::Handled)
+        }
+        KeyCode::Char('?') => {
+            app.open_help();
+            Ok(SharedOutcome::Handled)
+        }
+        KeyCode::Char('w') => {
+            app.toggle_watch();
+            Ok(SharedOutcome::Handled)
+        }
+        KeyCode::Char('h') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            if !app.is_any_picker_active() {
+                app.queue_history_picker();
+            }
+            Ok(SharedOutcome::Handled)
+        }
+        KeyCode::Char('r') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            reload_helper(app, ss, themes);
+            Ok(SharedOutcome::Handled)
+        }
+        KeyCode::Char('r') => {
+            if app.is_diff_mode() {
+                return Ok(SharedOutcome::NotHandled);
+            }
+            reload_helper(app, ss, themes);
+            Ok(SharedOutcome::Handled)
+        }
+        KeyCode::Char('f') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            app.clear_active_goto_line();
+            app.begin_search();
+            Ok(SharedOutcome::Handled)
+        }
+        KeyCode::Char('/') => {
+            app.clear_active_goto_line();
+            app.begin_search();
+            Ok(SharedOutcome::Handled)
+        }
+        KeyCode::Char(':') => {
+            app.begin_goto_line();
+            Ok(SharedOutcome::Handled)
+        }
+        KeyCode::Char('R') => {
+            app.copy_path_to_clipboard_relative();
+            Ok(SharedOutcome::Handled)
+        }
+        KeyCode::Char('A') => {
+            app.copy_path_to_clipboard_absolute();
+            Ok(SharedOutcome::Handled)
+        }
+        KeyCode::Char('l') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            app.begin_goto_line();
+            Ok(SharedOutcome::Handled)
+        }
+        KeyCode::Char('l') | KeyCode::Char('L') => {
+            app.toggle_line_numbers();
+            Ok(SharedOutcome::Handled)
+        }
+        KeyCode::Char('e') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            handle_open_in_editor(terminal, app, ss, themes)?;
+            Ok(SharedOutcome::Handled)
+        }
+        KeyCode::Char('p') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            app.queue_fuzzy_file_picker(app.picker_dir());
+            Ok(SharedOutcome::Handled)
+        }
+        KeyCode::Char('P') => {
+            app.queue_file_picker(app.picker_dir());
+            Ok(SharedOutcome::Handled)
+        }
+        KeyCode::Char('p') => {
+            if app.mode() == crate::app::AppMode::Document {
+                app.open_path_popup();
+                Ok(SharedOutcome::Handled)
+            } else {
+                Ok(SharedOutcome::NotHandled)
+            }
+        }
+        _ => Ok(SharedOutcome::NotHandled),
     }
 }
 
-fn try_code_select_entry(app: &mut App, key: &KeyEvent) -> bool {
-    let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
+fn reload_helper(app: &mut App, ss: &SyntaxSet, themes: &ThemeSet) {
+    if app.filepath().is_none() {
+        let flash = app.watch_flash_for_no_file();
+        app.set_watch_flash(flash);
+    } else if !app.is_watch_enabled() {
+        app.set_watch_flash(WatchFlash::NotActive);
+    } else if !app.request_reload(ss, themes) {
+        app.set_watch_flash(WatchFlash::FileNotFound);
+    }
+}
+
+fn handle_document_keys(app: &mut App, key: &KeyEvent) -> bool {
     match key.code {
-        KeyCode::Char('y') if ctrl => {
-            app.copy_first_visible_code_block();
+        KeyCode::Char('J') if app.can_scroll_toc() => {
+            app.focus_next_top_level_toc();
             true
         }
-        KeyCode::Char('c') | KeyCode::Char('y') | KeyCode::Char('C') | KeyCode::Char('Y')
-            if !ctrl =>
-        {
-            app.enter_code_select_mode();
+        KeyCode::Char('K') if app.can_scroll_toc() => {
+            app.focus_prev_top_level_toc();
+            true
+        }
+        KeyCode::Char('D') if app.can_scroll_toc() => {
+            app.scroll_toc_down(app.toc_half_page_step());
+            true
+        }
+        KeyCode::Char('U') if app.can_scroll_toc() => {
+            app.scroll_toc_up(app.toc_half_page_step());
+            true
+        }
+        KeyCode::Char('t') => {
+            app.toggle_toc();
+            true
+        }
+        KeyCode::Char('n') => {
+            app.next_match();
+            true
+        }
+        KeyCode::Char('N') => {
+            app.prev_match();
+            true
+        }
+        KeyCode::Char('0') => {
+            app.toggle_reverse_mode();
+            false
+        }
+        KeyCode::Char(c) if c.is_ascii_digit() && c != '0' => {
+            if let Some(n) = c.to_digit(10) {
+                app.cycle_numkey(n as u8);
+            }
             true
         }
         _ => false,

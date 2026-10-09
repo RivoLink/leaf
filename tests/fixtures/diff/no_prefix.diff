@@ -1,0 +1,8 @@
+diff --git src/foo.rs src/foo.rs
+index abc1234..def5678 100644
+--- src/foo.rs
++++ src/foo.rs
+@@ -1,2 +1,2 @@
+-old line
++new line
+ context

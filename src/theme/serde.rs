@@ -5,7 +5,7 @@ use serde::{
 };
 use std::fmt;
 
-use super::{resolution::parse_theme_color, MarkdownTheme, UiTheme};
+use super::{resolution::parse_theme_color, DiffTheme, MarkdownTheme, UiTheme};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ThemeColor(pub(crate) Color);
@@ -115,6 +115,7 @@ theme_overrides!(UiThemeOverrides for UiTheme {
     status_error_bg,
     status_shortcut_fg,
     status_percent_fg,
+    status_dot_fg,
     toc_hover_fg,
     toc_header_fg,
     toc_active_bg,
@@ -126,6 +127,26 @@ theme_overrides!(UiThemeOverrides for UiTheme {
     toc_secondary_inactive,
     toc_secondary_text_active,
     toc_secondary_text_inactive,
+});
+
+theme_overrides!(DiffThemeOverrides for DiffTheme {
+    add_fg,
+    add_bg,
+    del_fg,
+    del_bg,
+    context_fg,
+    hunk_header_fg,
+    filename_fg,
+    frame_fg,
+    tree_active,
+    intra_add,
+    intra_del,
+    meta_note_fg,
+    meta_note_bg,
+    meta_note_sigil_fg,
+    file_separator_fg,
+    tree_tag_change,
+    tree_tag_renamed,
 });
 
 theme_overrides!(MarkdownThemeOverrides for MarkdownTheme {
@@ -185,4 +206,5 @@ pub(crate) struct CustomThemeConfig {
     pub(crate) syntax: Option<String>,
     pub(crate) ui: UiThemeOverrides,
     pub(crate) markdown: MarkdownThemeOverrides,
+    pub(crate) diff: DiffThemeOverrides,
 }

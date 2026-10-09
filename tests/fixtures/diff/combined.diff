@@ -1,0 +1,11 @@
+diff --cc src/merge.rs
+index abc1234,def5678..0123abc
+--- a/src/merge.rs
++++ b/src/merge.rs
+@@@ -1,4 -1,4 +1,5 @@@
+  fn merged() {
+-     println!("parent1");
+ -    println!("parent2");
+++    println!("resolved");
+++    println!("added-only-in-merge");
+  }

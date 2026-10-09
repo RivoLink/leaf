@@ -1,0 +1,17 @@
+diff --git a/vendor/sub b/vendor/sub
+index abc1234..def5678 160000
+--- a/vendor/sub
++++ b/vendor/sub
+@@ -1 +1 @@
+-Subproject commit abc1234567890abcdef1234567890abcdef12345
++Subproject commit def5678901234567890abcdef1234567890abcde
+Submodule vendor/sub abc1234..def5678:
+diff --git a/nested.rs b/nested.rs
+index 1111111..2222222 100644
+--- a/nested.rs
++++ b/nested.rs
+@@ -1,2 +1,2 @@
+ fn nested() {
+-    println!("inside sub before");
++    println!("inside sub after");
+ }

@@ -110,6 +110,38 @@ text = "#010203"
 }
 
 #[test]
+fn preset_themes_all_define_frame_fg() {
+    for preset in THEME_PRESETS.iter().copied() {
+        let theme = crate::theme::theme_by_preset(preset);
+
+        match theme.diff.frame_fg {
+            Color::Rgb(_, _, _) => {}
+            other => panic!("preset {preset:?} frame_fg is not an RGB color: {other:?}"),
+        }
+    }
+}
+
+#[test]
+fn custom_theme_overrides_frame_fg() {
+    let custom: CustomThemeConfig = toml::from_str(
+        r##"
+base = "ocean"
+
+[diff]
+frame_fg = "#010203"
+"##,
+    )
+    .unwrap();
+    let mut themes = BTreeMap::new();
+    themes.insert("custom".to_string(), custom);
+    let selection = resolve_theme_selection("custom", &themes, None).unwrap();
+    let ThemeSelection::Custom(custom) = selection else {
+        panic!("expected custom theme selection");
+    };
+    assert_eq!(custom.theme.diff.frame_fg, Color::Rgb(1, 2, 3));
+}
+
+#[test]
 fn theme_presets_are_in_alphabetical_order() {
     let labels: Vec<_> = THEME_PRESETS
         .iter()

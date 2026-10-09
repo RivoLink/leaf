@@ -15,6 +15,7 @@ mod cli;
 mod clipboard;
 mod completions;
 mod config;
+mod diff;
 mod editor;
 mod inline;
 mod markdown;
@@ -27,7 +28,7 @@ mod tests;
 mod theme;
 mod update;
 
-use app::{App, AppConfig};
+use app::{mode::detect_mode, App, AppConfig, AppMode};
 use cli::{parse_cli, print_usage, print_version, CliOptions};
 use markdown::{hash_str, parse_markdown, parse_markdown_with_width, read_file_state};
 use runtime::run;
@@ -74,7 +75,7 @@ pub(crate) use update::{
     validate_sha256_hex,
 };
 
-fn read_stdin_limited<R: Read>(reader: &mut R, max_bytes: usize) -> Result<String> {
+fn read_stdin_bytes_limited<R: Read>(reader: &mut R, max_bytes: usize) -> Result<Vec<u8>> {
     let mut buf = Vec::with_capacity(max_bytes.min(8192));
     let limit = u64::try_from(max_bytes)
         .ok()
@@ -90,7 +91,53 @@ fn read_stdin_limited<R: Read>(reader: &mut R, max_bytes: usize) -> Result<Strin
             max_bytes
         );
     }
+    Ok(buf)
+}
+
+#[cfg(test)]
+fn read_stdin_limited<R: Read>(reader: &mut R, max_bytes: usize) -> Result<String> {
+    let buf = read_stdin_bytes_limited(reader, max_bytes)?;
     String::from_utf8(buf).context("stdin is not valid UTF-8")
+}
+
+fn run_git_diff_subprocess(spec: &app::DiffSpec, path_restriction: Option<&str>) -> Result<String> {
+    let mut cmd = std::process::Command::new("git");
+    cmd.arg("diff");
+    match &spec.source {
+        app::DiffSource::Working => {}
+        app::DiffSource::Cached => {
+            cmd.arg("--cached");
+        }
+        app::DiffSource::Ref(rev) => {
+            cmd.arg(rev);
+        }
+    }
+    if let Some(p) = path_restriction {
+        cmd.arg("--").arg(p);
+    }
+    let output = cmd
+        .output()
+        .context("Failed to spawn `git diff` (is git installed?)")?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let trimmed = stderr.trim();
+        if trimmed.is_empty() {
+            bail!("`git diff` failed with status {}", output.status);
+        }
+        bail!("{}", trimmed);
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+fn read_text_file_lossy(path: &std::path::Path) -> Result<String> {
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+    if app::mode::is_diff_extension(ext) {
+        let bytes =
+            std::fs::read(path).with_context(|| format!("Cannot read: {}", path.display()))?;
+        Ok(String::from_utf8_lossy(&bytes).into_owned())
+    } else {
+        std::fs::read_to_string(path).with_context(|| format!("Cannot read: {}", path.display()))
+    }
 }
 
 fn resolve_configured_width(
@@ -259,6 +306,7 @@ fn main() -> Result<()> {
         history,
         fuzzy: _fuzzy,
         fuzzy_query,
+        diff: diff_spec,
         ..
     } = options;
     let mut fuzzy_initial_query = fuzzy_query;
@@ -353,12 +401,20 @@ fn main() -> Result<()> {
     let mut open_browser_picker_dir = None;
     let mut open_fuzzy_picker_dir = None;
     let mut dir_arg = None;
+    let cli_forced_diff = diff_spec.is_some();
+    let mut mode_hint: Option<AppMode> = None;
+    let mut diff_path_restriction: Option<String> = None;
     let (src, filename, filepath) = if let Some(f) = file_arg {
         let path = PathBuf::from(&f);
         if picker && !path.is_dir() {
             anyhow::bail!("--picker cannot be combined with a file path");
         }
-        if path.is_dir() {
+        if cli_forced_diff {
+            let label = f.clone();
+            diff_path_restriction = Some(f);
+            mode_hint = Some(AppMode::Diff);
+            (String::new(), label, None)
+        } else if path.is_dir() {
             let label = app::path_label(&path);
             if picker {
                 open_browser_picker_dir = Some(path.clone());
@@ -368,8 +424,7 @@ fn main() -> Result<()> {
             dir_arg = Some(path);
             (String::new(), label, None)
         } else if path.is_file() {
-            let content = std::fs::read_to_string(&path)
-                .with_context(|| format!("Cannot read: {}", path.display()))?;
+            let content = read_text_file_lossy(&path)?;
             let name = app::path_label(&path);
             (content, name, Some(path))
         } else if cli::is_valid_fuzzy_query(&f) {
@@ -385,19 +440,39 @@ fn main() -> Result<()> {
         if io::stdin().is_terminal() {
             let cwd = std::env::current_dir().context("Cannot read current directory")?;
             let label = app::path_label(&cwd);
-            if picker {
+            if cli_forced_diff {
+                mode_hint = Some(AppMode::Diff);
+                (String::new(), label, None)
+            } else if picker {
                 open_browser_picker_dir = Some(cwd);
+                (String::new(), label, None)
             } else {
                 open_fuzzy_picker_dir = Some(cwd);
+                (String::new(), label, None)
             }
-            (String::new(), label, None)
         } else {
             if watch_from_cli {
                 eprintln!("Error: --watch requires a file path (stdin cannot be watched)");
                 std::process::exit(1);
             }
             let mut stdin = io::stdin().lock();
-            let buf = read_stdin_limited(&mut stdin, MAX_STDIN_BYTES)?;
+            let bytes = read_stdin_bytes_limited(&mut stdin, MAX_STDIN_BYTES)?;
+            if bytes.is_empty() {
+                println!("No content to display");
+                return Ok(());
+            }
+
+            let stdin_mode = if cli_forced_diff {
+                AppMode::Diff
+            } else {
+                app::mode::detect_mode_from_bytes(&bytes)
+            };
+            let buf = if matches!(stdin_mode, AppMode::Diff) {
+                String::from_utf8_lossy(&bytes).into_owned()
+            } else {
+                String::from_utf8(bytes).context("stdin is not valid UTF-8")?
+            };
+            mode_hint = Some(stdin_mode);
             (buf, "stdin".to_string(), None)
         }
     };
@@ -434,7 +509,25 @@ fn main() -> Result<()> {
         .and_then(|p| p.extension())
         .and_then(|e| e.to_str())
         .unwrap_or("");
-    let (src, file_mode) = App::wrap_as_code_block(src, ext, &ss);
+
+    let app_mode = match mode_hint {
+        Some(m) => m,
+        None => detect_mode(filepath.as_deref(), cli_forced_diff, &src),
+    };
+
+    let src = if matches!(app_mode, AppMode::Diff) && cli_forced_diff && src.is_empty() {
+        if let Some(spec) = diff_spec.as_ref() {
+            run_git_diff_subprocess(spec, diff_path_restriction.as_deref())?
+        } else {
+            src
+        }
+    } else {
+        src
+    };
+    let (src, file_mode) = match app_mode {
+        AppMode::Diff => (src, false),
+        AppMode::Document => App::wrap_as_code_block(src, ext, &ss),
+    };
 
     if let Some(ref spec) = inline_spec {
         if src.is_empty() && filepath.is_none() {
@@ -491,7 +584,7 @@ fn main() -> Result<()> {
         toc,
         AppConfig {
             filename,
-            source: src,
+            source: src.clone(),
             debug_input,
             watch,
             filepath,
@@ -501,6 +594,33 @@ fn main() -> Result<()> {
     app.set_link_spans(link_spans);
     app.set_code_blocks(code_blocks);
     app.set_line_maps(line_number_map, source_line_map);
+    app.set_mode(app_mode);
+    if matches!(app_mode, AppMode::Diff) {
+        let files = diff::parse_unified_diff(&src);
+        if cli_forced_diff && files.is_empty() {
+            println!("No changes to display");
+            return Ok(());
+        }
+        let line_count: usize = files
+            .iter()
+            .flat_map(|f| f.hunks.iter())
+            .map(|h| h.lines.len())
+            .sum();
+        if files.len() > 20 || line_count > 5000 {
+            eprintln!(
+                "leaf: rendering diff ({} files, {} lines)",
+                files.len(),
+                line_count
+            );
+        }
+        let spec = diff_spec.clone().unwrap_or_default();
+        app.install_diff(
+            files,
+            spec,
+            std::sync::Arc::new(ss.clone()),
+            std::sync::Arc::new(theme),
+        );
+    }
     app.set_last_content_hash(last_content_hash);
     app.set_watch_from_config(watch_from_config);
     app.set_max_width(max_width);

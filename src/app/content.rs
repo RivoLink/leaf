@@ -55,13 +55,11 @@ impl App {
     pub(crate) fn reload(&mut self, ss: &SyntaxSet, themes: &ThemeSet) -> bool {
         self.reset_numkey_state();
         self.clear_toc_scroll_state();
-        let path = match &self.filepath {
-            Some(p) => p,
-            None => return false,
+        let Some(path) = &self.filepath else {
+            return false;
         };
-        let src = match std::fs::read_to_string(path) {
-            Ok(s) => s,
-            Err(_) => return false,
+        let Ok(src) = std::fs::read_to_string(path) else {
+            return false;
         };
         let file_state = read_file_state(path);
         let content_hash = hash_str(&src);
@@ -83,31 +81,21 @@ impl App {
     }
 
     pub(crate) fn load_path(&mut self, path: PathBuf, ss: &SyntaxSet, themes: &ThemeSet) -> bool {
-        let src = match std::fs::read_to_string(&path) {
-            Ok(src) => src,
-            Err(_) => return false,
+        let Ok(src) = std::fs::read_to_string(&path) else {
+            return false;
         };
         let filename = super::path_label(&path);
         let file_state = read_file_state(&path);
         let content_hash = hash_str(&src);
-        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-        let (src, is_code_file) = Self::wrap_as_code_block(src, ext, ss);
-        self.file_mode = is_code_file;
-        let theme = current_syntect_theme(themes);
-        let at = app_theme();
-        let parsed = parse_markdown_with_width(
-            &src,
-            ss,
-            theme,
-            self.render_width,
-            &at.markdown,
-            self.file_mode,
-            self.code_line_numbers,
-        );
+        let detected_mode = super::mode::detect_mode(Some(&path), false, &src);
+        let ext = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_string();
 
         let first_load = self.filepath.is_none();
         self.filename = filename;
-        self.source = src;
         if let Some(n) = self.file_history_length.filter(|n| *n > 0) {
             super::history::record_open(path.clone(), n as usize);
         }
@@ -127,9 +115,34 @@ impl App {
         self.search.mode = false;
         self.reset_search_state();
         self.clear_active_goto_line();
-        self.invalidate_theme_preview_cache();
-        self.store_current_theme_preview_from(&parsed.lines, &parsed.toc);
-        self.replace_content(parsed);
+
+        match detected_mode {
+            super::AppMode::Diff => {
+                self.install_diff_from_src(&src, super::DiffSpec::default(), ss, themes);
+                self.source = src;
+            }
+            super::AppMode::Document => {
+                self.diff_state = None;
+                self.mode = super::AppMode::Document;
+                let (wrapped, is_code_file) = Self::wrap_as_code_block(src, &ext, ss);
+                self.file_mode = is_code_file;
+                self.source = wrapped;
+                let theme = current_syntect_theme(themes);
+                let at = app_theme();
+                let parsed = parse_markdown_with_width(
+                    &self.source,
+                    ss,
+                    theme,
+                    self.render_width,
+                    &at.markdown,
+                    self.file_mode,
+                    self.code_line_numbers,
+                );
+                self.invalidate_theme_preview_cache();
+                self.store_current_theme_preview_from(&parsed.lines, &parsed.toc);
+                self.replace_content(parsed);
+            }
+        }
         self.clear_toc_scroll_state();
         true
     }
@@ -214,6 +227,10 @@ impl App {
             return false;
         }
         self.render_width = next_width;
+
+        if matches!(self.mode, crate::app::AppMode::Diff) {
+            return true;
+        }
         self.reparse_source(ss, themes);
         true
     }

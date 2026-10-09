@@ -1,3 +1,5 @@
+mod code_select_keys;
+mod diff_keys;
 mod keyboard;
 mod mouse;
 
@@ -102,6 +104,15 @@ pub(crate) fn run(
         if app.poll_history_errors() {
             needs_redraw = true;
         }
+        if app.poll_pending_split_build()
+            && app.is_diff_mode()
+            && matches!(
+                app.diff().map(|s| s.layout),
+                Some(crate::diff::DiffLayout::Split)
+            )
+        {
+            needs_redraw = true;
+        }
 
         let current_title_filename = app.title_filename();
         if current_title_filename != last_title_filename.as_deref() {
@@ -161,6 +172,13 @@ pub(crate) fn run(
             }),
             app.history_flash()
                 .and_then(|(_, started)| HISTORY_FLASH_DURATION.checked_sub(started.elapsed())),
+            app.diff_flash()
+                .and_then(|(_, started)| FLASH_DURATION.checked_sub(started.elapsed())),
+            if app.has_pending_split_build() {
+                Some(Duration::from_millis(50))
+            } else {
+                None
+            },
             resize_timeout,
         ]
         .into_iter()
@@ -177,20 +195,22 @@ pub(crate) fn run(
         if event_available {
             match event::read()? {
                 Event::Key(key) => {
-                    debug_log(
-                        app.debug_input_enabled(),
-                        &format!(
-                            "key_event kind={:?} code={:?} modifiers={:?} search_mode={} query={:?} draft={:?} matches={} idx={}",
-                            key.kind,
-                            key.code,
-                            key.modifiers,
-                            app.is_search_mode(),
-                            app.search_query(),
-                            app.search_draft(),
-                            app.search_match_count(),
-                            app.search_index()
-                        ),
-                    );
+                    if app.debug_input_enabled() {
+                        debug_log(
+                            true,
+                            &format!(
+                                "key_event kind={:?} code={:?} modifiers={:?} search_mode={} query={:?} draft={:?} matches={} idx={}",
+                                key.kind,
+                                key.code,
+                                key.modifiers,
+                                app.is_search_mode(),
+                                app.search_query(),
+                                app.search_draft(),
+                                app.search_match_count(),
+                                app.search_index()
+                            ),
+                        );
+                    }
                     if !should_handle_key(key.kind) {
                         continue;
                     }
@@ -230,17 +250,14 @@ pub(crate) fn run(
             }
         }
 
-        if pending_resize
-            .map(|started| started.elapsed() >= RESIZE_DEBOUNCE)
-            .unwrap_or(false)
-        {
+        if pending_resize.is_some_and(|started| started.elapsed() >= RESIZE_DEBOUNCE) {
             pending_resize = None;
             sync_render_width(terminal, app, ss, themes)?;
             needs_redraw = true;
         }
 
         if app.is_watch_enabled() {
-            let file_ok = app.filepath().map(|p| p.exists()).unwrap_or(false);
+            let file_ok = app.filepath().is_some_and(|p| p.exists());
             if !file_ok && !app.is_watch_error() {
                 app.set_watch_error(true);
                 needs_redraw = true;
@@ -312,6 +329,13 @@ pub(crate) fn run(
         if let Some((_, started)) = app.history_flash() {
             if started.elapsed() >= HISTORY_FLASH_DURATION {
                 app.clear_history_flash();
+                needs_redraw = true;
+            }
+        }
+
+        if let Some((_, started)) = app.diff_flash() {
+            if started.elapsed() >= FLASH_DURATION {
+                app.clear_diff_flash();
                 needs_redraw = true;
             }
         }

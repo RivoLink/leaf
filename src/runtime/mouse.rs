@@ -21,12 +21,9 @@ pub(super) fn handle_mouse_event(app: &mut App, mouse: MouseEvent) -> bool {
         match mouse.kind {
             MouseEventKind::Down(MouseButton::Left) => {
                 let now = Instant::now();
-                let is_double_click = app
-                    .last_click
-                    .map(|(c, r, t)| {
-                        c == mouse.column && r == mouse.row && t.elapsed() < DOUBLE_CLICK_THRESHOLD
-                    })
-                    .unwrap_or(false);
+                let is_double_click = app.last_click.is_some_and(|(c, r, t)| {
+                    c == mouse.column && r == mouse.row && t.elapsed() < DOUBLE_CLICK_THRESHOLD
+                });
                 app.last_click = Some((mouse.column, mouse.row, now));
                 if is_double_click {
                     if let Some(area) = app.path_popup_rel_area {
@@ -74,6 +71,10 @@ pub(super) fn handle_mouse_event(app: &mut App, mouse: MouseEvent) -> bool {
                     app.scroll_toc_up(super::MOUSE_SCROLL_STEP);
                     return true;
                 }
+                if mouse_in_diff_tree_area(app, mouse.column, mouse.row) {
+                    app.scroll_diff_tree_up(super::MOUSE_SCROLL_STEP);
+                    return true;
+                }
                 app.exit_code_select_mode();
                 app.scroll_up(super::MOUSE_SCROLL_STEP);
                 app.hovered_link = None;
@@ -85,6 +86,10 @@ pub(super) fn handle_mouse_event(app: &mut App, mouse: MouseEvent) -> bool {
                     app.scroll_toc_down(super::MOUSE_SCROLL_STEP);
                     return true;
                 }
+                if mouse_in_diff_tree_area(app, mouse.column, mouse.row) {
+                    app.scroll_diff_tree_down(super::MOUSE_SCROLL_STEP);
+                    return true;
+                }
                 app.exit_code_select_mode();
                 app.scroll_down(super::MOUSE_SCROLL_STEP);
                 app.hovered_link = None;
@@ -93,12 +98,9 @@ pub(super) fn handle_mouse_event(app: &mut App, mouse: MouseEvent) -> bool {
             }
             MouseEventKind::Down(MouseButton::Left) => {
                 let now = Instant::now();
-                let is_double_click = app
-                    .last_click
-                    .map(|(c, r, t)| {
-                        c == mouse.column && r == mouse.row && t.elapsed() < DOUBLE_CLICK_THRESHOLD
-                    })
-                    .unwrap_or(false);
+                let is_double_click = app.last_click.is_some_and(|(c, r, t)| {
+                    c == mouse.column && r == mouse.row && t.elapsed() < DOUBLE_CLICK_THRESHOLD
+                });
                 app.last_click = Some((mouse.column, mouse.row, now));
 
                 if let Some(area) = app.toc_list_area {
@@ -255,26 +257,20 @@ pub(super) fn handle_open_in_editor(
     ss: &SyntaxSet,
     themes: &ThemeSet,
 ) -> Result<()> {
-    let filepath = match app.filepath() {
-        Some(p) => strip_unc_prefix(p.canonicalize().unwrap_or_else(|_| p.to_path_buf())),
-        None => {
-            app.set_editor_flash(EditorFlash::NoFile);
-            return Ok(());
-        }
+    let Some(p) = app.filepath() else {
+        app.set_editor_flash(EditorFlash::NoFile);
+        return Ok(());
     };
+    let filepath = strip_unc_prefix(p.canonicalize().unwrap_or_else(|_| p.to_path_buf()));
 
-    let editor_cmd = match app.editor_config() {
-        Some(e) => {
-            let content_height = app.content_area.height as usize;
-            let mid = (app.scroll() + content_height / 2).min(app.total().saturating_sub(1));
-            let middle_source_line = app.source_line_at(mid);
-            editor::expand_editor_placeholders(e, middle_source_line, &filepath)
-        }
-        None => {
-            app.set_editor_flash(EditorFlash::EditorNotFound("no editor configured".into()));
-            return Ok(());
-        }
+    let Some(e) = app.editor_config() else {
+        app.set_editor_flash(EditorFlash::EditorNotFound("no editor configured".into()));
+        return Ok(());
     };
+    let content_height = app.content_area.height as usize;
+    let mid = (app.scroll() + content_height / 2).min(app.total().saturating_sub(1));
+    let middle_source_line = app.source_line_at(mid);
+    let editor_cmd = editor::expand_editor_placeholders(e, middle_source_line, &filepath);
 
     let emulator = editor::detect_terminal_emulator();
 
@@ -342,6 +338,11 @@ const TOC_RIGHT_BORDER_WIDTH: u16 = 1;
 
 fn mouse_in_toc_area(app: &App, col: u16, row: u16) -> bool {
     app.toc_list_area
+        .is_some_and(|area| is_in_rect(area, col, row))
+}
+
+fn mouse_in_diff_tree_area(app: &App, col: u16, row: u16) -> bool {
+    app.diff_tree_list_area
         .is_some_and(|area| is_in_rect(area, col, row))
 }
 

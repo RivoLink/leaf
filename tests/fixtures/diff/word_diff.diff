@@ -1,0 +1,7 @@
+diff --git a/src/greet.txt b/src/greet.txt
+index abc1234..def5678 100644
+--- a/src/greet.txt
++++ b/src/greet.txt
+@@ -1,2 +1,2 @@
+This is [-a-]{+the+} test.
+This is not [-test-]{+ok+}.

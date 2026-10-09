@@ -2,7 +2,87 @@ use std::borrow::Cow;
 
 use ratatui::style::Color;
 
-use super::{AppTheme, MarkdownTheme, UiTheme};
+use super::{AppTheme, DiffTheme, MarkdownTheme, UiTheme};
+
+pub(super) const BASE_LIGHT_DIFF: DiffTheme = DiffTheme {
+    add_fg: Color::Rgb(28, 96, 52),
+    add_bg: Color::Rgb(220, 240, 226),
+    del_fg: Color::Rgb(140, 32, 32),
+    del_bg: Color::Rgb(246, 220, 220),
+    context_fg: Color::Rgb(80, 90, 102),
+    hunk_header_fg: Color::Rgb(170, 115, 55),
+    filename_fg: Color::Rgb(58, 108, 168),
+    frame_fg: Color::Rgb(160, 170, 180),
+    tree_active: Color::Rgb(76, 122, 168),
+    intra_add: Color::Rgb(150, 210, 175),
+    intra_del: Color::Rgb(220, 170, 170),
+    meta_note_fg: Color::Rgb(58, 84, 110),
+    meta_note_bg: Color::Rgb(218, 232, 248),
+    meta_note_sigil_fg: Color::Rgb(32, 72, 136),
+    file_separator_fg: Color::Rgb(68, 108, 118),
+    tree_tag_change: Color::Rgb(170, 115, 55),
+    tree_tag_renamed: Color::Rgb(58, 108, 168),
+};
+
+pub(super) const BASE_DARK_DIFF: DiffTheme = DiffTheme {
+    add_fg: Color::Rgb(140, 220, 170),
+    add_bg: Color::Rgb(24, 46, 32),
+    del_fg: Color::Rgb(228, 128, 128),
+    del_bg: Color::Rgb(56, 26, 26),
+    context_fg: Color::Rgb(160, 168, 180),
+    hunk_header_fg: Color::Rgb(229, 169, 120),
+    filename_fg: Color::Rgb(140, 190, 255),
+    frame_fg: Color::Rgb(85, 100, 115),
+    tree_active: Color::Rgb(105, 178, 218),
+    intra_add: Color::Rgb(35, 75, 50),
+    intra_del: Color::Rgb(85, 40, 40),
+    meta_note_fg: Color::Rgb(162, 192, 222),
+    meta_note_bg: Color::Rgb(22, 36, 60),
+    meta_note_sigil_fg: Color::Rgb(140, 190, 255),
+    file_separator_fg: Color::Rgb(160, 190, 200),
+    tree_tag_change: Color::Rgb(229, 169, 120),
+    tree_tag_renamed: Color::Rgb(140, 190, 255),
+};
+
+pub(super) const FOREST_DIFF: DiffTheme = DiffTheme {
+    add_fg: Color::Rgb(148, 220, 170),
+    add_bg: Color::Rgb(22, 44, 30),
+    del_fg: Color::Rgb(224, 132, 132),
+    del_bg: Color::Rgb(52, 24, 24),
+    context_fg: Color::Rgb(170, 180, 168),
+    hunk_header_fg: Color::Rgb(220, 175, 130),
+    filename_fg: Color::Rgb(148, 204, 255),
+    frame_fg: Color::Rgb(90, 95, 90),
+    tree_active: Color::Rgb(126, 198, 170),
+    intra_add: Color::Rgb(32, 70, 48),
+    intra_del: Color::Rgb(80, 38, 38),
+    meta_note_fg: Color::Rgb(184, 214, 196),
+    meta_note_bg: Color::Rgb(20, 32, 54),
+    meta_note_sigil_fg: Color::Rgb(148, 204, 255),
+    file_separator_fg: Color::Rgb(150, 185, 170),
+    tree_tag_change: Color::Rgb(220, 175, 130),
+    tree_tag_renamed: Color::Rgb(148, 204, 255),
+};
+
+pub(super) const SOLARIZED_DARK_DIFF: DiffTheme = DiffTheme {
+    add_fg: Color::Rgb(133, 153, 0),
+    add_bg: Color::Rgb(14, 46, 42),
+    del_fg: Color::Rgb(220, 50, 47),
+    del_bg: Color::Rgb(46, 22, 22),
+    context_fg: Color::Rgb(147, 161, 161),
+    hunk_header_fg: Color::Rgb(220, 165, 110),
+    filename_fg: Color::Rgb(38, 139, 210),
+    frame_fg: Color::Rgb(88, 110, 117),
+    tree_active: Color::Rgb(42, 161, 152),
+    intra_add: Color::Rgb(30, 72, 60),
+    intra_del: Color::Rgb(75, 35, 35),
+    meta_note_fg: Color::Rgb(147, 161, 161),
+    meta_note_bg: Color::Rgb(18, 44, 68),
+    meta_note_sigil_fg: Color::Rgb(38, 139, 210),
+    file_separator_fg: Color::Rgb(131, 148, 150),
+    tree_tag_change: Color::Rgb(220, 165, 110),
+    tree_tag_renamed: Color::Rgb(38, 139, 210),
+};
 
 pub(super) const BASE_LIGHT_UI: UiTheme = UiTheme {
     toc_bg: Color::Rgb(232, 239, 245),
@@ -28,6 +108,7 @@ pub(super) const BASE_LIGHT_UI: UiTheme = UiTheme {
     status_error_bg: Color::Rgb(240, 218, 218),
     status_shortcut_fg: Color::Rgb(98, 116, 134),
     status_percent_fg: Color::Rgb(76, 122, 168),
+    status_dot_fg: Color::Rgb(108, 126, 144),
     toc_hover_fg: Color::Rgb(34, 42, 52),
     toc_header_fg: Color::Rgb(92, 108, 126),
     toc_active_bg: Color::Rgb(214, 224, 233),
@@ -65,6 +146,7 @@ pub(super) const BASE_DARK_UI: UiTheme = UiTheme {
     status_error_bg: Color::Rgb(42, 18, 18),
     status_shortcut_fg: Color::Rgb(58, 68, 98),
     status_percent_fg: Color::Rgb(105, 178, 218),
+    status_dot_fg: Color::Rgb(116, 126, 156),
     toc_hover_fg: Color::Rgb(224, 224, 228),
     toc_header_fg: Color::Rgb(88, 88, 96),
     toc_active_bg: Color::Rgb(42, 40, 46),
@@ -182,6 +264,7 @@ pub(crate) const ARCTIC_THEME: AppTheme = AppTheme {
     syntax_theme_name: Cow::Borrowed("base16-ocean.light"),
     ui: BASE_LIGHT_UI,
     markdown: BASE_LIGHT_MARKDOWN,
+    diff: BASE_LIGHT_DIFF,
 };
 
 pub(crate) const FOREST_THEME: AppTheme = AppTheme {
@@ -210,6 +293,7 @@ pub(crate) const FOREST_THEME: AppTheme = AppTheme {
         status_error_bg: Color::Rgb(42, 20, 20),
         status_shortcut_fg: Color::Rgb(82, 104, 92),
         status_percent_fg: Color::Rgb(126, 198, 170),
+        status_dot_fg: Color::Rgb(112, 141, 126),
         toc_hover_fg: Color::Rgb(228, 234, 228),
         toc_header_fg: Color::Rgb(102, 118, 106),
         toc_active_bg: Color::Rgb(34, 46, 38),
@@ -271,12 +355,14 @@ pub(crate) const FOREST_THEME: AppTheme = AppTheme {
         footnote_ref: Color::Rgb(110, 182, 255),
         footnote_text: Color::Rgb(212, 218, 212),
     },
+    diff: FOREST_DIFF,
 };
 
 pub(crate) const OCEAN_DARK_THEME: AppTheme = AppTheme {
     syntax_theme_name: Cow::Borrowed("base16-ocean.dark"),
     ui: BASE_DARK_UI,
     markdown: BASE_DARK_MARKDOWN,
+    diff: BASE_DARK_DIFF,
 };
 
 pub(crate) const SOLARIZED_DARK_THEME: AppTheme = AppTheme {
@@ -305,6 +391,7 @@ pub(crate) const SOLARIZED_DARK_THEME: AppTheme = AppTheme {
         status_error_bg: Color::Rgb(48, 16, 15),
         status_shortcut_fg: Color::Rgb(88, 110, 117),
         status_percent_fg: Color::Rgb(42, 161, 152),
+        status_dot_fg: Color::Rgb(101, 123, 131),
         toc_hover_fg: Color::Rgb(238, 232, 213),
         toc_header_fg: Color::Rgb(101, 123, 131),
         toc_active_bg: Color::Rgb(17, 67, 80),
@@ -366,4 +453,5 @@ pub(crate) const SOLARIZED_DARK_THEME: AppTheme = AppTheme {
         footnote_ref: Color::Rgb(38, 139, 210),
         footnote_text: Color::Rgb(147, 161, 161),
     },
+    diff: SOLARIZED_DARK_DIFF,
 };

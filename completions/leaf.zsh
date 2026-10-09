@@ -1,4 +1,4 @@
-#compdef leaf
+
 
 _leaf() {
     local -a flags
@@ -14,6 +14,8 @@ _leaf() {
         '-e[Set external editor]:editor:(nano vim vi nvim micro hx emacs jed code codium subl gedit kate mousepad zed xjed notepad notepad++)'
         '--editor[Set external editor]:editor:(nano vim vi nvim micro hx emacs jed code codium subl gedit kate mousepad zed xjed notepad notepad++)'
         '--inline[Render to stdout (no TUI)]:format:(ansi plain)'
+        '-d[View git diff (positional path restricts scope)]::spec:(working cached staged)'
+        '--diff[View git diff (positional path restricts scope)]::spec:(working cached staged)'
         '--width[Set maximum content width (min: 20)]:width:'
         '--picker[Open the file browser picker]'
         '--fuzzy[Open the fuzzy file picker (KEYWORD pre-fills the filter)]::keyword:'

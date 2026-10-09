@@ -16,7 +16,13 @@ use super::popup::{
 
 const HISTORY_POPUP_TITLE: &str = "Open from file history";
 const HISTORY_POPUP_BORDER: &str = "─ History ";
-const HISTORY_POPUP_FOOTER: &[&str] = &["↑/↓ move", "<char> filter", "enter open", "esc close"];
+const HISTORY_POPUP_FOOTER: &[&str] = &[
+    "↑/↓ move",
+    "pgup/dn",
+    "<char> filter",
+    "enter open",
+    "esc close",
+];
 
 fn picker_area(f: &Frame, app: &mut App, height: u16) -> Rect {
     let full = f.area();

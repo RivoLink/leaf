@@ -203,3 +203,100 @@ fn fuzzy_file_picker_uses_depth_first_order_with_hidden_first() {
 
     let _ = fs::remove_dir_all(root);
 }
+
+#[test]
+fn file_picker_page_moves_jump_and_clamp_at_edges() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let root = std::env::temp_dir().join(format!("leaf-picker-page-test-{unique}"));
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    for idx in 0..25 {
+        fs::write(root.join(format!("file{idx:03}.md")), "# Demo\n").unwrap();
+    }
+
+    let mut app = App::new_with_source(
+        Vec::new(),
+        Vec::new(),
+        AppConfig {
+            filename: "picker".to_string(),
+            source: String::new(),
+            debug_input: false,
+            watch: false,
+            filepath: None,
+            last_file_state: None,
+        },
+    );
+
+    assert!(app.open_file_picker(root.clone()));
+    let total = app.file_picker_filtered_indices().len();
+    // 25 markdown files plus the leading ".." parent entry
+    assert_eq!(total, 26);
+
+    app.move_file_picker_page_down();
+    assert_eq!(app.file_picker_index(), 10);
+    app.move_file_picker_page_down();
+    assert_eq!(app.file_picker_index(), 20);
+    app.move_file_picker_page_down();
+    assert_eq!(app.file_picker_index(), total - 1);
+
+    app.move_file_picker_page_up();
+    assert_eq!(app.file_picker_index(), total - 11);
+    app.move_file_picker_page_up();
+    assert_eq!(app.file_picker_index(), total - 21);
+    app.move_file_picker_page_up();
+    assert_eq!(app.file_picker_index(), 0);
+    app.move_file_picker_page_up();
+    assert_eq!(app.file_picker_index(), 0);
+
+    let _ = fs::remove_dir_all(root);
+}
+
+#[test]
+fn fuzzy_file_picker_page_moves_jump_and_clamp_at_edges() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let root = std::env::temp_dir().join(format!("leaf-fuzzy-page-test-{unique}"));
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    for idx in 0..25 {
+        fs::write(root.join(format!("file{idx:03}.md")), "# Demo\n").unwrap();
+    }
+
+    let mut app = App::new_with_source(
+        Vec::new(),
+        Vec::new(),
+        AppConfig {
+            filename: "picker".to_string(),
+            source: String::new(),
+            debug_input: false,
+            watch: false,
+            filepath: None,
+            last_file_state: None,
+        },
+    );
+
+    assert!(app.open_fuzzy_file_picker(root.clone()));
+    let total = app.file_picker_filtered_indices().len();
+    assert_eq!(total, 25);
+
+    app.move_file_picker_page_down();
+    assert_eq!(app.file_picker_index(), 10);
+    app.move_file_picker_page_down();
+    assert_eq!(app.file_picker_index(), 20);
+    app.move_file_picker_page_down();
+    assert_eq!(app.file_picker_index(), total - 1);
+
+    app.move_file_picker_page_up();
+    assert_eq!(app.file_picker_index(), total - 11);
+    app.move_file_picker_page_up();
+    assert_eq!(app.file_picker_index(), 4);
+    app.move_file_picker_page_up();
+    assert_eq!(app.file_picker_index(), 0);
+
+    let _ = fs::remove_dir_all(root);
+}

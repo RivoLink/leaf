@@ -121,6 +121,27 @@ impl App {
         self.history_picker.index = (self.history_picker.index + 1) % total;
     }
 
+    pub(crate) fn move_history_picker_page_up(&mut self) {
+        self.history_picker.activation_error = None;
+        if self.history_picker.filtered.is_empty() {
+            return;
+        }
+        self.history_picker.index = self
+            .history_picker
+            .index
+            .saturating_sub(super::file_picker::PICKER_PAGE_SIZE);
+    }
+
+    pub(crate) fn move_history_picker_page_down(&mut self) {
+        self.history_picker.activation_error = None;
+        let total = self.history_picker.filtered.len();
+        if total == 0 {
+            return;
+        }
+        self.history_picker.index =
+            (self.history_picker.index + super::file_picker::PICKER_PAGE_SIZE).min(total - 1);
+    }
+
     pub(crate) fn push_history_picker_query(&mut self, ch: char) {
         self.history_picker.activation_error = None;
         self.history_picker.query.push(ch);

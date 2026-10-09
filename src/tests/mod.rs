@@ -23,6 +23,7 @@ mod diff_parser;
 mod editor;
 mod file_fuzzy;
 mod file_picker;
+mod history_picker;
 mod inline;
 mod markdown_blocks;
 mod markdown_embedded;

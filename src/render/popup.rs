@@ -16,6 +16,7 @@ use super::centered_rect;
 
 const FUZZY_PICKER_FOOTER_INIT: &[&str] = &[
     "↑/↓ move",
+    "pgup/dn",
     "<char> filter",
     "enter open",
     "esc clear",
@@ -24,16 +25,23 @@ const FUZZY_PICKER_FOOTER_INIT: &[&str] = &[
 
 const FUZZY_PICKER_FOOTER_PREVIEW: &[&str] = &[
     "↑/↓ move",
+    "pgup/dn",
     "<char> filter",
     "enter open",
     "esc clear",
     "ctrl+c close",
 ];
 
-const BROWSER_PICKER_FOOTER_INIT: &[&str] = &["↑/↓ move", "enter open", "bsp parent", "q quit"];
+const BROWSER_PICKER_FOOTER_INIT: &[&str] =
+    &["↑/↓ move", "pgup/dn", "enter open", "bsp parent", "q quit"];
 
-const BROWSER_PICKER_FOOTER_PREVIEW: &[&str] =
-    &["↑/↓ move", "enter open", "bsp parent", "ctrl+c close"];
+const BROWSER_PICKER_FOOTER_PREVIEW: &[&str] = &[
+    "↑/↓ move",
+    "pgup/dn",
+    "enter open",
+    "bsp parent",
+    "ctrl+c close",
+];
 
 const PICKER_FAILED_FOOTER_INIT: &[&str] = &["esc quit", "enter quit", "q quit"];
 

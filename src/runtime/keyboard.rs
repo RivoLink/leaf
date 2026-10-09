@@ -144,6 +144,14 @@ pub(super) fn handle_key_event(
             KeyCode::Char('k') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 app.move_history_picker_up()
             }
+            KeyCode::PageDown => app.move_history_picker_page_down(),
+            KeyCode::PageUp => app.move_history_picker_page_up(),
+            KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                app.move_history_picker_page_down()
+            }
+            KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                app.move_history_picker_page_up()
+            }
             KeyCode::Backspace => app.pop_history_picker_query(),
             KeyCode::Char(c) if !key.modifiers.contains(KeyModifiers::CONTROL) => {
                 app.push_history_picker_query(c);
@@ -182,6 +190,14 @@ pub(super) fn handle_key_event(
             }
             KeyCode::Down if app.is_fuzzy_file_picker() => app.move_file_picker_down(),
             KeyCode::Up if app.is_fuzzy_file_picker() => app.move_file_picker_up(),
+            KeyCode::PageDown => app.move_file_picker_page_down(),
+            KeyCode::PageUp => app.move_file_picker_page_up(),
+            KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                app.move_file_picker_page_down()
+            }
+            KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                app.move_file_picker_page_up()
+            }
             KeyCode::Esc => {
                 if app.is_fuzzy_file_picker() && !app.file_picker_query().is_empty() {
                     app.clear_file_picker_query();

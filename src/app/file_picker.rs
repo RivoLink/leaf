@@ -6,6 +6,10 @@ use std::{
 };
 use syntect::{highlighting::ThemeSet, parsing::SyntaxSet};
 
+/// Page jump for `PageUp`/`PageDown` in the pickers; keeps a few rows of
+/// overlap with the popup's visible list for orientation.
+pub(crate) const PICKER_PAGE_SIZE: usize = 10;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct FilePickerEntry {
     label: String,
@@ -472,6 +476,21 @@ impl App {
             return;
         }
         self.file_picker.index = (self.file_picker.index + 1) % total;
+    }
+
+    pub(crate) fn move_file_picker_page_up(&mut self) {
+        if self.file_picker.filtered.is_empty() {
+            return;
+        }
+        self.file_picker.index = self.file_picker.index.saturating_sub(PICKER_PAGE_SIZE);
+    }
+
+    pub(crate) fn move_file_picker_page_down(&mut self) {
+        let total = self.file_picker.filtered.len();
+        if total == 0 {
+            return;
+        }
+        self.file_picker.index = (self.file_picker.index + PICKER_PAGE_SIZE).min(total - 1);
     }
 
     pub(crate) fn push_file_picker_query(&mut self, ch: char) {

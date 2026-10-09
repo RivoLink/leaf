@@ -74,6 +74,14 @@ While viewing a file in `leaf`, press `p` to open the File Path popup:
 - wait for the feedback to expire and confirm the row goes blank
 - on copy failure, confirm the popup shows an error message
 
+### Links
+
+Use the `Links` section of the fixture at a wide and a narrow terminal width:
+
+- hover each link and confirm only that link is highlighted, on every row it wraps onto
+- double-click each link and confirm the copied URL matches its label
+- press `l` to show line numbers and repeat
+
 ### Watch Mode
 
 While running `leaf --watch TESTING.md`:
@@ -207,6 +215,31 @@ The document should continue normally after the rule.
 | Tabs | tab	value | cell | 10 |
 
 The table above is intended to check borders, alignment, tab expansion, and wide-character handling.
+
+### Links
+
+Adjacent: [A](https://example.com/a)[B](https://example.com/b)[C](https://example.com/c)
+
+Repeated: [first](https://example.com/same) and [second](https://example.com/same)
+
+Tab-separated: [left](https://example.com/left)	[right](https://example.com/right)
+
+Styled labels: [**bold**](https://example.com/bold), [`code()` label](https://example.com/code), [<mark>marked</mark> label](https://example.com/mark-label), <mark>[marked link](https://example.com/mark-link)</mark>
+
+[A long link label that should wrap across several rows in a narrow terminal](https://example.com/wrapped)
+
+- List item with a [nested link](https://example.com/list)
+
+> Quoted text with a [quoted link](https://example.com/quote)
+
+| Left | Right |
+|:---:|---:|
+| [A A A A A A A A A A A A A A A A](https://example.com/table-a) [C](https://example.com/table-c) | [B](https://example.com/table-b) |
+
+Footnotes defined out of order.[^link-second][^link-first]
+
+[^link-first]: First note with [a link](https://example.com/note-first).
+[^link-second]: Second note with [a long link label that wraps inside the footnote](https://example.com/note-second).
 
 ### Code Blocks
 

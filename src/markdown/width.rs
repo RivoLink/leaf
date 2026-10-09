@@ -97,6 +97,30 @@ pub(crate) fn iter_cluster_widths(text: &str) -> impl Iterator<Item = (&str, usi
     text.graphemes(true).map(|g| (g, UnicodeWidthStr::width(g)))
 }
 
+// Cells Paragraph renders for one grapheme: control graphemes are dropped.
+pub(crate) fn rendered_cluster_width(cluster: &str) -> usize {
+    use ratatui::buffer::CellWidth;
+    if cluster.contains(char::is_control) {
+        0
+    } else {
+        cluster.cell_width() as usize
+    }
+}
+
+pub(crate) fn rendered_span_width(span: &ratatui::text::Span<'_>) -> usize {
+    if span.content.is_ascii() {
+        return span
+            .content
+            .bytes()
+            .filter(|byte| !byte.is_ascii_control())
+            .count();
+    }
+    span.content
+        .graphemes(true)
+        .map(rendered_cluster_width)
+        .sum()
+}
+
 pub(crate) fn display_width(text: &str) -> usize {
     let mut width = 0;
     let mut parts = text.split('\t').peekable();

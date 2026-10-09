@@ -7,6 +7,7 @@ use ratatui::{
 };
 
 use super::blocks::{block_prefix, trim_paragraph_gap_before_block};
+use super::links::{LinkSpan, LinkedSpan};
 use super::width::display_width;
 use super::wrapping::push_wrapped_prefixed_lines;
 use super::LastBlock;
@@ -96,7 +97,8 @@ pub(super) fn list_item_prefix(
 #[allow(clippy::too_many_arguments)]
 pub(super) fn flush_list_item_spans(
     lines: &mut Vec<Line<'static>>,
-    spans: &mut Vec<Span<'static>>,
+    ranges: &mut Vec<LinkSpan>,
+    spans: &mut Vec<LinkedSpan>,
     list_stack: &[ListKind],
     item_stack: &mut [ItemState],
     blockquote_depth: usize,
@@ -124,6 +126,7 @@ pub(super) fn flush_list_item_spans(
     );
     push_wrapped_prefixed_lines(
         lines,
+        ranges,
         spans,
         first_prefix,
         continuation_prefix,
@@ -133,11 +136,12 @@ pub(super) fn flush_list_item_spans(
 
 pub(super) fn start_list(
     lines: &mut Vec<Line<'static>>,
+    ranges: &mut Vec<LinkSpan>,
     last_block: LastBlock,
     list_stack: &mut Vec<ListKind>,
     start: Option<u64>,
 ) {
-    trim_paragraph_gap_before_block(lines, last_block);
+    trim_paragraph_gap_before_block(lines, ranges, last_block);
     list_stack.push(match start {
         Some(n) => ListKind::Ordered(n),
         None => ListKind::Unordered,
@@ -163,7 +167,8 @@ pub(super) fn start_item(item_stack: &mut Vec<ItemState>, blockquote_depth: usiz
 #[allow(clippy::too_many_arguments)]
 pub(super) fn end_item(
     lines: &mut Vec<Line<'static>>,
-    spans: &mut Vec<Span<'static>>,
+    ranges: &mut Vec<LinkSpan>,
+    spans: &mut Vec<LinkedSpan>,
     list_stack: &mut [ListKind],
     item_stack: &mut Vec<ItemState>,
     blockquote_depth: usize,
@@ -173,6 +178,7 @@ pub(super) fn end_item(
 ) {
     flush_list_item_spans(
         lines,
+        ranges,
         spans,
         list_stack,
         item_stack,

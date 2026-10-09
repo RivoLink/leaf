@@ -1,6 +1,8 @@
 use crate::theme::MarkdownTheme;
 use ratatui::{style::Style, text::Span};
 
+use super::links::{LinkId, LinkedSpan};
+
 pub(super) struct CustomMarker {
     pub(super) open: &'static str,
     pub(super) close: &'static str,
@@ -70,13 +72,17 @@ pub(super) fn push_custom_marker_spans(
     markers: &[CustomMarker],
     fallback_style: Style,
     theme: &MarkdownTheme,
-    spans: &mut Vec<Span<'static>>,
+    link_id: Option<LinkId>,
+    spans: &mut Vec<LinkedSpan>,
 ) {
     let mut remaining = text;
 
     while !remaining.is_empty() {
         let Some(m) = find_first_marker(remaining, markers) else {
-            spans.push(Span::styled(remaining.to_string(), fallback_style));
+            spans.push(LinkedSpan::new(
+                Span::styled(remaining.to_string(), fallback_style),
+                link_id,
+            ));
             break;
         };
 
@@ -85,9 +91,9 @@ pub(super) fn push_custom_marker_spans(
         let after_close = after_open + m.close_rel + m.marker.close.len();
 
         if m.open_pos > 0 {
-            spans.push(Span::styled(
-                remaining[..m.open_pos].to_string(),
-                fallback_style,
+            spans.push(LinkedSpan::new(
+                Span::styled(remaining[..m.open_pos].to_string(), fallback_style),
+                link_id,
             ));
         }
 
@@ -96,7 +102,10 @@ pub(super) fn push_custom_marker_spans(
         } else {
             content.to_string()
         };
-        spans.push(Span::styled(display, (m.marker.style_fn)(theme)));
+        spans.push(LinkedSpan::new(
+            Span::styled(display, (m.marker.style_fn)(theme)),
+            link_id,
+        ));
 
         remaining = &remaining[after_close..];
     }
@@ -149,8 +158,8 @@ mod tests {
 
     fn collect(text: &str, markers: &[CustomMarker], theme: &MarkdownTheme) -> Vec<Span<'static>> {
         let mut spans = Vec::new();
-        push_custom_marker_spans(text, markers, fallback(), theme, &mut spans);
-        spans
+        push_custom_marker_spans(text, markers, fallback(), theme, None, &mut spans);
+        spans.into_iter().map(|linked| linked.span).collect()
     }
 
     #[test]

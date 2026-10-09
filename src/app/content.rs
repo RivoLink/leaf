@@ -31,6 +31,7 @@ impl App {
             lines,
             toc,
             link_spans,
+            link_urls,
             line_number_map,
             source_line_map,
             code_blocks,
@@ -44,7 +45,7 @@ impl App {
         self.toc = toc;
         self.highlighted_line_cache = None;
         self.toc_header_line = toc_header_line();
-        self.link_spans_by_line = super::links::link_spans_to_map(link_spans);
+        self.set_links(link_urls, link_spans);
         self.hovered_link = None;
         self.set_code_blocks(code_blocks);
         self.code_select = None;

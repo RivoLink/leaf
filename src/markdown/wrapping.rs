@@ -1,3 +1,4 @@
+use super::links::{emit_linked_line, LinkSpan, LinkedSpan};
 use super::width::{display_width, iter_cluster_widths};
 use ratatui::{
     style::Style,
@@ -6,7 +7,8 @@ use ratatui::{
 
 pub(super) fn push_wrapped_prefixed_lines(
     lines: &mut Vec<Line<'static>>,
-    body_spans: &mut Vec<Span<'static>>,
+    ranges: &mut Vec<LinkSpan>,
+    body_spans: &mut Vec<LinkedSpan>,
     first_prefix: Vec<Span<'static>>,
     continuation_prefix: Vec<Span<'static>>,
     render_width: usize,
@@ -29,32 +31,33 @@ pub(super) fn push_wrapped_prefixed_lines(
 
     let total_width: usize = body_spans
         .iter()
-        .map(|s| display_width(s.content.as_ref()))
+        .map(|s| display_width(s.span.content.as_ref()))
         .sum();
     if total_width <= max_width {
-        let mut all = first_prefix;
+        let mut all = unowned(first_prefix);
         all.append(body_spans);
-        lines.push(Line::from(all));
+        emit_linked_line(lines, ranges, all);
         return;
     }
 
-    let mut current_prefix = first_prefix.clone();
-    let mut next_prefix = continuation_prefix.clone();
+    let mut current_prefix = unowned(first_prefix);
+    let mut next_prefix = unowned(continuation_prefix);
     let mut current_width = 0usize;
     let mut body_started = false;
 
     let push_current = |lines: &mut Vec<Line<'static>>,
-                        current_prefix: &mut Vec<Span<'static>>,
-                        next_prefix: &mut Vec<Span<'static>>,
+                        ranges: &mut Vec<LinkSpan>,
+                        current_prefix: &mut Vec<LinkedSpan>,
+                        next_prefix: &mut Vec<LinkedSpan>,
                         body_started: &mut bool,
                         current_width: &mut usize| {
         if *body_started {
             let keep = current_prefix
                 .iter()
-                .rposition(|s| !s.content.is_empty())
+                .rposition(|s| !s.span.content.is_empty())
                 .map_or(0, |i| i + 1);
             let carried = current_prefix.split_off(keep);
-            lines.push(Line::from(std::mem::take(current_prefix)));
+            emit_linked_line(lines, ranges, std::mem::take(current_prefix));
             *current_prefix = next_prefix.clone();
             current_prefix.extend(carried);
             *body_started = false;
@@ -62,9 +65,9 @@ pub(super) fn push_wrapped_prefixed_lines(
         }
     };
 
-    for span in body_spans.drain(..) {
+    for LinkedSpan { span, link_id } in body_spans.drain(..) {
         if span.content.is_empty() {
-            current_prefix.push(span);
+            current_prefix.push(LinkedSpan::new(span, link_id));
             continue;
         }
         let style = span.style;
@@ -74,7 +77,8 @@ pub(super) fn push_wrapped_prefixed_lines(
         let mut flush_token = |token: &mut String,
                                token_is_space: bool,
                                lines: &mut Vec<Line<'static>>,
-                               current_prefix: &mut Vec<Span<'static>>,
+                               ranges: &mut Vec<LinkSpan>,
+                               current_prefix: &mut Vec<LinkedSpan>,
                                body_started: &mut bool,
                                current_width: &mut usize| {
             if token.is_empty() {
@@ -87,7 +91,10 @@ pub(super) fn push_wrapped_prefixed_lines(
                 if (*body_started || keep_styled_padding)
                     && *current_width + token_width <= max_width
                 {
-                    current_prefix.push(Span::styled(std::mem::take(token), style));
+                    current_prefix.push(LinkedSpan::new(
+                        Span::styled(std::mem::take(token), style),
+                        link_id,
+                    ));
                     *current_width += token_width;
                     *body_started = true;
                 } else {
@@ -99,6 +106,7 @@ pub(super) fn push_wrapped_prefixed_lines(
             if *body_started && *current_width + token_width > max_width {
                 push_current(
                     lines,
+                    ranges,
                     current_prefix,
                     &mut next_prefix,
                     body_started,
@@ -107,7 +115,10 @@ pub(super) fn push_wrapped_prefixed_lines(
             }
 
             if token_width <= max_width {
-                current_prefix.push(Span::styled(std::mem::take(token), style));
+                current_prefix.push(LinkedSpan::new(
+                    Span::styled(std::mem::take(token), style),
+                    link_id,
+                ));
                 *current_width += token_width;
                 *body_started = true;
                 return;
@@ -123,11 +134,15 @@ pub(super) fn push_wrapped_prefixed_lines(
                 };
                 if would_overflow {
                     if !chunk.is_empty() {
-                        current_prefix.push(Span::styled(std::mem::take(&mut chunk), style));
+                        current_prefix.push(LinkedSpan::new(
+                            Span::styled(std::mem::take(&mut chunk), style),
+                            link_id,
+                        ));
                         *body_started = true;
                     }
                     push_current(
                         lines,
+                        ranges,
                         current_prefix,
                         &mut next_prefix,
                         body_started,
@@ -141,7 +156,7 @@ pub(super) fn push_wrapped_prefixed_lines(
             }
 
             if !chunk.is_empty() {
-                current_prefix.push(Span::styled(chunk, style));
+                current_prefix.push(LinkedSpan::new(Span::styled(chunk, style), link_id));
                 *current_width += chunk_width;
                 *body_started = true;
             }
@@ -157,6 +172,7 @@ pub(super) fn push_wrapped_prefixed_lines(
                     &mut token,
                     token_is_space,
                     lines,
+                    ranges,
                     &mut current_prefix,
                     &mut body_started,
                     &mut current_width,
@@ -170,6 +186,7 @@ pub(super) fn push_wrapped_prefixed_lines(
             &mut token,
             token_is_space,
             lines,
+            ranges,
             &mut current_prefix,
             &mut body_started,
             &mut current_width,
@@ -177,8 +194,15 @@ pub(super) fn push_wrapped_prefixed_lines(
     }
 
     if body_started {
-        lines.push(Line::from(current_prefix));
+        emit_linked_line(lines, ranges, current_prefix);
     }
+}
+
+fn unowned(spans: Vec<Span<'static>>) -> Vec<LinkedSpan> {
+    spans
+        .into_iter()
+        .map(|s| LinkedSpan::new(s, None))
+        .collect()
 }
 
 pub(super) fn push_wrapped_code_lines(

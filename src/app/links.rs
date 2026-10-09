@@ -1,5 +1,5 @@
 use super::App;
-use crate::markdown::{display_width, LinkSpan};
+use crate::markdown::{display_width, LinkId, LinkSpan};
 use std::collections::HashMap;
 
 pub(super) fn link_spans_to_map(link_spans: Vec<LinkSpan>) -> HashMap<usize, Vec<LinkSpan>> {
@@ -11,8 +11,13 @@ pub(super) fn link_spans_to_map(link_spans: Vec<LinkSpan>) -> HashMap<usize, Vec
 }
 
 impl App {
-    pub(crate) fn set_link_spans(&mut self, link_spans: Vec<LinkSpan>) {
+    pub(crate) fn set_links(&mut self, link_urls: Vec<String>, link_spans: Vec<LinkSpan>) {
+        self.link_urls = link_urls;
         self.link_spans_by_line = link_spans_to_map(link_spans);
+    }
+
+    pub(crate) fn link_url(&self, id: LinkId) -> Option<&str> {
+        self.link_urls.get(id.0).map(String::as_str)
     }
 
     pub(crate) fn link_at_position(

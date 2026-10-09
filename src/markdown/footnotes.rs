@@ -9,6 +9,7 @@ use crate::theme::MarkdownTheme;
 
 use super::blocks::push_rule_line;
 use super::latex;
+use super::links::{restore_linked_spans, LinkSpan, LinkedSpan};
 use super::lists::{ItemState, ListKind};
 use super::spans::InlineStyleState;
 use super::tables::TableBuf;
@@ -23,19 +24,23 @@ pub(super) fn to_superscript(n: usize) -> String {
 }
 
 pub(super) fn push_footnote_reference_span(
-    spans: &mut Vec<Span<'static>>,
+    spans: &mut Vec<LinkedSpan>,
     number: usize,
     theme: &MarkdownTheme,
 ) {
-    spans.push(Span::styled(
-        to_superscript(number),
-        Style::default().fg(theme.footnote_ref),
+    spans.push(LinkedSpan::new(
+        Span::styled(
+            to_superscript(number),
+            Style::default().fg(theme.footnote_ref),
+        ),
+        None,
     ));
 }
 
 pub(super) struct DefinitionSnapshot {
-    pub(super) spans: Vec<Span<'static>>,
+    pub(super) spans: Vec<LinkedSpan>,
     pub(super) lines: Vec<Line<'static>>,
+    pub(super) link_spans: Vec<LinkSpan>,
     pub(super) list_stack: Vec<ListKind>,
     pub(super) item_stack: Vec<ItemState>,
     pub(super) blockquote_depth: usize,
@@ -49,14 +54,14 @@ pub(super) struct DefinitionSnapshot {
     pub(super) last_block: LastBlock,
     pub(super) state: LineMapState,
     pub(super) toc: Vec<TocEntry>,
-    pub(super) link_urls: Vec<String>,
 }
 
 impl DefinitionSnapshot {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn take_from(
-        spans: &mut Vec<Span<'static>>,
+        spans: &mut Vec<LinkedSpan>,
         lines: &mut Vec<Line<'static>>,
+        link_spans: &mut Vec<LinkSpan>,
         list_stack: &mut Vec<ListKind>,
         item_stack: &mut Vec<ItemState>,
         blockquote_depth: &mut usize,
@@ -70,11 +75,11 @@ impl DefinitionSnapshot {
         last_block: &mut LastBlock,
         state: &mut LineMapState,
         toc: &mut Vec<TocEntry>,
-        link_urls: &mut Vec<String>,
     ) -> Self {
         Self {
             spans: std::mem::take(spans),
             lines: std::mem::take(lines),
+            link_spans: std::mem::take(link_spans),
             list_stack: std::mem::take(list_stack),
             item_stack: std::mem::take(item_stack),
             blockquote_depth: std::mem::replace(blockquote_depth, 0),
@@ -88,15 +93,15 @@ impl DefinitionSnapshot {
             last_block: std::mem::replace(last_block, LastBlock::Other),
             state: std::mem::replace(state, LineMapState::new()),
             toc: std::mem::take(toc),
-            link_urls: std::mem::take(link_urls),
         }
     }
 
     #[allow(clippy::too_many_arguments)]
     pub(super) fn restore_into(
         self,
-        spans: &mut Vec<Span<'static>>,
+        spans: &mut Vec<LinkedSpan>,
         lines: &mut Vec<Line<'static>>,
+        link_spans: &mut Vec<LinkSpan>,
         list_stack: &mut Vec<ListKind>,
         item_stack: &mut Vec<ItemState>,
         blockquote_depth: &mut usize,
@@ -110,10 +115,10 @@ impl DefinitionSnapshot {
         last_block: &mut LastBlock,
         state: &mut LineMapState,
         toc: &mut Vec<TocEntry>,
-        link_urls: &mut Vec<String>,
     ) {
         *spans = self.spans;
         *lines = self.lines;
+        *link_spans = self.link_spans;
         *list_stack = self.list_stack;
         *item_stack = self.item_stack;
         *blockquote_depth = self.blockquote_depth;
@@ -127,7 +132,6 @@ impl DefinitionSnapshot {
         *last_block = self.last_block;
         *state = self.state;
         *toc = self.toc;
-        *link_urls = self.link_urls;
     }
 }
 
@@ -141,9 +145,8 @@ pub(super) struct FootnotesBuf {
     refs_order: Vec<String>,
     refs_index: HashMap<String, usize>,
     defs_order: Vec<String>,
-    definitions: HashMap<String, Vec<Line<'static>>>,
+    definitions: HashMap<String, (Vec<Line<'static>>, Vec<LinkSpan>)>,
     def_source_line: HashMap<String, usize>,
-    def_link_urls: HashMap<String, Vec<String>>,
     active: Option<ActiveDefinition>,
 }
 
@@ -174,14 +177,14 @@ impl FootnotesBuf {
     pub(super) fn finish_definition(
         &mut self,
         captured_lines: Vec<Line<'static>>,
-        captured_link_urls: Vec<String>,
+        captured_link_spans: Vec<LinkSpan>,
     ) -> DefinitionSnapshot {
         let ActiveDefinition { label, snapshot } = self
             .active
             .take()
             .expect("finish_definition without active definition");
-        self.definitions.insert(label.clone(), captured_lines);
-        self.def_link_urls.insert(label, captured_link_urls);
+        self.definitions
+            .insert(label, (captured_lines, captured_link_spans));
         snapshot
     }
 
@@ -192,8 +195,8 @@ impl FootnotesBuf {
     pub(super) fn flush(
         &mut self,
         lines: &mut Vec<Line<'static>>,
+        link_spans: &mut Vec<LinkSpan>,
         state: &mut LineMapState,
-        link_urls: &mut Vec<String>,
         theme: &MarkdownTheme,
         render_width: usize,
     ) {
@@ -232,7 +235,7 @@ impl FootnotesBuf {
         state.mark_all_new(lines.len());
 
         for (label, number) in ordered {
-            let Some(mut def_lines) = self.definitions.remove(&label) else {
+            let Some((mut def_lines, def_link_spans)) = self.definitions.remove(&label) else {
                 continue;
             };
             while def_lines.last().is_some_and(super::is_empty_line) {
@@ -245,8 +248,8 @@ impl FootnotesBuf {
             let prefix_width = display_width(&prefix_text);
             let indent = " ".repeat(prefix_width);
             let mut first = true;
-            for def_line in def_lines {
-                let mut body: Vec<Span<'static>> = def_line.spans.into_iter().collect();
+            for (line_idx, def_line) in def_lines.iter().enumerate() {
+                let mut body = restore_linked_spans(line_idx, def_line, &def_link_spans);
                 recolor_default_text(&mut body, theme.text, theme.footnote_text);
                 if first {
                     first = false;
@@ -257,6 +260,7 @@ impl FootnotesBuf {
                     let continuation_prefix = vec![Span::raw(indent.clone())];
                     push_wrapped_prefixed_lines(
                         lines,
+                        link_spans,
                         &mut body,
                         first_prefix,
                         continuation_prefix,
@@ -269,6 +273,7 @@ impl FootnotesBuf {
                     let continuation_prefix = vec![Span::raw(indent.clone())];
                     push_wrapped_prefixed_lines(
                         lines,
+                        link_spans,
                         &mut body,
                         first_prefix,
                         continuation_prefix,
@@ -277,9 +282,6 @@ impl FootnotesBuf {
                 }
             }
             state.mark_all_new(lines.len());
-            if let Some(mut urls) = self.def_link_urls.remove(&label) {
-                link_urls.append(&mut urls);
-            }
         }
 
         lines.push(Line::from(""));
@@ -287,8 +289,8 @@ impl FootnotesBuf {
     }
 }
 
-fn recolor_default_text(spans: &mut [Span<'static>], from: Color, to: Color) {
-    for span in spans.iter_mut() {
+fn recolor_default_text(spans: &mut [LinkedSpan], from: Color, to: Color) {
+    for LinkedSpan { span, .. } in spans.iter_mut() {
         if span.style.fg == Some(from) {
             span.style.fg = Some(to);
         }

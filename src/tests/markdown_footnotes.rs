@@ -162,3 +162,44 @@ fn unreferenced_definition_appears_in_notes_after_referenced_ones() {
         "orphan definition should carry superscript ², got {second_line:?}"
     );
 }
+
+#[test]
+fn footnote_link_ranges_use_rendered_cell_widths() {
+    let (ss, theme) = test_assets();
+    let src = "Ref[^n].\n\n[^n]: ｶﾞｶﾞ [abc](https://a.example) tail\n";
+    let parsed = crate::markdown::parse_markdown(src, &ss, &theme, &test_md_theme(), false, true);
+    assert_eq!(parsed.link_spans.len(), 1);
+    let span = &parsed.link_spans[0];
+    let text = crate::markdown::line_plain_text(&parsed.lines[span.line_idx]);
+    let start = text.find('#').expect("link marker");
+    // `ｶﾞ` is one grapheme that Ratatui renders as two cells.
+    let marker_col =
+        crate::markdown::width::rendered_span_width(&ratatui::text::Span::raw(&text[..start]));
+    assert_eq!((span.start_col, span.end_col), (marker_col, marker_col + 4));
+}
+
+#[test]
+fn footnote_link_rewrap_keeps_zero_width_clusters_in_the_label() {
+    let (ss, theme) = test_assets();
+    let src = "Ref[^a].\n\n[^a]: [aa\u{200b}bbbbbb cccc\u{200b}dddddd](https://zw.test) after\n";
+    let parsed = crate::markdown::parse_markdown_with_width(
+        src,
+        &ss,
+        &theme,
+        10,
+        &test_md_theme(),
+        false,
+        true,
+    );
+    let rows: Vec<String> = parsed.lines[6..10].iter().map(line_plain_text).collect();
+    assert_eq!(
+        rows,
+        ["¹ #", "  aa\u{200b}bbbbbb", "  cccc\u{200b}dddd", "  dd"]
+    );
+    let ranges: Vec<_> = parsed
+        .link_spans
+        .iter()
+        .map(|span| (span.line_idx, span.start_col, span.end_col))
+        .collect();
+    assert_eq!(ranges, [(6, 2, 3), (7, 2, 10), (8, 2, 10), (9, 2, 4)]);
+}

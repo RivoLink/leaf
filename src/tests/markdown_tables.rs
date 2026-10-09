@@ -245,3 +245,40 @@ fn table_cell_with_vs16_emoji_fits_render_width() {
         );
     }
 }
+
+#[test]
+fn linked_table_inline_variants_retain_one_owner() {
+    let (ss, theme) = test_assets();
+    let md = "| Content |\n|---|\n| [**bold** `code` $\\alpha$ ==mark==](https://example.test/table-mixed) tail |\n";
+    let parsed = parse_markdown(md, &ss, &theme, &test_md_theme(), false, true);
+
+    assert_eq!(parsed.link_spans.len(), 1);
+    let span = &parsed.link_spans[0];
+    let text = crate::markdown::line_plain_text(&parsed.lines[span.line_idx]);
+    let covered: String = text
+        .chars()
+        .skip(span.start_col)
+        .take(span.end_col - span.start_col)
+        .collect();
+    assert_eq!(covered, "#bold  code   α   mark ");
+}
+
+#[test]
+fn split_table_code_label_keeps_owner_on_every_row() {
+    let (ss, theme) = test_assets();
+    let md = "| c |\n|---|\n| [`abcdefghijklmnopqrstuvwxyz`](https://example.test/code) |\n";
+    let parsed = parse_markdown_with_width(md, &ss, &theme, 24, &test_md_theme(), false, true);
+    let rows: Vec<String> = parsed
+        .link_spans
+        .iter()
+        .map(|span| {
+            line_plain_text(&parsed.lines[span.line_idx])
+                .chars()
+                .skip(span.start_col)
+                .take(span.end_col - span.start_col)
+                .collect()
+        })
+        .collect();
+    assert_eq!(rows, ["#", " abcdefghijklmnopqr ", " stuvwxyz "]);
+    assert!(parsed.link_spans.iter().all(|span| span.link_id.0 == 0));
+}

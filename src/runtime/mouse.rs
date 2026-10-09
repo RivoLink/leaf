@@ -134,8 +134,8 @@ pub(super) fn handle_mouse_event(app: &mut App, mouse: MouseEvent) -> bool {
                         ),
                     );
                 }
-                if let Some(link) = link_hit {
-                    let is_internal = link.url.starts_with('#');
+                if let Some(destination) = link_hit.and_then(|link| app.link_url(link.link_id)) {
+                    let is_internal = destination.starts_with('#');
                     if mouse.modifiers.contains(KeyModifiers::CONTROL) {
                         if is_internal {
                             if let Some(path) = app.filepath() {
@@ -145,7 +145,7 @@ pub(super) fn handle_mouse_event(app: &mut App, mouse: MouseEvent) -> bool {
                                 });
                             }
                         } else {
-                            let url = link.url.clone();
+                            let url = destination.to_owned();
                             std::thread::spawn(move || {
                                 open_url(&url);
                             });
@@ -155,7 +155,7 @@ pub(super) fn handle_mouse_event(app: &mut App, mouse: MouseEvent) -> bool {
                         let text = if is_internal {
                             app.filename().to_string()
                         } else {
-                            link.url.clone()
+                            destination.to_owned()
                         };
                         if copy_to_clipboard(&text) {
                             app.set_link_flash(LinkFlash::Copied);

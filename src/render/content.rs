@@ -1,4 +1,4 @@
-use crate::{app::App, markdown::display_width, theme::app_theme};
+use crate::{app::App, markdown::width::rendered_span_width, theme::app_theme};
 use ratatui::{
     layout::Rect,
     style::{Color, Style},
@@ -34,20 +34,23 @@ pub(super) fn render_content_panel(f: &mut Frame, app: &mut App, area: Rect) {
         }
     }
 
-    if let Some((hover_line, span_index)) = app.hovered_link {
-        if (scroll..visible_end).contains(&hover_line) {
-            if let Some(link) = app
-                .link_spans_by_line
-                .get(&hover_line)
-                .and_then(|spans| spans.get(span_index))
-            {
-                let vis_idx = hover_line - scroll;
-                apply_hover_style(
-                    &mut visible_lines[vis_idx],
-                    link.start_col,
-                    link.end_col,
-                    theme.markdown.link_hover,
-                );
+    let hovered_id = app.hovered_link.and_then(|(line, index)| {
+        app.link_spans_by_line
+            .get(&line)?
+            .get(index)
+            .map(|link| link.link_id)
+    });
+    if let Some(id) = hovered_id {
+        for (offset, line) in visible_lines.iter_mut().enumerate() {
+            if let Some(ranges) = app.link_spans_by_line.get(&(scroll + offset)) {
+                for link in ranges.iter().filter(|link| link.link_id == id) {
+                    apply_hover_style(
+                        line,
+                        link.start_col,
+                        link.end_col,
+                        theme.markdown.link_hover,
+                    );
+                }
             }
         }
     }
@@ -186,7 +189,7 @@ fn apply_hover_style(
 ) {
     let mut col = 0usize;
     for span in &mut line.spans {
-        let w = display_width(span.content.as_ref());
+        let w = rendered_span_width(span);
         let span_end = col + w;
         if span_end > start_col && col < end_col {
             span.style = span.style.fg(hover_color);

@@ -34,7 +34,7 @@
   - `highlight.rs`  :  search match highlighting across spans
   - `syntax.rs`  :  syntect code highlighting and language resolution
   - `fences.rs`  :  code fence normalization (nested fences, tilde fences)
-  - `links.rs`  :  link span detection and construction
+  - `links.rs`  :  link ownership ids and per-line link ranges
   - `tables.rs`  :  table construction, event handling, and rendering
   - `table_layout.rs`  :  table cell sizing, wrapping, and alignment algorithms
   - `latex.rs`  :  LaTeX-to-Unicode conversion: `unicodeit` + postprocessing for `\frac`, `\sqrt`, `^{}`, `_{}`
@@ -105,6 +105,7 @@
   - `markdown_blocks.rs`  :  headings, TOC, blockquotes, code blocks, rules
   - `markdown_embedded.rs`  :  LaTeX and Mermaid rendering tests
   - `markdown_links.rs`  :  link detection and search highlight tests
+  - `link_mapping.rs`  :  link hover and double-click destination tests
   - `toc.rs`  :  TOC extraction, normalization, active section tracking, and display level tests
   - `editor.rs`  :  editor detection and classification
   - `render.rs`  :  table and code block border alignment

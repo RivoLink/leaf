@@ -19,6 +19,7 @@ mod editor;
 mod file_fuzzy;
 mod file_picker;
 mod inline;
+mod link_mapping;
 mod markdown_blocks;
 mod markdown_embedded;
 mod markdown_footnotes;

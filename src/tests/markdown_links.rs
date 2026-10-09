@@ -1,11 +1,66 @@
 use super::{test_assets, test_md_theme};
-use crate::markdown::{highlight_line, parse_markdown, resolve_syntax};
+use crate::markdown::{
+    display_width, highlight_line, parse_markdown, parse_markdown_with_width, resolve_syntax,
+    LinkId, LinkSpan,
+};
 use crate::theme::app_theme;
 use ratatui::{
     style::Style,
     text::{Line, Span},
 };
 use syntect::parsing::SyntaxSet;
+
+fn adversarial_table_fixture() -> (Vec<Line<'static>>, Vec<LinkSpan>, Vec<String>) {
+    let (ss, theme) = super::test_assets();
+    // A wraps in the first cell before C; parser registration is A/C/B while visual rows are A/B/C.
+    let source = "| Left | Right |\n| :---: | ---: |\n| [A A A A A A A A A A A A A A A A](https://example.test/a) [C](https://example.test/c) | [B](https://example.test/b) |\n";
+    let parsed = parse_markdown_with_width(
+        source,
+        &ss,
+        &theme,
+        36,
+        &super::test_md_theme(),
+        false,
+        true,
+    );
+    (parsed.lines, parsed.link_spans, parsed.link_urls)
+}
+
+fn span_destinations<'a>(spans: &[LinkSpan], urls: &'a [String]) -> Vec<&'a str> {
+    spans
+        .iter()
+        .map(|span| urls[span.link_id.0].as_str())
+        .collect()
+}
+
+fn table_link_marker_positions(lines: &[Line<'_>]) -> Vec<(usize, usize, char)> {
+    let link_icon = app_theme().markdown.link_icon;
+    lines
+        .iter()
+        .enumerate()
+        .flat_map(|(line_idx, line)| {
+            let text: String = line
+                .spans
+                .iter()
+                .map(|span| span.content.as_ref())
+                .collect();
+            let mut col = 0usize;
+            let mut markers = Vec::new();
+            for span in &line.spans {
+                let content = span.content.as_ref();
+                if content == "#" && span.style.fg == Some(link_icon) {
+                    let label = text
+                        .chars()
+                        .nth(col + 1)
+                        .expect("fixture marker should be followed by a label");
+                    markers.push((line_idx, col, label));
+                }
+                col += display_width(content);
+            }
+            markers
+        })
+        .collect()
+}
 
 #[test]
 fn blockquote_bold_link_preserves_link_color() {
@@ -46,10 +101,9 @@ fn link_spans_detected_for_all_link_types() {
 
 [A](https://example.com/a) and [B](https://example.com/b)
 ";
-    let (_, _, link_spans, _) =
-        parse_markdown(md, &ss, &theme, &test_md_theme(), false, true).into();
-
-    let urls: Vec<&str> = link_spans.iter().map(|ls| ls.url.as_str()).collect();
+    let parsed = parse_markdown(md, &ss, &theme, &test_md_theme(), false, true);
+    let link_spans = parsed.link_spans;
+    let urls = span_destinations(&link_spans, &parsed.link_urls);
 
     assert!(
         urls.contains(&"https://example.com/simple"),
@@ -92,7 +146,7 @@ fn link_spans_detected_for_all_link_types() {
         assert!(
             ls.end_col > ls.start_col,
             "link {:?} has zero width (start={} end={})",
-            ls.url,
+            parsed.link_urls[ls.link_id.0],
             ls.start_col,
             ls.end_col,
         );
@@ -107,14 +161,78 @@ fn link_spans_in_table_are_detected() {
 |------|------|
 | Test | [example](https://example.com/table) |
 ";
-    let (_, _, link_spans, _) =
-        parse_markdown(md, &ss, &theme, &test_md_theme(), false, true).into();
-
-    let urls: Vec<&str> = link_spans.iter().map(|ls| ls.url.as_str()).collect();
+    let parsed = parse_markdown(md, &ss, &theme, &test_md_theme(), false, true);
+    let link_spans = parsed.link_spans;
+    let urls = span_destinations(&link_spans, &parsed.link_urls);
     assert!(
         urls.contains(&"https://example.com/table"),
         "table link missing: {urls:?}"
     );
+}
+
+#[test]
+fn wrapped_repeated_destinations_keep_distinct_ids_and_continuations() {
+    let (ss, theme) = test_assets();
+    let md = "[one two three four five six seven](https://example.test/repeat) and [again](https://example.test/repeat)";
+    let parsed = parse_markdown_with_width(md, &ss, &theme, 18, &test_md_theme(), false, true);
+    assert_eq!(parsed.link_urls.len(), 2);
+    assert_eq!(parsed.link_urls[0], parsed.link_urls[1]);
+    let first_rows: Vec<String> = parsed
+        .link_spans
+        .iter()
+        .filter(|span| span.link_id == LinkId(0))
+        .map(|span| {
+            crate::markdown::line_plain_text(&parsed.lines[span.line_idx])
+                .chars()
+                .skip(span.start_col)
+                .take(span.end_col - span.start_col)
+                .collect()
+        })
+        .collect();
+    assert_eq!(first_rows, ["#one two three ", "four five six ", "seven"]);
+}
+
+#[test]
+fn mixed_style_mapping_does_not_depend_on_link_color() {
+    let (ss, theme) = test_assets();
+    let mut md_theme = test_md_theme();
+    md_theme.link_text = md_theme.text;
+    let parsed = parse_markdown(
+        "[**bold** and `code` and ==mark== and $\\alpha$](https://example.test/mixed) tail",
+        &ss,
+        &theme,
+        &md_theme,
+        false,
+        true,
+    );
+    assert_eq!(parsed.link_spans.len(), 1);
+    let span = &parsed.link_spans[0];
+    let text = crate::markdown::line_plain_text(&parsed.lines[span.line_idx]);
+    let covered: String = text
+        .chars()
+        .skip(span.start_col)
+        .take(span.end_col - span.start_col)
+        .collect();
+    assert_eq!(covered, "#bold and  code  and  mark  and  α ");
+}
+
+#[test]
+fn html_style_buffer_around_link_keeps_label_owned() {
+    for md in [
+        "<mark>[label](https://a.example)</mark> [next](https://b.example)\n",
+        "<code>[label](https://a.example)</code> [next](https://b.example)\n",
+        "| x |\n| --- |\n| <mark>[label](https://a.example)</mark> [next](https://b.example) |\n",
+    ] {
+        let links = link_texts(md, 80);
+        assert_eq!(
+            links,
+            vec![
+                ("# label ".into(), "https://a.example".into()),
+                ("#next".into(), "https://b.example".into()),
+            ],
+            "{md}"
+        );
+    }
 }
 
 #[test]
@@ -302,26 +420,19 @@ impl Drop for LinkMarkerGuard {
 
 fn link_texts(md: &str, width: usize) -> Vec<(String, String)> {
     let (ss, theme) = test_assets();
-    let (lines, _, link_spans, _) = crate::markdown::parse_markdown_with_width(
-        md,
-        &ss,
-        &theme,
-        width,
-        &test_md_theme(),
-        false,
-        true,
-    )
-    .into();
-    link_spans
+    let parsed = parse_markdown_with_width(md, &ss, &theme, width, &test_md_theme(), false, true);
+    parsed
+        .link_spans
         .iter()
         .map(|ls| {
-            let text = crate::markdown::line_plain_text(&lines[ls.line_idx]);
+            let text = crate::markdown::line_plain_text(&parsed.lines[ls.line_idx]);
             let clicked: String = text
                 .chars()
                 .skip(ls.start_col)
                 .take(ls.end_col - ls.start_col)
                 .collect();
-            (clicked, ls.url.clone())
+            let destination = parsed.link_urls[ls.link_id.0].clone();
+            (clicked, destination)
         })
         .collect()
 }
@@ -364,13 +475,21 @@ fn empty_link_prefix_keeps_wrapped_table_links_clickable() {
 | x | lead [label](https://a.example) and [averyveryverylonglabel](https://b.example) |
 ";
     let links = link_texts(md, 24);
-    let urls: Vec<&str> = links.iter().map(|(_, u)| u.as_str()).collect();
+    let mut urls: Vec<&str> = links.iter().map(|(_, u)| u.as_str()).collect();
+    urls.dedup();
     assert_eq!(
         urls,
         ["https://a.example", "https://b.example"],
         "{links:?}"
     );
     assert!(links.iter().all(|(t, _)| !t.trim().is_empty()), "{links:?}");
+    // The wrapped label keeps one range per visual row, so every row stays clickable.
+    let wrapped_label: String = links
+        .iter()
+        .filter(|(_, u)| u == "https://b.example")
+        .map(|(t, _)| t.as_str())
+        .collect();
+    assert_eq!(wrapped_label, "averyveryverylonglabel", "{links:?}");
 }
 
 #[test]
@@ -378,6 +497,27 @@ fn empty_link_prefix_keeps_code_label_clickable() {
     let _guard = LinkMarkerGuard::set("");
     let links = link_texts("see [`code`](https://a.example) end\n", 80);
     assert_eq!(links, vec![(" code ".into(), "https://a.example".into())]);
+}
+
+#[test]
+fn display_math_keeps_link_ranges_of_the_flushed_paragraph() {
+    assert_eq!(
+        link_texts(
+            "[a](https://a.test) then $$x^2$$ and [b](https://b.test) after.\n",
+            80
+        ),
+        vec![
+            ("#a".into(), "https://a.test".into()),
+            ("#b".into(), "https://b.test".into()),
+        ]
+    );
+    let _guard = LinkMarkerGuard::set("");
+    for md in [
+        "para\n\n[ ](https://x.test) $$x$$\n",
+        "> para\n>\n> [ ](https://x.test) $$x$$\n",
+    ] {
+        assert_eq!(link_texts(md, 40), Vec::<(String, String)>::new(), "{md}");
+    }
 }
 
 #[test]
@@ -389,5 +529,45 @@ fn empty_link_prefix_keeps_urls_aligned_after_empty_label() {
     assert_eq!(
         links.last(),
         Some(&("label".into(), "https://b.example".into()))
+    );
+}
+
+#[test]
+fn adversarial_table_fixture_preserves_visual_destination_order() {
+    const A: &str = "https://example.test/a";
+    const B: &str = "https://example.test/b";
+    const C: &str = "https://example.test/c";
+
+    let (lines, link_spans, urls) = adversarial_table_fixture();
+    let markers = table_link_marker_positions(&lines);
+    let labels: Vec<char> = markers.iter().map(|(_, _, label)| *label).collect();
+    assert_eq!(labels, vec!['A', 'B', 'C']);
+    assert!(
+        markers[2].0 > markers[0].0,
+        "C follows A on a continuation row"
+    );
+
+    for ((line, column, _), destination) in markers.iter().zip([A, B, C]) {
+        let range = link_spans
+            .iter()
+            .find(|span| {
+                span.line_idx == *line && span.start_col <= *column && *column < span.end_col
+            })
+            .expect("every visible marker must have exact ownership");
+        assert_eq!(urls[range.link_id.0], destination);
+    }
+    let mut seen = std::collections::HashSet::new();
+    let visual_destinations: Vec<_> = link_spans
+        .iter()
+        .filter(|span| seen.insert(span.link_id))
+        .map(|span| urls[span.link_id.0].as_str())
+        .collect();
+    assert_eq!(visual_destinations, vec![A, B, C]);
+    assert!(
+        link_spans
+            .iter()
+            .filter(|span| urls[span.link_id.0] == A)
+            .count()
+            > 1
     );
 }

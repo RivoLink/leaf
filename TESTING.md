@@ -61,6 +61,7 @@ Use these keys while viewing the fixture:
 - `1` through `9` to jump to TOC entries
 - `/` to search for `tokyo-signal`
 - `n` and `N` to move through search matches
+- `T`, preview another theme and back, then `Esc`; confirm the first `y` focuses a code block and a link double-click still copies, with `l` line numbers both off and on
 
 ### File Path Copy
 

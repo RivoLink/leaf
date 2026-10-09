@@ -4,6 +4,7 @@ use ratatui::text::Line;
 use super::width::display_width;
 use super::with_link_marker;
 
+#[derive(Clone)]
 pub(crate) struct LinkSpan {
     pub line_idx: usize,
     pub start_col: usize,

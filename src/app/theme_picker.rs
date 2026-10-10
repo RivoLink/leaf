@@ -203,6 +203,7 @@ impl App {
 
     pub(crate) fn invalidate_theme_preview_cache(&mut self) {
         self.theme_picker.preview_cache.fill(None);
+        self.theme_picker.original_preview = None;
     }
 
     #[cfg(test)]

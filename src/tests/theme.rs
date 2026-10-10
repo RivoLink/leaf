@@ -278,3 +278,43 @@ heading_1 = "#010203"
     assert_eq!(app_theme().markdown.heading_1, Color::Rgb(1, 2, 3));
     set_theme_selection(original);
 }
+
+#[test]
+fn theme_picker_restore_after_resize_uses_current_width() {
+    let _guard = lock_theme_test_state();
+    let original = current_theme_selection();
+    set_theme_preset(ThemePreset::Forest);
+    let source = "word ".repeat(120);
+    let (ss, _) = test_assets();
+    let ts = ThemeSet::load_defaults();
+    let new_app = || {
+        App::new_with_source(
+            Vec::new(),
+            Vec::new(),
+            AppConfig {
+                filename: "stdin".to_string(),
+                source: source.clone(),
+                debug_input: false,
+                watch: false,
+                filepath: None,
+                last_file_state: None,
+            },
+        )
+    };
+    let mut app = new_app();
+    assert!(app.sync_render_width(100, &ss, &ts));
+    app.open_theme_picker();
+    app.preview_theme_preset(ThemePreset::OceanDark, &ss, &ts);
+    assert!(app.sync_render_width(40, &ss, &ts));
+    app.restore_theme_picker_preview(&ss, &ts);
+
+    let mut fresh = new_app();
+    assert!(fresh.sync_render_width(40, &ss, &ts));
+    assert!(fresh.total() > 1);
+    assert_eq!(app.total(), fresh.total());
+    assert_eq!(
+        app.visible_lines(0, app.total()),
+        fresh.visible_lines(0, fresh.total())
+    );
+    set_theme_selection(original);
+}

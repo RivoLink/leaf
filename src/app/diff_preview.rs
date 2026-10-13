@@ -16,14 +16,18 @@ fn is_usable_blob_sha(sha: &str) -> bool {
     !sha.is_empty() && !sha.chars().all(|c| c == '0')
 }
 
-pub(crate) fn fetch_before(file: &DiffFile, _spec: &DiffSpec) -> String {
+fn git_command(spec: &DiffSpec) -> std::process::Command {
+    let mut cmd = std::process::Command::new("git");
+    if let Some(root) = &spec.repo_root {
+        cmd.current_dir(root);
+    }
+    cmd
+}
+
+pub(crate) fn fetch_before(file: &DiffFile, spec: &DiffSpec) -> String {
     if let Some(sha) = file.old_blob_sha.as_deref() {
         if is_usable_blob_sha(sha) {
-            if let Ok(out) = std::process::Command::new("git")
-                .arg("show")
-                .arg(sha)
-                .output()
-            {
+            if let Ok(out) = git_command(spec).arg("show").arg(sha).output() {
                 if out.status.success() {
                     return String::from_utf8_lossy(&out.stdout).into_owned();
                 }
@@ -41,7 +45,11 @@ pub(crate) fn fetch_after(file: &DiffFile, spec: &DiffSpec) -> (String, Option<S
             } else {
                 file.old_path.as_str()
             };
-            if let Ok(s) = std::fs::read_to_string(path) {
+            let full = match &spec.repo_root {
+                Some(root) => root.join(path),
+                None => std::path::PathBuf::from(path),
+            };
+            if let Ok(s) = std::fs::read_to_string(full) {
                 return (s, None);
             }
         }
@@ -51,7 +59,7 @@ pub(crate) fn fetch_after(file: &DiffFile, spec: &DiffSpec) -> (String, Option<S
             } else {
                 file.old_path.as_str()
             };
-            if let Ok(out) = std::process::Command::new("git")
+            if let Ok(out) = git_command(spec)
                 .arg("show")
                 .arg(format!(":{path}"))
                 .output()
@@ -65,11 +73,7 @@ pub(crate) fn fetch_after(file: &DiffFile, spec: &DiffSpec) -> (String, Option<S
     }
     if let Some(sha) = file.new_blob_sha.as_deref() {
         if is_usable_blob_sha(sha) {
-            if let Ok(out) = std::process::Command::new("git")
-                .arg("show")
-                .arg(sha)
-                .output()
-            {
+            if let Ok(out) = git_command(spec).arg("show").arg(sha).output() {
                 if out.status.success() {
                     return (String::from_utf8_lossy(&out.stdout).into_owned(), None);
                 }

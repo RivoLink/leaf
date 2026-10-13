@@ -45,7 +45,7 @@ mod diff_preview;
 mod diff_toggles;
 pub(crate) use diff_preview::build_preview_pair;
 #[cfg(test)]
-pub(crate) use diff_preview::{fetch_before, reconstruct_after_from_hunks};
+pub(crate) use diff_preview::{fetch_after, fetch_before, reconstruct_after_from_hunks};
 
 mod flash;
 pub(crate) use flash::{

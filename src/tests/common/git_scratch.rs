@@ -3,7 +3,6 @@ use std::process::{Command, Output};
 
 pub(crate) struct ScratchRepo {
     dir: PathBuf,
-    saved_cwd: Option<PathBuf>,
 }
 
 impl ScratchRepo {
@@ -24,12 +23,7 @@ impl ScratchRepo {
         if std::fs::create_dir_all(&dir).is_err() {
             return None;
         }
-        let saved_cwd = std::env::current_dir().ok();
-        if std::env::set_current_dir(&dir).is_err() {
-            let _ = std::fs::remove_dir_all(&dir);
-            return None;
-        }
-        let repo = Self { dir, saved_cwd };
+        let repo = Self { dir };
         if repo.run(&["init", "-q"]).is_none()
             || repo.run(&["config", "user.email", "t@t"]).is_none()
             || repo.run(&["config", "user.name", "t"]).is_none()
@@ -41,7 +35,11 @@ impl ScratchRepo {
     }
 
     pub(crate) fn run(&self, args: &[&str]) -> Option<Output> {
-        let out = Command::new("git").args(args).output().ok()?;
+        let out = Command::new("git")
+            .args(args)
+            .current_dir(&self.dir)
+            .output()
+            .ok()?;
         if !out.status.success() {
             eprintln!(
                 "git {args:?} failed: {}",
@@ -62,7 +60,6 @@ impl ScratchRepo {
         Some(())
     }
 
-    #[allow(dead_code)]
     pub(crate) fn path(&self) -> &Path {
         &self.dir
     }
@@ -70,9 +67,6 @@ impl ScratchRepo {
 
 impl Drop for ScratchRepo {
     fn drop(&mut self) {
-        if let Some(c) = &self.saved_cwd {
-            let _ = std::env::set_current_dir(c);
-        }
         let _ = std::fs::remove_dir_all(&self.dir);
     }
 }

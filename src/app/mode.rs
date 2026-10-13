@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use ratatui::text::{Line, Span};
@@ -168,6 +168,7 @@ pub(crate) enum DiffSource {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct DiffSpec {
     pub(crate) source: DiffSource,
+    pub(crate) repo_root: Option<PathBuf>,
 }
 
 const DIFF_PREFIXES: &[&[u8]] = &[b"diff --git ", b"diff --cc ", b"diff --combined "];

@@ -167,7 +167,12 @@ fn preview_mode_only_before_shows_content() {
     let files = parse_unified_diff(src);
     assert_eq!(files.len(), 1);
     let (ss, theme) = test_assets();
-    let pair = build_preview_pair(&files[0], &DiffSpec::default(), &ss, &theme);
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let spec = DiffSpec {
+        repo_root: Some(root.to_path_buf()),
+        ..Default::default()
+    };
+    let pair = build_preview_pair(&files[0], &spec, &ss, &theme);
 
     assert!(
         !pair.before_is_note,
@@ -178,7 +183,7 @@ fn preview_mode_only_before_shows_content() {
         "after side carries the mode-change note"
     );
 
-    let cargo_lines = std::fs::read_to_string("Cargo.toml")
+    let cargo_lines = std::fs::read_to_string(root.join("Cargo.toml"))
         .unwrap()
         .lines()
         .count();

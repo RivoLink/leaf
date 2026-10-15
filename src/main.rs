@@ -100,6 +100,19 @@ fn read_stdin_limited<R: Read>(reader: &mut R, max_bytes: usize) -> Result<Strin
     String::from_utf8(buf).context("stdin is not valid UTF-8")
 }
 
+fn git_repo_root() -> Option<PathBuf> {
+    let output = std::process::Command::new("git")
+        .args(["rev-parse", "--show-toplevel"])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    Some(PathBuf::from(
+        String::from_utf8_lossy(&output.stdout).trim(),
+    ))
+}
+
 fn run_git_diff_subprocess(spec: &app::DiffSpec, path_restriction: Option<&str>) -> Result<String> {
     let mut cmd = std::process::Command::new("git");
     cmd.arg("diff");
@@ -640,7 +653,10 @@ fn main() -> Result<()> {
                 line_count
             );
         }
-        let spec = diff_spec.clone().unwrap_or_default();
+        let mut spec = diff_spec.clone().unwrap_or_default();
+        if diff_spec.is_some() {
+            spec.repo_root = git_repo_root();
+        }
         app.install_diff(
             files,
             spec,

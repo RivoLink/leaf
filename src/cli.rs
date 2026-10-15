@@ -71,7 +71,10 @@ pub(crate) fn parse_diff_spec(value: &str) -> Result<DiffSpec> {
         "working" => DiffSource::Working,
         other => DiffSource::Ref(other.to_string()),
     };
-    Ok(DiffSpec { source })
+    Ok(DiffSpec {
+        source,
+        repo_root: None,
+    })
 }
 
 pub(crate) const FUZZY_QUERY_MAX_LEN: usize = 15;

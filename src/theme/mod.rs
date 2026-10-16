@@ -3,7 +3,7 @@ mod resolution;
 mod serde;
 
 use ratatui::style::Color;
-use std::{borrow::Cow, sync::RwLock};
+use std::{borrow::Cow, cell::RefCell, sync::RwLock};
 use syntect::{highlighting::Theme, highlighting::ThemeSet};
 
 use presets::{ARCTIC_THEME, FOREST_THEME, OCEAN_DARK_THEME, SOLARIZED_DARK_THEME};
@@ -206,6 +206,12 @@ impl ThemeSelection {
 
 static CURRENT_THEME: RwLock<ThemeSelection> = RwLock::new(ThemeSelection::Preset(DEFAULT_PRESET));
 
+// Per-thread in tests so parallel tests can't see each other's theme changes.
+thread_local! {
+    static TEST_THEME: RefCell<ThemeSelection> =
+        const { RefCell::new(ThemeSelection::Preset(DEFAULT_PRESET)) };
+}
+
 pub(crate) fn parse_theme_preset(name: &str) -> Option<ThemePreset> {
     match name {
         "arctic" => Some(ThemePreset::Arctic),
@@ -242,14 +248,22 @@ pub(crate) fn theme_by_preset(preset: ThemePreset) -> &'static AppTheme {
 }
 
 pub(crate) fn set_theme_selection(selection: ThemeSelection) {
-    *CURRENT_THEME.write().expect("theme state lock poisoned") = selection;
+    if cfg!(test) {
+        TEST_THEME.with(|theme| *theme.borrow_mut() = selection);
+    } else {
+        *CURRENT_THEME.write().expect("theme state lock poisoned") = selection;
+    }
 }
 
 pub(crate) fn current_theme_selection() -> ThemeSelection {
-    CURRENT_THEME
-        .read()
-        .expect("theme state lock poisoned")
-        .clone()
+    if cfg!(test) {
+        TEST_THEME.with(|theme| theme.borrow().clone())
+    } else {
+        CURRENT_THEME
+            .read()
+            .expect("theme state lock poisoned")
+            .clone()
+    }
 }
 
 pub(crate) fn set_theme_preset(preset: ThemePreset) {

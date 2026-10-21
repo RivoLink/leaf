@@ -21,7 +21,9 @@ pub(crate) fn copy_to_clipboard(text: &str) -> bool {
     print!("\x1b]52;c;{b64}\x07");
     let _ = std::io::stdout().flush();
 
-    if std::env::var("TERMUX_VERSION").is_ok() {
+    if std::env::var("TERMUX_VERSION").is_ok()
+        || !has_display_server(std::env::consts::OS, |name| std::env::var_os(name))
+    {
         return true;
     }
 
@@ -41,6 +43,13 @@ pub(crate) fn copy_to_clipboard(text: &str) -> bool {
         }
     }
     false
+}
+
+fn has_display_server(os: &str, var: impl Fn(&str) -> Option<std::ffi::OsString>) -> bool {
+    matches!(os, "macos" | "windows")
+        || ["DISPLAY", "WAYLAND_DISPLAY"]
+            .iter()
+            .any(|name| var(name).is_some_and(|value| !value.is_empty()))
 }
 
 fn try_pipe_to_command(cmd: &[&str], text: &str) -> std::io::Result<()> {
@@ -83,4 +92,31 @@ fn base64_encode(input: &[u8]) -> String {
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::has_display_server;
+    use std::ffi::OsString;
+
+    #[test]
+    fn display_server_needs_a_non_empty_display_variable_on_linux() {
+        let env = |pairs: &'static [(&'static str, &'static str)]| {
+            move |name: &str| {
+                pairs
+                    .iter()
+                    .find(|(key, _)| *key == name)
+                    .map(|(_, value)| OsString::from(value))
+            }
+        };
+        assert!(!has_display_server("linux", env(&[])));
+        assert!(!has_display_server("linux", env(&[("DISPLAY", "")])));
+        assert!(has_display_server("linux", env(&[("DISPLAY", ":0")])));
+        assert!(has_display_server(
+            "linux",
+            env(&[("WAYLAND_DISPLAY", "wayland-0")])
+        ));
+        assert!(has_display_server("macos", env(&[])));
+        assert!(has_display_server("windows", env(&[])));
+    }
 }

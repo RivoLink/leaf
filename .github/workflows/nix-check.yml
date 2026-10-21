@@ -1,0 +1,95 @@
+name: Nix Check
+
+on:
+  push:
+    branches:
+      - fix/**
+      - feat/**
+      - docs/**
+      - chore/**
+    paths:
+      - 'flake.nix'
+      - 'flake.lock'
+      - 'nix/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'src/main.rs'
+      - 'completions/**'
+      - '.github/workflows/nix-check.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'flake.nix'
+      - 'flake.lock'
+      - 'nix/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'src/main.rs'
+      - 'completions/**'
+      - '.github/workflows/nix-check.yml'
+
+concurrency:
+  group: nix-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  nix-check:
+    name: Nix check (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+
+      - name: Build package
+        run: |
+          set -o pipefail
+          nix build -L 2>&1 | tee nix-build.log
+
+      - name: Validate update patch
+        run: |
+          # nix/package.nix rewrites `leaf --update` with --replace-warn, so a
+          # refactor of src/main.rs degrades instead of breaking local builds.
+          # Fail here so the patch is never silently skipped on a release.
+          if grep -q "doesn't match anything" nix-build.log; then
+            echo "::error::substituteInPlace pattern no longer matches src/main.rs"
+            exit 1
+          fi
+
+          echo "Valid update patch"
+
+      - name: Validate installed files
+        run: |
+          ./result/bin/leaf --version
+
+          for FILE in \
+            share/bash-completion/completions/leaf.bash \
+            share/fish/vendor_completions.d/leaf.fish \
+            share/nushell/vendor/autoload/leaf.nu \
+            share/zsh/site-functions/_leaf \
+            share/powershell/leaf.Completion.ps1
+          do
+            if [ ! -f "result/$FILE" ]; then
+              echo "::error::Missing $FILE"
+              exit 1
+            fi
+          done
+
+          echo "Valid installed files"
+
+      - name: Run flake checks
+        run: nix flake check -L

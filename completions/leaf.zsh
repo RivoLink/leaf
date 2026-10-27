@@ -1,4 +1,4 @@
-
+#compdef leaf
 
 _leaf() {
     local -a flags

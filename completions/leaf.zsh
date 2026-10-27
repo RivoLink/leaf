@@ -1,4 +1,4 @@
-
+#compdef leaf
 
 _leaf() {
     local -a flags
@@ -31,4 +31,8 @@ _leaf() {
     _arguments -s $flags '*:file:_files'
 }
 
-compdef _leaf leaf
+if [ "$funcstack[1]" = "_leaf" ]; then
+    _leaf "$@"
+else
+    compdef _leaf leaf
+fi

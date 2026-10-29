@@ -826,6 +826,7 @@ dependencies = [
  "crossterm",
  "fs2",
  "mmdflux",
+ "nix",
  "pulldown-cmark",
  "ratatui",
  "semver",

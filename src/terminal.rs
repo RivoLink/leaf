@@ -137,6 +137,31 @@ impl TerminalSession {
         Ok(())
     }
 
+    #[cfg(unix)]
+    pub(crate) fn suspend_job(
+        terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+        mouse_capture: bool,
+    ) -> Result<()> {
+        use nix::{
+            sys::signal::{kill, Signal},
+            unistd::Pid,
+        };
+
+        let mut stdout = io::stdout();
+        Self::suspend(&mut stdout, mouse_capture)?;
+        terminal.show_cursor()?;
+        // Stop the whole job, as the terminal would for a cooked-mode Ctrl-Z.
+        kill(Pid::from_raw(0), Signal::SIGTSTP)?;
+
+        // After `bg`, re-entering raw mode raises SIGTTOU, which stops us again
+        // until `fg`, before anything is drawn.
+        Self::resume(&mut stdout, mouse_capture)?;
+        // Resize resets the render buffers without querying the cursor position.
+        let size = terminal.size()?;
+        terminal.resize(ratatui::layout::Rect::new(0, 0, size.width, size.height))?;
+        Ok(())
+    }
+
     pub(crate) fn restore(
         &mut self,
         terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,

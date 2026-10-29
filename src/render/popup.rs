@@ -7,12 +7,12 @@ use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, Padding, Paragraph},
+    widgets::{Block, Borders, Padding, Paragraph},
     Frame,
 };
 use std::time::Duration;
 
-use super::centered_rect;
+use super::{centered_rect, clear_popup_area};
 
 const FUZZY_PICKER_FOOTER_INIT: &[&str] = &[
     "↑/↓ move",
@@ -226,7 +226,7 @@ fn render_help_document(f: &mut Frame, _app: &App) {
         popup_footer_line(&["esc close", "? close"], theme.ui.toc_bg),
     ];
 
-    f.render_widget(Clear, area);
+    clear_popup_area(f, area);
     f.render_widget(
         Paragraph::new(lines).block(
             Block::default()
@@ -291,7 +291,7 @@ fn render_help_diff(f: &mut Frame, _app: &App) {
         popup_footer_line(&["esc close", "? close"], theme.ui.toc_bg),
     ];
 
-    f.render_widget(Clear, area);
+    clear_popup_area(f, area);
     f.render_widget(
         Paragraph::new(lines).block(
             Block::default()
@@ -370,7 +370,7 @@ pub(super) fn render_theme_popup(f: &mut Frame, app: &App) {
         theme.ui.toc_bg,
     ));
 
-    f.render_widget(Clear, area);
+    clear_popup_area(f, area);
     f.render_widget(
         Paragraph::new(lines).block(
             Block::default()
@@ -599,7 +599,7 @@ pub(super) fn render_path_popup(f: &mut Frame, app: &mut App) {
         theme.ui.toc_bg,
     ));
 
-    f.render_widget(Clear, area);
+    clear_popup_area(f, area);
     f.render_widget(
         Paragraph::new(lines).block(
             Block::default()

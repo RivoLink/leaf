@@ -5,14 +5,14 @@ use ratatui::{
     layout::Rect,
     style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, Padding, Paragraph},
+    widgets::{Block, Borders, Padding, Paragraph},
     Frame,
 };
 
-use super::centered_rect;
 use super::popup::{
     highlighted_picker_label, picker_truncation_message, popup_footer, popup_footer_line,
 };
+use super::{centered_rect, clear_popup_area};
 
 const HISTORY_POPUP_TITLE: &str = "Open from file history";
 const HISTORY_POPUP_BORDER: &str = "─ History ";
@@ -175,7 +175,7 @@ pub(super) fn render_file_popup(f: &mut Frame, app: &mut App) {
         theme.ui.toc_bg,
     ));
 
-    f.render_widget(Clear, area);
+    clear_popup_area(f, area);
     f.render_widget(
         Paragraph::new(lines).block(
             Block::default()
@@ -259,7 +259,7 @@ pub(super) fn render_picker_loading_popup(f: &mut Frame, app: &mut App) {
         theme.ui.toc_bg,
     ));
 
-    f.render_widget(Clear, area);
+    clear_popup_area(f, area);
     f.render_widget(
         Paragraph::new(lines).block(
             Block::default()
@@ -501,7 +501,7 @@ pub(super) fn render_history_popup(f: &mut Frame, app: &mut App) {
     }
     lines.push(popup_footer_line(HISTORY_POPUP_FOOTER, theme.ui.toc_bg));
 
-    f.render_widget(Clear, area);
+    clear_popup_area(f, area);
     f.render_widget(
         Paragraph::new(lines).block(
             Block::default()
@@ -549,7 +549,7 @@ pub(super) fn render_history_loading_popup(f: &mut Frame, app: &mut App) {
     lines.push(Line::from(""));
     lines.push(popup_footer_line(HISTORY_POPUP_FOOTER, theme.ui.toc_bg));
 
-    f.render_widget(Clear, area);
+    clear_popup_area(f, area);
     f.render_widget(
         Paragraph::new(lines).block(
             Block::default()
@@ -661,7 +661,7 @@ pub(super) fn render_editor_popup(f: &mut Frame, app: &App) {
     let height = (lines.len() as u16 + 2).min(18);
     let area = centered_rect(42, height, f.area());
 
-    f.render_widget(Clear, area);
+    clear_popup_area(f, area);
     f.render_widget(
         Paragraph::new(lines).block(
             Block::default()

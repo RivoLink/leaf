@@ -21,7 +21,9 @@ pub(crate) use diff::{
     mode_change_label, resolve_file_syntax, syntect_to_color, BuiltDiffLines, BuiltSplitLines,
 };
 use ratatui::{
+    buffer::CellWidth,
     layout::{Constraint, Direction, Layout, Rect},
+    widgets::Clear,
     Frame,
 };
 
@@ -105,6 +107,28 @@ pub(crate) fn ui(f: &mut Frame, app: &mut App) {
         popup_picker::render_editor_popup(f, app);
     } else if app.is_path_popup_open() {
         popup::render_path_popup(f, app);
+    }
+}
+
+const MAX_GRAPHEME_OVERLAP: u16 = 3;
+
+// A wide grapheme left of the popup overlaps its first column, and the buffer diff
+// never emits a cell covered by a wide grapheme, so the popup border would not reach
+// the terminal. Blank such graphemes so the border is drawn.
+pub(super) fn clear_popup_area(f: &mut Frame, area: Rect) {
+    f.render_widget(Clear, area);
+    let buf = f.buffer_mut();
+    for y in area.top()..area.bottom() {
+        for offset in 1..=MAX_GRAPHEME_OVERLAP {
+            let Some(x) = area.x.checked_sub(offset) else {
+                break;
+            };
+            if let Some(cell) = buf.cell_mut((x, y)) {
+                if cell.symbol().cell_width() > offset {
+                    cell.set_symbol(" ");
+                }
+            }
+        }
     }
 }
 

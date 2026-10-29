@@ -38,7 +38,6 @@ fn flatten_lines(lines: &[Line<'static>]) -> String {
 
 #[test]
 fn build_preview_pair_before_and_after_are_distinct_for_modified_file() {
-    let _guard = crate::tests::write_theme_test_state();
     let Some(repo) = ScratchRepo::new("leaf-preview-test") else {
         eprintln!("git/scratch unavailable; skipping");
         return;
@@ -59,7 +58,10 @@ fn build_preview_pair_before_and_after_are_distinct_for_modified_file() {
     let files = parse_unified_diff(&diff_src);
     assert_eq!(files.len(), 1, "one file diff expected");
     let (ss, theme) = syntect_defaults();
-    let spec = DiffSpec::default();
+    let spec = DiffSpec {
+        cwd: Some(repo.path().to_path_buf()),
+        ..Default::default()
+    };
 
     let pair = crate::app::build_preview_pair(&files[0], &spec, &ss, &theme);
     let before_str = flatten_lines(&pair.before_lines);
@@ -124,12 +126,11 @@ fn build_preview_pair_before_and_after_are_distinct_for_modified_file() {
 
 #[test]
 fn build_preview_pair_markdown_before_and_after_are_distinct() {
-    let _guard = crate::tests::write_theme_test_state();
     let Some(repo) = ScratchRepo::new("leaf-preview-md-test") else {
         eprintln!("git/scratch unavailable; skipping");
         return;
     };
-    std::fs::create_dir_all("docs").unwrap();
+    std::fs::create_dir_all(repo.path().join("docs")).unwrap();
     repo.write_file(
         "docs/notes.md",
         "# Notes\n\nOriginal version alpha.\n\n## Status\n\nInitial.\n",
@@ -152,7 +153,10 @@ fn build_preview_pair_markdown_before_and_after_are_distinct() {
     let files = parse_unified_diff(&diff_src);
     assert_eq!(files.len(), 1, "one file diff expected");
     let (ss, theme) = syntect_defaults();
-    let spec = DiffSpec::default();
+    let spec = DiffSpec {
+        cwd: Some(repo.path().to_path_buf()),
+        ..Default::default()
+    };
 
     let pair = crate::app::build_preview_pair(&files[0], &spec, &ss, &theme);
     let before_str = flatten_lines(&pair.before_lines);
@@ -227,7 +231,6 @@ fn build_preview_pair_markdown_before_and_after_are_distinct() {
 
 #[test]
 fn preview_panel_short_column_stays_pinned_on_deep_scroll() {
-    let _guard = crate::tests::write_theme_test_state();
     let Some(repo) = ScratchRepo::new("leaf-preview-scroll-test") else {
         eprintln!("git/scratch unavailable; skipping");
         return;
@@ -253,7 +256,10 @@ fn preview_panel_short_column_stays_pinned_on_deep_scroll() {
     let files = parse_unified_diff(&diff_src);
     assert_eq!(files.len(), 1);
     let (ss, theme) = syntect_defaults();
-    let spec = DiffSpec::default();
+    let spec = DiffSpec {
+        cwd: Some(repo.path().to_path_buf()),
+        ..Default::default()
+    };
 
     use ratatui::{backend::TestBackend, Terminal};
     let mut app = make_app();
@@ -295,19 +301,21 @@ fn preview_panel_short_column_stays_pinned_on_deep_scroll() {
 }
 
 #[test]
-fn fetch_before_prefers_index_blob_over_head() {
-    let _guard = crate::tests::write_theme_test_state();
+fn fetch_before_reads_the_old_blob_in_cwd() {
     let Some(repo) = ScratchRepo::new("leaf-fetch-before") else {
         eprintln!("git/scratch unavailable; skipping");
         return;
     };
 
-    repo.write_file("f.txt", "v1\n").unwrap();
+    // The hunk can't reach the first line, so only the blob can supply it.
+    let v1 = "v1\na\nb\nc\nd\ne\nf\ng\nh\n";
+    repo.write_file("f.txt", v1).unwrap();
     if repo.commit("f.txt", "v1").is_none() {
         eprintln!("git commit failed; skipping");
         return;
     }
-    repo.write_file("f.txt", "v2\n").unwrap();
+    repo.write_file("f.txt", &v1.replace("h\n", "v2\n"))
+        .unwrap();
     if repo.commit("f.txt", "v2").is_none() {
         eprintln!("git commit failed; skipping");
         return;
@@ -321,20 +329,28 @@ fn fetch_before_prefers_index_blob_over_head() {
     assert_eq!(files.len(), 1);
     assert!(files[0].old_blob_sha.is_some(), "index line parsed");
 
-    let before = crate::app::fetch_before(&files[0]);
+    let before = crate::app::fetch_before(
+        &files[0],
+        &DiffSpec {
+            cwd: Some(repo.path().to_path_buf()),
+            ..Default::default()
+        },
+    );
     assert_eq!(
-        before.trim_end(),
-        "v1",
-        "fetch_before must return the pre-image pinned by the blob SHA, got {before:?}"
+        before, v1,
+        "fetch_before must return the pre-image pinned by the blob SHA"
     );
 }
 
 #[test]
 fn git_diff_subprocess_ignores_color_and_prefix_config() {
-    let _guard = crate::tests::write_theme_test_state();
     let Some(repo) = ScratchRepo::new("leaf-git-diff-config") else {
         eprintln!("git/scratch unavailable; skipping");
         return;
+    };
+    let spec = DiffSpec {
+        cwd: Some(repo.path().to_path_buf()),
+        ..Default::default()
     };
     repo.write_file("notes.md", "one\n").unwrap();
     if repo.commit("notes.md", "init").is_none() {
@@ -353,7 +369,7 @@ fn git_diff_subprocess_ignores_color_and_prefix_config() {
         }
     }
 
-    let out = crate::run_git_diff_subprocess(&DiffSpec::default()).unwrap();
+    let out = crate::run_git_diff_subprocess(&spec).unwrap();
     assert!(!out.contains('\x1b'), "no ANSI escapes expected: {out:?}");
     let files = parse_unified_diff(&out);
     assert_eq!(files.len(), 1, "{out:?}");
@@ -362,10 +378,13 @@ fn git_diff_subprocess_ignores_color_and_prefix_config() {
 
 #[test]
 fn git_diff_subprocess_ignores_relative_config() {
-    let _guard = crate::tests::write_theme_test_state();
     let Some(repo) = ScratchRepo::new("leaf-git-diff-relative") else {
         eprintln!("git/scratch unavailable; skipping");
         return;
+    };
+    let spec = DiffSpec {
+        cwd: Some(repo.path().join("sub")),
+        ..Default::default()
     };
     std::fs::create_dir_all(repo.path().join("sub")).unwrap();
     repo.write_file("sub/f.txt", "one\n").unwrap();
@@ -378,9 +397,8 @@ fn git_diff_subprocess_ignores_relative_config() {
         eprintln!("git config failed; skipping");
         return;
     }
-    std::env::set_current_dir(repo.path().join("sub")).unwrap();
 
-    let out = crate::run_git_diff_subprocess(&DiffSpec::default()).unwrap();
+    let out = crate::run_git_diff_subprocess(&spec).unwrap();
     let files = parse_unified_diff(&out);
     assert_eq!(
         files[0].new_path, "sub/f.txt",
@@ -390,10 +408,13 @@ fn git_diff_subprocess_ignores_relative_config() {
 
 #[test]
 fn git_diff_subprocess_compares_two_revisions_with_paths() {
-    let _guard = crate::tests::write_theme_test_state();
     let Some(repo) = ScratchRepo::new("leaf-git-diff-revs") else {
         eprintln!("git/scratch unavailable; skipping");
         return;
+    };
+    let spec = DiffSpec {
+        cwd: Some(repo.path().to_path_buf()),
+        ..Default::default()
     };
     repo.write_file("a.md", "one\n").unwrap();
     repo.write_file("b.md", "one\n").unwrap();
@@ -408,12 +429,13 @@ fn git_diff_subprocess_compares_two_revisions_with_paths() {
         return;
     }
 
-    assert!(crate::is_git_revision("HEAD~1"));
-    assert!(!crate::is_git_revision("a.md"));
+    assert!(crate::is_git_revision(&spec, "HEAD~1"));
+    assert!(!crate::is_git_revision(&spec, "a.md"));
 
     let spec = DiffSpec {
         source: crate::app::DiffSource::Revs("HEAD~1".into(), "HEAD".into()),
         paths: vec!["a.md".into()],
+        ..spec
     };
     let out = crate::run_git_diff_subprocess(&spec).unwrap();
     let files = parse_unified_diff(&out);
@@ -423,20 +445,24 @@ fn git_diff_subprocess_compares_two_revisions_with_paths() {
 
 #[test]
 fn existing_path_wins_over_a_revision_of_the_same_name() {
-    let _guard = crate::tests::write_theme_test_state();
     let Some(repo) = ScratchRepo::new("leaf-rev-or-path") else {
         eprintln!("git/scratch unavailable; skipping");
         return;
+    };
+    let spec = DiffSpec {
+        cwd: Some(repo.path().to_path_buf()),
+        ..Default::default()
     };
     repo.write_file("d", "one\n").unwrap();
     if repo.commit("d", "init").is_none() || repo.run(&["branch", "d"]).is_none() {
         eprintln!("git setup failed; skipping");
         return;
     }
-    assert!(crate::is_git_revision("d"));
+    assert!(crate::is_git_revision(&spec, "d"));
 
     let mut spec = DiffSpec {
         source: crate::app::DiffSource::Ref("HEAD".into()),
+        cwd: Some(repo.path().to_path_buf()),
         ..DiffSpec::default()
     };
     crate::apply_diff_positional(&mut spec, true, "d".into());
@@ -446,6 +472,7 @@ fn existing_path_wins_over_a_revision_of_the_same_name() {
     std::fs::remove_file(repo.path().join("d")).unwrap();
     let mut spec = DiffSpec {
         source: crate::app::DiffSource::Ref("HEAD".into()),
+        cwd: Some(repo.path().to_path_buf()),
         ..DiffSpec::default()
     };
     crate::apply_diff_positional(&mut spec, true, "d".into());
@@ -453,4 +480,19 @@ fn existing_path_wins_over_a_revision_of_the_same_name() {
         spec.source,
         crate::app::DiffSource::Revs("HEAD".into(), "d".into())
     );
+}
+
+#[test]
+fn scratch_repo_leaves_process_cwd_unchanged() {
+    let cwd = std::env::current_dir().unwrap();
+    let Some(repo) = ScratchRepo::new("leaf-cwd-test") else {
+        eprintln!("git/scratch unavailable; skipping");
+        return;
+    };
+    repo.write_file("f.txt", "v1\n").unwrap();
+    if repo.commit("f.txt", "init").is_none() {
+        eprintln!("git commit failed; skipping");
+        return;
+    }
+    assert_eq!(std::env::current_dir().unwrap(), cwd);
 }

@@ -101,7 +101,7 @@ fn read_stdin_limited<R: Read>(reader: &mut R, max_bytes: usize) -> Result<Strin
 }
 
 fn run_git_diff_subprocess(spec: &app::DiffSpec) -> Result<String> {
-    let mut cmd = std::process::Command::new("git");
+    let mut cmd = spec.git_command();
     cmd.args(["-c", "core.quotePath=false", "diff"]).args([
         "--no-color",
         "--no-ext-diff",
@@ -142,9 +142,14 @@ fn run_git_diff_subprocess(spec: &app::DiffSpec) -> Result<String> {
 }
 
 fn apply_diff_positional(spec: &mut app::DiffSpec, spec_explicit: bool, arg: String) {
+    let path = spec
+        .cwd
+        .as_deref()
+        .unwrap_or(std::path::Path::new("."))
+        .join(&arg);
     match &spec.source {
         app::DiffSource::Ref(from)
-            if spec_explicit && !std::path::Path::new(&arg).exists() && is_git_revision(&arg) =>
+            if spec_explicit && !path.exists() && is_git_revision(spec, &arg) =>
         {
             spec.source = app::DiffSource::Revs(from.clone(), arg);
         }
@@ -152,11 +157,11 @@ fn apply_diff_positional(spec: &mut app::DiffSpec, spec_explicit: bool, arg: Str
     }
 }
 
-fn is_git_revision(arg: &str) -> bool {
+fn is_git_revision(spec: &app::DiffSpec, arg: &str) -> bool {
     if arg.starts_with('-') {
         return false;
     }
-    std::process::Command::new("git")
+    spec.git_command()
         .args(["rev-parse", "--verify", "--quiet"])
         .arg(format!("{arg}^{{commit}}"))
         .stdout(std::process::Stdio::null())

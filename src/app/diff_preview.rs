@@ -16,28 +16,29 @@ fn is_usable_blob_sha(sha: &str) -> bool {
     !sha.is_empty() && !sha.chars().all(|c| c == '0')
 }
 
-fn git_stdout(args: &[&str]) -> Option<String> {
-    let out = std::process::Command::new("git").args(args).output().ok()?;
+fn git_stdout(spec: &DiffSpec, args: &[&str]) -> Option<String> {
+    let out = spec.git_command().args(args).output().ok()?;
     out.status
         .success()
         .then(|| super::mode::decode_lossy(out.stdout))
 }
 
-fn git_show(object: &str) -> Option<String> {
-    git_stdout(&["show", "--no-color", object])
+fn git_show(spec: &DiffSpec, object: &str) -> Option<String> {
+    git_stdout(spec, &["show", "--no-color", object])
 }
 
-fn blob(sha: Option<&str>) -> Option<String> {
-    sha.filter(|sha| is_usable_blob_sha(sha)).and_then(git_show)
+fn blob(spec: &DiffSpec, sha: Option<&str>) -> Option<String> {
+    sha.filter(|sha| is_usable_blob_sha(sha))
+        .and_then(|sha| git_show(spec, sha))
 }
 
-fn fetch_before_blob(file: &DiffFile) -> Option<String> {
-    blob(file.old_blob_sha.as_deref())
+fn fetch_before_blob(file: &DiffFile, spec: &DiffSpec) -> Option<String> {
+    blob(spec, file.old_blob_sha.as_deref())
 }
 
 #[cfg(test)]
-pub(crate) fn fetch_before(file: &DiffFile) -> String {
-    fetch_before_blob(file).unwrap_or_else(|| fragment_sides(file).0)
+pub(crate) fn fetch_before(file: &DiffFile, spec: &DiffSpec) -> String {
+    fetch_before_blob(file, spec).unwrap_or_else(|| fragment_sides(file).0)
 }
 
 pub(super) fn current_path(file: &DiffFile) -> &str {
@@ -48,18 +49,18 @@ pub(super) fn current_path(file: &DiffFile) -> &str {
     }
 }
 
-fn read_worktree_file(path: &str) -> Option<String> {
-    let root = git_stdout(&["rev-parse", "--show-toplevel"])?;
+fn read_worktree_file(spec: &DiffSpec, path: &str) -> Option<String> {
+    let root = git_stdout(spec, &["rev-parse", "--show-toplevel"])?;
     let bytes = std::fs::read(std::path::Path::new(root.trim()).join(path)).ok()?;
     Some(super::mode::decode_lossy(bytes))
 }
 
 fn fetch_after_source(file: &DiffFile, spec: &DiffSpec) -> Option<String> {
-    let new_blob = || blob(file.new_blob_sha.as_deref());
+    let new_blob = || blob(spec, file.new_blob_sha.as_deref());
     match &spec.source {
         DiffSource::Ref(rev) if rev.contains("..") => new_blob(),
-        DiffSource::Working | DiffSource::Ref(_) => read_worktree_file(current_path(file)),
-        DiffSource::Cached => git_show(&format!(":{}", current_path(file))).or_else(new_blob),
+        DiffSource::Working | DiffSource::Ref(_) => read_worktree_file(spec, current_path(file)),
+        DiffSource::Cached => git_show(spec, &format!(":{}", current_path(file))).or_else(new_blob),
         DiffSource::Revs(_, _) => new_blob(),
         DiffSource::Patch(_) => None,
     }
@@ -74,16 +75,16 @@ fn full_sides(file: &DiffFile, spec: &DiffSpec) -> Option<(String, String)> {
                 .or_else(|| reconstruct_after_from_hunks("", file).ok())?;
             Some((String::new(), after))
         }
-        crate::diff::FileChange::Deleted => Some((fetch_before_blob(file)?, String::new())),
+        crate::diff::FileChange::Deleted => Some((fetch_before_blob(file, spec)?, String::new())),
         _ if file.hunks.is_empty() => {
             let content = fetch_after_source(file, spec)
-                .or_else(|| blob(file.new_blob_sha.as_deref()))
-                .or_else(|| fetch_before_blob(file))
+                .or_else(|| blob(spec, file.new_blob_sha.as_deref()))
+                .or_else(|| fetch_before_blob(file, spec))
                 .unwrap_or_default();
             Some((content.clone(), content))
         }
         _ => {
-            let before = fetch_before_blob(file)?;
+            let before = fetch_before_blob(file, spec)?;
             let after = match fetch_after_source(file, spec) {
                 Some(after) => after,
                 None => reconstruct_after_from_hunks(&before, file).ok()?,

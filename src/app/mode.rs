@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use ratatui::text::{Line, Span};
@@ -325,9 +325,19 @@ pub(crate) enum DiffSource {
 pub(crate) struct DiffSpec {
     pub(crate) source: DiffSource,
     pub(crate) paths: Vec<String>,
+    // Where Git runs; `None` inherits the process working directory.
+    pub(crate) cwd: Option<PathBuf>,
 }
 
 impl DiffSpec {
+    pub(crate) fn git_command(&self) -> std::process::Command {
+        let mut cmd = std::process::Command::new("git");
+        if let Some(cwd) = &self.cwd {
+            cmd.current_dir(cwd);
+        }
+        cmd
+    }
+
     pub(crate) fn patch(label: String) -> Self {
         Self {
             source: DiffSource::Patch(label),

@@ -116,26 +116,34 @@ fn search_is_disabled_in_preview() {
 
 #[test]
 fn patch_preview_never_reads_local_files() {
-    let _guard = crate::tests::write_theme_test_state();
     let Some(repo) = ScratchRepo::new("leaf-patch-preview") else {
         eprintln!("git/scratch unavailable; skipping");
         return;
     };
+    let spec = DiffSpec {
+        cwd: Some(repo.path().to_path_buf()),
+        ..patch_spec()
+    };
+    repo.write_file("x.md", "keep\nold\n").unwrap();
+    let Some(out) = repo.run(&["hash-object", "-w", "x.md"]) else {
+        eprintln!("git hash-object failed; skipping");
+        return;
+    };
+    let old_blob = String::from_utf8(out.stdout).unwrap();
     repo.write_file("x.md", "LOCAL CONTENT\n").unwrap();
-    let src = "diff --git a/x.md b/x.md\nindex 1234567..89abcde 100644\n--- a/x.md\n+++ b/x.md\n\
-               @@ -1,2 +1,2 @@\n keep\n-old\n+new\n";
-    let files = parse_unified_diff(src);
+    let src = format!(
+        "diff --git a/x.md b/x.md\nindex {}..89abcde 100644\n--- a/x.md\n+++ b/x.md\n\
+         @@ -1,2 +1,2 @@\n keep\n-old\n+new\n",
+        old_blob.trim()
+    );
+    let files = parse_unified_diff(&src);
     let (ss, theme) = test_assets();
 
-    let pair = crate::app::build_preview_pair(&files[0], &patch_spec(), &ss, &theme);
+    let pair = crate::app::build_preview_pair(&files[0], &spec, &ss, &theme);
 
     let after: String = pair.after_lines.iter().map(plain).collect();
     assert!(!after.contains("LOCAL"), "{after:?}");
     assert!(after.contains("new"), "{after:?}");
-    assert!(
-        pair.after_error.is_some(),
-        "a hunks-only preview is flagged"
-    );
 }
 
 #[test]
@@ -147,11 +155,14 @@ fn reconstruction_rejects_a_mismatching_source() {
 }
 
 #[test]
-fn working_preview_reads_files_from_the_repo_root() {
-    let _guard = crate::tests::write_theme_test_state();
+fn working_preview_from_a_subdirectory_reads_the_current_worktree_file() {
     let Some(repo) = ScratchRepo::new("leaf-preview-subdir") else {
         eprintln!("git/scratch unavailable; skipping");
         return;
+    };
+    let spec = DiffSpec {
+        cwd: Some(repo.path().join("sub")),
+        ..Default::default()
     };
     std::fs::create_dir_all(repo.path().join("sub")).unwrap();
     repo.write_file("sub/f.txt", "one\n").unwrap();
@@ -160,24 +171,28 @@ fn working_preview_reads_files_from_the_repo_root() {
         return;
     }
     repo.write_file("sub/f.txt", "two\nthree\n").unwrap();
-    let diff = crate::run_git_diff_subprocess(&DiffSpec::default()).unwrap();
-    std::env::set_current_dir(repo.path().join("sub")).unwrap();
+    let diff = crate::run_git_diff_subprocess(&spec).unwrap();
+    // Not derivable from the hunks.
+    repo.write_file("sub/f.txt", "two\nthree\nfour\n").unwrap();
     let files = parse_unified_diff(&diff);
     let (ss, theme) = test_assets();
 
-    let pair = crate::app::build_preview_pair(&files[0], &DiffSpec::default(), &ss, &theme);
+    let pair = crate::app::build_preview_pair(&files[0], &spec, &ss, &theme);
 
     let after: String = pair.after_lines.iter().map(plain).collect();
-    assert!(after.contains("three"), "{after:?}");
+    assert!(after.contains("four"), "{after:?}");
     assert!(pair.after_error.is_none());
 }
 
 #[test]
 fn preview_opens_near_the_first_change() {
-    let _guard = crate::tests::write_theme_test_state();
     let Some(repo) = ScratchRepo::new("leaf-preview-first-change") else {
         eprintln!("git/scratch unavailable; skipping");
         return;
+    };
+    let spec = DiffSpec {
+        cwd: Some(repo.path().to_path_buf()),
+        ..Default::default()
     };
     let original: String = (1..=40).map(|i| format!("line {i}\n")).collect();
     repo.write_file("long.txt", &original).unwrap();
@@ -187,8 +202,8 @@ fn preview_opens_near_the_first_change() {
     }
     repo.write_file("long.txt", &original.replace("line 20\n", "changed 20\n"))
         .unwrap();
-    let src = crate::run_git_diff_subprocess(&DiffSpec::default()).unwrap();
-    let mut app = diff_app(&src);
+    let src = crate::run_git_diff_subprocess(&spec).unwrap();
+    let mut app = diff_app_with_spec(&src, spec);
     let (ss, theme) = test_assets();
 
     assert!(app.diff_toggle_preview(&ss, &theme));
@@ -254,21 +269,28 @@ fn binary_preview_is_notes_only() {
 }
 
 #[test]
-fn refresh_reruns_git_diff() {
-    let _guard = crate::tests::write_theme_test_state();
+fn refresh_reruns_git_diff_in_cwd_with_paths() {
     let Some(repo) = ScratchRepo::new("leaf-diff-refresh") else {
         eprintln!("git/scratch unavailable; skipping");
         return;
     };
-    repo.write_file("a.md", "one\n").unwrap();
-    if repo.commit("a.md", "init").is_none() {
+    let spec = DiffSpec {
+        cwd: Some(repo.path().join("sub")),
+        paths: vec!["a.md".into()],
+        ..Default::default()
+    };
+    std::fs::create_dir_all(repo.path().join("sub")).unwrap();
+    repo.write_file("sub/a.md", "one\n").unwrap();
+    repo.write_file("sub/b.md", "one\n").unwrap();
+    if repo.commit("sub", "init").is_none() {
         eprintln!("git commit failed; skipping");
         return;
     }
-    repo.write_file("a.md", "two\n").unwrap();
-    let src = crate::run_git_diff_subprocess(&DiffSpec::default()).unwrap();
-    let mut app = diff_app(&src);
-    repo.write_file("a.md", "three\n").unwrap();
+    repo.write_file("sub/a.md", "two\n").unwrap();
+    repo.write_file("sub/b.md", "excluded\n").unwrap();
+    let src = crate::run_git_diff_subprocess(&spec).unwrap();
+    let mut app = diff_app_with_spec(&src, spec);
+    repo.write_file("sub/a.md", "three\n").unwrap();
     let (ss, _) = test_assets();
     let ts = ThemeSet::load_defaults();
 
@@ -280,6 +302,14 @@ fn refresh_reruns_git_diff() {
         .map(plain)
         .collect();
     assert!(text.contains("three"), "{text:?}");
+    assert!(!text.contains("excluded"), "{text:?}");
+
+    repo.write_file("sub/a.md", "four\n").unwrap();
+    let theme = &ts.themes["base16-ocean.dark"];
+    assert!(app.diff_toggle_preview(&ss, theme));
+    let pair = &app.diff().unwrap().preview_cache[&0];
+    let after: String = pair.after_lines.iter().map(plain).collect();
+    assert!(after.contains("four"), "{after:?}");
 }
 
 #[test]
@@ -337,10 +367,13 @@ fn zero_context_insertion_goes_after_its_line() {
 
 #[test]
 fn refresh_keeps_the_current_file_and_layout() {
-    let _guard = crate::tests::write_theme_test_state();
     let Some(repo) = ScratchRepo::new("leaf-refresh-position") else {
         eprintln!("git/scratch unavailable; skipping");
         return;
+    };
+    let spec = DiffSpec {
+        cwd: Some(repo.path().to_path_buf()),
+        ..Default::default()
     };
     for name in ["a.md", "b.md", "c.md"] {
         repo.write_file(name, "one\ntwo\n").unwrap();
@@ -352,8 +385,8 @@ fn refresh_keeps_the_current_file_and_layout() {
     for name in ["a.md", "b.md", "c.md"] {
         repo.write_file(name, "one\nTWO\n").unwrap();
     }
-    let src = crate::run_git_diff_subprocess(&DiffSpec::default()).unwrap();
-    let mut app = diff_app(&src);
+    let src = crate::run_git_diff_subprocess(&spec).unwrap();
+    let mut app = diff_app_with_spec(&src, spec);
     let (ss, theme) = test_assets();
     app.build_split_now(&ss, &theme);
     assert!(app.diff_toggle_layout(&ss, &theme));

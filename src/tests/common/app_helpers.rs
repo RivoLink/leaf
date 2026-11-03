@@ -1,4 +1,4 @@
-use super::super::{test_assets, test_md_theme};
+use super::super::{test_assets, test_md_theme, test_syntax_set, test_theme_set};
 use crate::app::{App, AppConfig};
 use crate::markdown::{parse_markdown_with_width, ParseResult};
 use ratatui::{backend::TestBackend, buffer::Buffer, Terminal};
@@ -48,9 +48,7 @@ pub(crate) fn draw_app(app: &mut App, width: u16, height: u16) -> Buffer {
 }
 
 pub(crate) fn sync_app_width(app: &mut App, width: u16) {
-    let (ss, _) = test_assets();
-    let themes = syntect::highlighting::ThemeSet::load_defaults();
-    crate::runtime::sync_render_width_for_app(width, app, &ss, &themes);
+    crate::runtime::sync_render_width_for_app(width, app, &test_syntax_set(), test_theme_set());
 }
 
 pub(crate) fn status_text(buffer: &Buffer) -> String {

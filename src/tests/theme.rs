@@ -8,7 +8,6 @@ use crate::theme::{
 use crate::*;
 use ratatui::style::Color;
 use std::collections::BTreeMap;
-use syntect::highlighting::ThemeSet;
 
 #[test]
 fn parse_theme_preset_supports_ocean_and_forest() {
@@ -83,9 +82,9 @@ fn validate_theme_syntax_warns_for_unknown_syntect_theme() {
     let mut themes = BTreeMap::new();
     themes.insert("custom".to_string(), custom);
     let selection = resolve_theme_selection("custom", &themes, None, None).unwrap();
-    let theme_set = ThemeSet::load_defaults();
+    let theme_set = super::test_theme_set();
 
-    let warning = validate_theme_syntax(&selection, &theme_set).unwrap();
+    let warning = validate_theme_syntax(&selection, theme_set).unwrap();
     assert!(warning.contains("missing-syntax-theme"));
 }
 
@@ -156,7 +155,7 @@ fn theme_presets_are_in_alphabetical_order() {
 fn theme_picker_restores_original_preset_on_escape() {
     let _guard = write_theme_test_state();
     let (ss, theme) = test_assets();
-    let ts = ThemeSet::load_defaults();
+    let ts = super::test_theme_set();
     let (lines, toc, _, _) =
         parse_markdown("# Demo\n", &ss, &theme, &test_md_theme(), false, true).into();
     let mut app = App::new_with_source(
@@ -176,11 +175,11 @@ fn theme_picker_restores_original_preset_on_escape() {
     set_theme_preset(ThemePreset::OceanDark);
     app.open_theme_picker();
     assert!(app.set_theme_picker_index(theme_preset_index(ThemePreset::Forest)));
-    app.preview_theme_preset(ThemePreset::Forest, &ss, &ts);
+    app.preview_theme_preset(ThemePreset::Forest, &ss, ts);
 
     assert_eq!(current_theme_preset(), ThemePreset::Forest);
 
-    app.restore_theme_picker_preview(&ss, &ts);
+    app.restore_theme_picker_preview(&ss, ts);
 
     assert_eq!(current_theme_preset(), ThemePreset::OceanDark);
     assert!(!app.is_theme_picker_open());
@@ -192,7 +191,7 @@ fn theme_picker_restores_original_preset_on_escape() {
 fn theme_picker_caches_previewed_themes_for_reuse() {
     let _guard = write_theme_test_state();
     let (ss, theme) = test_assets();
-    let ts = ThemeSet::load_defaults();
+    let ts = super::test_theme_set();
     let (lines, toc, _, _) = parse_markdown(
         "# Demo\n\n```rs\nfn main() {}\n```\n",
         &ss,
@@ -218,12 +217,12 @@ fn theme_picker_caches_previewed_themes_for_reuse() {
     let original = current_theme_selection();
     set_theme_preset(ThemePreset::OceanDark);
     app.open_theme_picker();
-    app.preview_theme_preset(ThemePreset::Forest, &ss, &ts);
+    app.preview_theme_preset(ThemePreset::Forest, &ss, ts);
 
     assert!(app.has_cached_theme_preview(ThemePreset::Forest));
     assert_eq!(current_theme_preset(), ThemePreset::Forest);
 
-    app.preview_theme_preset(ThemePreset::OceanDark, &ss, &ts);
+    app.preview_theme_preset(ThemePreset::OceanDark, &ss, ts);
     assert_eq!(current_theme_preset(), ThemePreset::OceanDark);
     assert!(app.has_cached_theme_preview(ThemePreset::OceanDark));
     set_theme_selection(original);
@@ -247,9 +246,9 @@ heading_1 = "#010203"
     let custom_selection = resolve_theme_selection("custom", &themes, None, None).unwrap();
     set_theme_selection(custom_selection.clone());
 
-    let ss = syntect::parsing::SyntaxSet::load_defaults_newlines();
-    let ts = ThemeSet::load_defaults();
-    let theme = current_syntect_theme(&ts).clone();
+    let ss = super::test_syntax_set();
+    let ts = super::test_theme_set();
+    let theme = current_syntect_theme(ts).clone();
     let (lines, toc, _, _) =
         parse_markdown("# Demo\n", &ss, &theme, &test_md_theme(), false, true).into();
     let mut app = App::new_with_source(
@@ -266,13 +265,13 @@ heading_1 = "#010203"
     );
 
     app.open_theme_picker();
-    app.preview_theme_preset(ThemePreset::Forest, &ss, &ts);
+    app.preview_theme_preset(ThemePreset::Forest, &ss, ts);
     assert_eq!(
         current_theme_selection().as_preset(),
         Some(ThemePreset::Forest)
     );
 
-    app.restore_theme_picker_preview(&ss, &ts);
+    app.restore_theme_picker_preview(&ss, ts);
 
     assert_eq!(current_theme_selection(), custom_selection);
     assert_eq!(app_theme().markdown.heading_1, Color::Rgb(1, 2, 3));
@@ -286,7 +285,7 @@ fn theme_picker_cached_previews_keep_full_parse_metadata() {
     set_theme_preset(ThemePreset::Forest);
     let source = "[A](https://a.test)\n\n```rust\nlet x = 1;\n```\n";
     let (ss, _) = test_assets();
-    let ts = ThemeSet::load_defaults();
+    let ts = super::test_theme_set();
     let mut app = App::new_with_source(
         Vec::new(),
         Vec::new(),
@@ -299,7 +298,7 @@ fn theme_picker_cached_previews_keep_full_parse_metadata() {
             last_file_state: None,
         },
     );
-    assert!(app.sync_render_width(60, &ss, &ts));
+    assert!(app.sync_render_width(60, &ss, ts));
     let metadata = |app: &App| {
         (
             app.code_blocks.len(),
@@ -321,17 +320,17 @@ fn theme_picker_cached_previews_keep_full_parse_metadata() {
     assert_eq!(link.as_deref(), Some("https://a.test"));
 
     app.open_theme_picker();
-    app.preview_theme_preset(ThemePreset::OceanDark, &ss, &ts);
+    app.preview_theme_preset(ThemePreset::OceanDark, &ss, ts);
     let ocean = state(&app);
     assert_ne!(ocean.0, before.0);
     assert_eq!(ocean.1, before.1);
 
-    app.preview_theme_preset(ThemePreset::Forest, &ss, &ts);
+    app.preview_theme_preset(ThemePreset::Forest, &ss, ts);
     assert_eq!(state(&app), before, "cached original preset");
-    app.preview_theme_preset(ThemePreset::OceanDark, &ss, &ts);
+    app.preview_theme_preset(ThemePreset::OceanDark, &ss, ts);
     assert_eq!(state(&app), ocean, "cached previewed preset");
 
-    app.restore_theme_picker_preview(&ss, &ts);
+    app.restore_theme_picker_preview(&ss, ts);
     assert_eq!(state(&app), before, "escape restore");
     app.content_area = ratatui::layout::Rect::new(0, 0, 60, 10);
     app.enter_code_select_mode();
@@ -346,7 +345,7 @@ fn resizing_during_theme_preview_reparses_original_theme_at_new_width() {
     set_theme_preset(ThemePreset::Forest);
     let source = "This paragraph is intentionally long so its rendered line count changes when the terminal is resized to a much narrower width.\n\n[A](https://a.test)\n\n```rust\nlet value = \"this code line also wraps when the available width is reduced\";\n```\n";
     let (ss, _) = test_assets();
-    let ts = ThemeSet::load_defaults();
+    let ts = super::test_theme_set();
     let mut app = App::new_with_source(
         Vec::new(),
         Vec::new(),
@@ -359,19 +358,19 @@ fn resizing_during_theme_preview_reparses_original_theme_at_new_width() {
             last_file_state: None,
         },
     );
-    assert!(app.sync_render_width(60, &ss, &ts));
+    assert!(app.sync_render_width(60, &ss, ts));
     let wide_total = app.total();
 
     app.open_theme_picker();
-    app.preview_theme_preset(ThemePreset::OceanDark, &ss, &ts);
-    assert!(app.sync_render_width(24, &ss, &ts));
+    app.preview_theme_preset(ThemePreset::OceanDark, &ss, ts);
+    assert!(app.sync_render_width(24, &ss, ts));
     let narrow_total = app.total();
     assert!(
         narrow_total > wide_total,
         "fixture must reflow at narrow width"
     );
 
-    app.restore_theme_picker_preview(&ss, &ts);
+    app.restore_theme_picker_preview(&ss, ts);
     assert_eq!(app.total(), narrow_total);
     assert_eq!(app.code_blocks.len(), 1);
     assert_eq!(

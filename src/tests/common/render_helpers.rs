@@ -170,7 +170,7 @@ diff --git a/x b/x
     app.install_diff(
         files,
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss.clone(),
         std::sync::Arc::new(theme.clone()),
     );
     app.build_split_now(&ss, &theme);
@@ -244,7 +244,7 @@ pub(crate) fn render_split_long_lines(width: u16) -> ratatui::buffer::Buffer {
     app.install_diff(
         files,
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss.clone(),
         std::sync::Arc::new(theme.clone()),
     );
     app.build_split_now(&ss, &theme);
@@ -320,7 +320,7 @@ diff --git a/x b/x
     app.install_diff(
         files,
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss.clone(),
         std::sync::Arc::new(theme.clone()),
     );
     app.build_split_now(&ss, &theme);

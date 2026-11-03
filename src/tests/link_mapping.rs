@@ -256,7 +256,7 @@ fn wrapped_link_continuations_are_clickable_and_hover_together() {
 fn code_block_rows_follow_actual_heading_reflow() {
     let _guard = lock_theme_test_state();
     let (ss, _) = test_assets();
-    let ts = syntect::highlighting::ThemeSet::load_defaults();
+    let ts = super::test_theme_set();
     for gutter in [false, true] {
         let mut app = app_for(
             "## Download https://github.com/RivoLink/leaf/releases/v1.29.0.tar.gz\n\n```\ncode\n```\n\nafter",
@@ -264,7 +264,7 @@ fn code_block_rows_follow_actual_heading_reflow() {
         );
         if gutter {
             app.toggle_line_numbers();
-            app.sync_render_width(47 - app.line_number_gutter_width(), &ss, &ts);
+            app.sync_render_width(47 - app.line_number_gutter_width(), &ss, ts);
         }
         let buffer = draw(&mut app, 50, 12);
         let inner_x = 1 + app.line_number_gutter_width() as u16;

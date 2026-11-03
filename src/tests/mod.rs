@@ -3,7 +3,7 @@ use ratatui::backend::TestBackend;
 use ratatui::{text::Line, widgets::Paragraph, Terminal};
 use std::{
     path::PathBuf,
-    sync::{RwLock, RwLockReadGuard, RwLockWriteGuard},
+    sync::{Arc, LazyLock, RwLock, RwLockReadGuard, RwLockWriteGuard},
     time::{SystemTime, UNIX_EPOCH},
 };
 use syntect::{
@@ -61,11 +61,23 @@ mod wrapping;
 
 pub(super) static THEME_TEST_LOCK: RwLock<()> = RwLock::new(());
 
-pub(super) fn test_assets() -> (SyntaxSet, Theme) {
-    let ss = SyntaxSet::load_defaults_newlines();
-    let ts = ThemeSet::load_defaults();
-    let theme = ts.themes["base16-ocean.dark"].clone();
-    (ss, theme)
+static SYNTAX_SET: LazyLock<Arc<SyntaxSet>> =
+    LazyLock::new(|| Arc::new(SyntaxSet::load_defaults_newlines()));
+static THEME_SET: LazyLock<ThemeSet> = LazyLock::new(ThemeSet::load_defaults);
+
+pub(super) fn test_syntax_set() -> Arc<SyntaxSet> {
+    SYNTAX_SET.clone()
+}
+
+pub(super) fn test_assets() -> (Arc<SyntaxSet>, Theme) {
+    (
+        test_syntax_set(),
+        THEME_SET.themes["base16-ocean.dark"].clone(),
+    )
+}
+
+pub(super) fn test_theme_set() -> &'static ThemeSet {
+    &THEME_SET
 }
 
 pub(super) fn test_md_theme() -> crate::theme::MarkdownTheme {

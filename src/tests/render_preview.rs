@@ -22,7 +22,7 @@ fn diff_preview_panel_renders_two_columns_with_divider() {
     app.install_diff(
         files,
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss.clone(),
         std::sync::Arc::new(theme.clone()),
     );
 
@@ -94,7 +94,7 @@ fn render_preview_for_diff(src: &str) -> ratatui::buffer::Buffer {
     app.install_diff(
         files,
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss.clone(),
         std::sync::Arc::new(theme.clone()),
     );
     let flipped = app.diff_toggle_preview(&ss, &theme);

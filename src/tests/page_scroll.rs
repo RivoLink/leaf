@@ -4,7 +4,6 @@ use crate::{
     diff::parse_unified_diff,
 };
 use ratatui::{layout::Rect, text::Line};
-use syntect::{highlighting::ThemeSet, parsing::SyntaxSet};
 
 fn make_app(viewport_height: u16) -> App {
     let lines = (0..100)
@@ -74,13 +73,11 @@ fn page_scroll_percent_uses_diff_preview_body_capacity() {
     }
     let files = parse_unified_diff(&diff);
     let mut app = make_app(10);
-    let ss = SyntaxSet::load_defaults_newlines();
-    let themes = ThemeSet::load_defaults();
-    let theme = themes.themes["base16-ocean.dark"].clone();
+    let (ss, theme) = super::test_assets();
     app.install_diff(
         files,
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss.clone(),
         std::sync::Arc::new(theme.clone()),
     );
     assert!(app.diff_toggle_preview(&ss, &theme));

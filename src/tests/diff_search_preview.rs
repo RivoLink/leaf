@@ -3,7 +3,6 @@ use crate::app::{App, DiffFlash, DiffSource, DiffSpec};
 use crate::diff::{parse_unified_diff, DiffLayout};
 use crate::tests::common::git_scratch::ScratchRepo;
 use ratatui::text::Line;
-use syntect::highlighting::ThemeSet;
 
 fn diff_app_with_spec(src: &str, spec: DiffSpec) -> App {
     let (ss, theme) = test_assets();
@@ -20,7 +19,7 @@ fn diff_app_with_spec(src: &str, spec: DiffSpec) -> App {
     app.install_diff(
         parse_unified_diff(src),
         spec,
-        std::sync::Arc::new(ss),
+        ss,
         std::sync::Arc::new(theme),
     );
     app
@@ -270,9 +269,9 @@ fn refresh_reruns_git_diff() {
     let mut app = diff_app(&src);
     repo.write_file("a.md", "three\n").unwrap();
     let (ss, _) = test_assets();
-    let ts = ThemeSet::load_defaults();
+    let ts = super::test_theme_set();
 
-    assert!(app.refresh_diff(&ss, &ts));
+    assert!(app.refresh_diff(&ss, ts));
 
     let text: String = app
         .visible_lines(0, app.total())
@@ -360,9 +359,9 @@ fn refresh_keeps_the_current_file_and_layout() {
     assert!(app.diff_nav_to_file(2));
     let scroll_before = app.scroll();
     repo.write_file("a.md", "one\nTHREE\n").unwrap();
-    let ts = ThemeSet::load_defaults();
+    let ts = super::test_theme_set();
 
-    assert!(app.refresh_diff(&ss, &ts));
+    assert!(app.refresh_diff(&ss, ts));
 
     let state = app.diff().unwrap();
     assert_eq!(state.layout, DiffLayout::Split);
@@ -389,7 +388,7 @@ fn patch_app(path: &std::path::Path, src: &str) -> App {
     app.install_diff(
         parse_unified_diff(src),
         patch_spec(),
-        std::sync::Arc::new(ss),
+        ss,
         std::sync::Arc::new(theme),
     );
     app
@@ -429,7 +428,7 @@ fn layout_switch_keeps_the_active_match() {
 #[test]
 fn reload_stays_on_a_deleted_file() {
     let (ss, _) = test_assets();
-    let ts = ThemeSet::load_defaults();
+    let ts = super::test_theme_set();
     let src: String = (1..=3)
         .map(|i| {
             format!(
@@ -445,7 +444,7 @@ fn reload_stays_on_a_deleted_file() {
     let mut app = patch_app(&path, &src);
     assert!(app.diff_nav_to_file(2));
 
-    assert!(app.reload(&ss, &ts));
+    assert!(app.reload(&ss, ts));
 
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(app.diff_current_file_from_scroll(), Some(2));
@@ -454,7 +453,7 @@ fn reload_stays_on_a_deleted_file() {
 #[test]
 fn reload_after_moving_in_the_preview_lands_on_that_file() {
     let (ss, theme) = test_assets();
-    let ts = ThemeSet::load_defaults();
+    let ts = super::test_theme_set();
     let src = numbered_files(8);
     let dir = super::unique_temp_dir("leaf-reload-preview");
     std::fs::create_dir_all(&dir).unwrap();
@@ -467,7 +466,7 @@ fn reload_after_moving_in_the_preview_lands_on_that_file() {
         assert!(app.diff_preview_step_file(-1, &ss, &theme));
     }
 
-    assert!(app.reload(&ss, &ts));
+    assert!(app.reload(&ss, ts));
     assert!(app.diff_toggle_preview(&ss, &theme));
 
     let _ = std::fs::remove_dir_all(&dir);
@@ -480,7 +479,7 @@ fn reload_after_moving_in_the_preview_lands_on_that_file() {
 #[test]
 fn reload_when_the_current_file_disappears_goes_to_its_neighbour() {
     let (ss, _) = test_assets();
-    let ts = ThemeSet::load_defaults();
+    let ts = super::test_theme_set();
     let dir = super::unique_temp_dir("leaf-reload-gone");
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("change.patch");
@@ -489,7 +488,7 @@ fn reload_when_the_current_file_disappears_goes_to_its_neighbour() {
     assert!(app.diff_nav_to_file(2));
     std::fs::write(&path, numbered_files(2)).unwrap();
 
-    assert!(app.reload(&ss, &ts));
+    assert!(app.reload(&ss, ts));
 
     let _ = std::fs::remove_dir_all(&dir);
     let state = app.diff().unwrap();
@@ -570,7 +569,7 @@ fn layout_switch_keeps_a_hunk_header_match() {
 #[test]
 fn reload_follows_a_modified_file_that_became_deleted() {
     let (ss, _) = test_assets();
-    let ts = ThemeSet::load_defaults();
+    let ts = super::test_theme_set();
     let modified = |name: &str| {
         format!("diff --git a/{name} b/{name}\n--- a/{name}\n+++ b/{name}\n@@ -1 +1 @@\n-o\n+n\n")
     };
@@ -589,7 +588,7 @@ fn reload_follows_a_modified_file_that_became_deleted() {
     assert!(app.diff_nav_to_file(1));
     std::fs::write(&path, &after).unwrap();
 
-    assert!(app.reload(&ss, &ts));
+    assert!(app.reload(&ss, ts));
 
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(app.diff_current_file_from_scroll(), Some(2));

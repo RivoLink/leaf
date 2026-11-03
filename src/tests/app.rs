@@ -8,7 +8,6 @@ use std::{
     fs,
     time::{SystemTime, UNIX_EPOCH},
 };
-use syntect::highlighting::ThemeSet;
 
 #[test]
 fn search_matches_across_span_boundaries() {
@@ -672,7 +671,7 @@ fn check_modified_detects_file_metadata_change() {
 #[test]
 fn reload_returns_false_when_file_cannot_be_read() {
     let (ss, _theme) = test_assets();
-    let ts = ThemeSet::load_defaults();
+    let ts = super::test_theme_set();
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
@@ -692,10 +691,10 @@ fn reload_returns_false_when_file_cannot_be_read() {
             last_file_state: None,
         },
     );
-    assert!(app.load_path(path.clone(), &ss, &ts));
+    assert!(app.load_path(path.clone(), &ss, ts));
 
     fs::remove_file(&path).unwrap();
-    assert!(!app.reload(&ss, &ts));
+    assert!(!app.reload(&ss, ts));
 }
 
 fn picker_app() -> App {
@@ -716,12 +715,12 @@ fn picker_app() -> App {
 #[test]
 fn load_path_diff_extension_switches_to_diff_mode() {
     let (ss, _theme) = test_assets();
-    let ts = ThemeSet::load_defaults();
+    let ts = super::test_theme_set();
     let fixture =
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/diff/basic.diff");
 
     let mut app = picker_app();
-    assert!(app.load_path(fixture, &ss, &ts));
+    assert!(app.load_path(fixture, &ss, ts));
     assert_eq!(app.mode(), crate::app::AppMode::Diff);
     assert!(app.diff().is_some());
 }
@@ -729,12 +728,12 @@ fn load_path_diff_extension_switches_to_diff_mode() {
 #[test]
 fn load_path_markdown_extension_keeps_document_mode() {
     let (ss, _theme) = test_assets();
-    let ts = ThemeSet::load_defaults();
+    let ts = super::test_theme_set();
     let path = super::unique_temp_dir("leaf-load-md").with_extension("md");
     fs::write(&path, "# Hello\n").unwrap();
 
     let mut app = picker_app();
-    assert!(app.load_path(path.clone(), &ss, &ts));
+    assert!(app.load_path(path.clone(), &ss, ts));
     assert_eq!(app.mode(), crate::app::AppMode::Document);
     assert!(app.diff().is_none());
 
@@ -744,7 +743,7 @@ fn load_path_markdown_extension_keeps_document_mode() {
 #[test]
 fn load_path_diff_content_sniff_without_extension() {
     let (ss, _theme) = test_assets();
-    let ts = ThemeSet::load_defaults();
+    let ts = super::test_theme_set();
     let path = super::unique_temp_dir("leaf-load-sniff");
     fs::write(
         &path,
@@ -753,7 +752,7 @@ fn load_path_diff_content_sniff_without_extension() {
     .unwrap();
 
     let mut app = picker_app();
-    assert!(app.load_path(path.clone(), &ss, &ts));
+    assert!(app.load_path(path.clone(), &ss, ts));
     assert_eq!(app.mode(), crate::app::AppMode::Diff);
 
     let _ = fs::remove_file(path);
@@ -762,7 +761,7 @@ fn load_path_diff_content_sniff_without_extension() {
 #[test]
 fn sync_render_width_preserves_scroll_proportion() {
     let (ss, theme) = test_assets();
-    let ts = ThemeSet::load_defaults();
+    let ts = super::test_theme_set();
     let source = (0..12)
         .map(|idx| {
             format!(
@@ -789,7 +788,7 @@ fn sync_render_width_preserves_scroll_proportion() {
     app.scroll_down(8);
     let old_scroll = app.scroll();
     let old_total = app.total();
-    assert!(app.sync_render_width(24, &ss, &ts));
+    assert!(app.sync_render_width(24, &ss, ts));
 
     let new_total = app.total();
     let expected = ((old_scroll as f64 / old_total as f64) * new_total as f64) as usize;
@@ -834,7 +833,7 @@ fn check_modified_reports_metadata_when_no_previous_file_state() {
 #[test]
 fn sync_render_width_returns_false_when_clamped_width_is_unchanged() {
     let (ss, theme) = test_assets();
-    let ts = ThemeSet::load_defaults();
+    let ts = super::test_theme_set();
     let source = "One paragraph that does not matter much for this width clamp test.";
     let (lines, toc, _, _) =
         parse_markdown_with_width(source, &ss, &theme, 20, &test_md_theme(), false, true).into();
@@ -851,8 +850,8 @@ fn sync_render_width_returns_false_when_clamped_width_is_unchanged() {
         },
     );
 
-    assert!(app.sync_render_width(10, &ss, &ts));
-    assert!(!app.sync_render_width(10, &ss, &ts));
+    assert!(app.sync_render_width(10, &ss, ts));
+    assert!(!app.sync_render_width(10, &ss, ts));
     assert_eq!(
         app.total(),
         parse_markdown_with_width(source, &ss, &theme, 20, &test_md_theme(), false, true)
@@ -906,7 +905,7 @@ fn preview_mode_has_content() {
 #[test]
 fn load_path_activates_watch_from_config() {
     let (ss, _theme) = test_assets();
-    let ts = ThemeSet::load_defaults();
+    let ts = super::test_theme_set();
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
@@ -929,7 +928,7 @@ fn load_path_activates_watch_from_config() {
     app.set_watch_from_config(true);
 
     assert!(!app.is_watch_enabled());
-    assert!(app.load_path(path.clone(), &ss, &ts));
+    assert!(app.load_path(path.clone(), &ss, ts));
     assert!(app.is_watch_enabled());
 
     // Toggle watch off, then load another file — watch stays off
@@ -938,7 +937,7 @@ fn load_path_activates_watch_from_config() {
 
     let path2 = std::env::temp_dir().join(format!("leaf-watch-config2-{unique}.md"));
     fs::write(&path2, "# Second\n").unwrap();
-    assert!(app.load_path(path2.clone(), &ss, &ts));
+    assert!(app.load_path(path2.clone(), &ss, ts));
     assert!(!app.is_watch_enabled());
 
     let _ = fs::remove_file(path);
@@ -947,8 +946,8 @@ fn load_path_activates_watch_from_config() {
 
 #[test]
 fn main_line_numbers_config_initializes_and_preserves_across_load_path() {
-    let ss = SyntaxSet::load_defaults_newlines();
-    let ts = ThemeSet::load_defaults();
+    let ss = super::test_syntax_set();
+    let ts = super::test_theme_set();
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
@@ -976,13 +975,13 @@ fn main_line_numbers_config_initializes_and_preserves_across_load_path() {
     app.set_line_numbers_visible(true);
     assert!(app.is_line_number_visible());
 
-    assert!(app.load_path(path1.clone(), &ss, &ts));
+    assert!(app.load_path(path1.clone(), &ss, ts));
     assert!(app.is_line_number_visible());
 
     app.toggle_line_numbers();
     assert!(!app.is_line_number_visible());
 
-    assert!(app.load_path(path2.clone(), &ss, &ts));
+    assert!(app.load_path(path2.clone(), &ss, ts));
     assert!(!app.is_line_number_visible());
 
     app.toggle_line_numbers();

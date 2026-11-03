@@ -345,7 +345,7 @@ fn split_view_sticky_file_top_pins_when_scrolled() {
     app.install_diff(
         files,
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss.clone(),
         std::sync::Arc::new(theme.clone()),
     );
     app.build_split_now(&ss, &theme);

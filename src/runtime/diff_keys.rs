@@ -109,11 +109,13 @@ mod tests {
         )
     }
 
-    fn syntect_defaults() -> (SyntaxSet, syntect::highlighting::Theme, ThemeSet) {
-        let ss = SyntaxSet::load_defaults_newlines();
-        let ts = ThemeSet::load_defaults();
-        let theme = ts.themes["base16-ocean.dark"].clone();
-        (ss, theme, ts)
+    fn syntect_defaults() -> (
+        std::sync::Arc<SyntaxSet>,
+        syntect::highlighting::Theme,
+        &'static ThemeSet,
+    ) {
+        let (ss, theme) = crate::tests::test_assets();
+        (ss, theme, crate::tests::test_theme_set())
     }
 
     #[test]
@@ -133,7 +135,7 @@ mod tests {
         app.install_diff(
             files,
             DiffSpec::default(),
-            std::sync::Arc::new(ss.clone()),
+            ss.clone(),
             std::sync::Arc::new(theme.clone()),
         );
 
@@ -148,7 +150,7 @@ mod tests {
         assert_eq!(app.diff().unwrap().tree_active_idx, 0);
 
         let key = KeyEvent::new(KeyCode::Char('J'), KeyModifiers::NONE);
-        let handled = handle_diff_keys(&mut app, &key, &ss, &themes);
+        let handled = handle_diff_keys(&mut app, &key, &ss, themes);
         assert!(handled, "Shift+J must be handled when the tree is open");
         assert_eq!(app.diff().unwrap().tree_active_idx, 1);
         assert_eq!(app.diff().unwrap().current_file_idx, 1);
@@ -171,7 +173,7 @@ mod tests {
         app.install_diff(
             files,
             DiffSpec::default(),
-            std::sync::Arc::new(ss.clone()),
+            ss.clone(),
             std::sync::Arc::new(theme.clone()),
         );
         assert_eq!(app.mode(), AppMode::Diff);
@@ -179,7 +181,7 @@ mod tests {
         assert!(!app.diff().unwrap().preview_visible);
 
         let key = KeyEvent::new(KeyCode::Char('p'), KeyModifiers::NONE);
-        let handled = handle_diff_keys(&mut app, &key, &ss, &themes);
+        let handled = handle_diff_keys(&mut app, &key, &ss, themes);
         assert!(handled);
 
         assert!(app.diff().unwrap().preview_visible);
@@ -212,7 +214,7 @@ mod tests {
         app.install_diff(
             files,
             DiffSpec::default(),
-            std::sync::Arc::new(ss.clone()),
+            ss.clone(),
             std::sync::Arc::new(theme.clone()),
         );
         app.diff_next_file();
@@ -224,7 +226,7 @@ mod tests {
         assert_ne!(app.scroll(), expected);
 
         let key = KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE);
-        assert!(handle_diff_keys(&mut app, &key, &ss, &themes));
+        assert!(handle_diff_keys(&mut app, &key, &ss, themes));
         assert_eq!(app.scroll(), expected);
     }
 
@@ -241,7 +243,7 @@ mod tests {
         app.install_diff(
             files,
             DiffSpec::default(),
-            std::sync::Arc::new(ss.clone()),
+            ss.clone(),
             std::sync::Arc::new(theme.clone()),
         );
         app.diff_next_file();
@@ -251,7 +253,7 @@ mod tests {
             .expect("second file has a top-frame row");
         app.scroll_down(5);
         let key = KeyEvent::new(KeyCode::Char('r'), KeyModifiers::NONE);
-        assert!(handle_diff_keys(&mut app, &key, &ss, &themes));
+        assert!(handle_diff_keys(&mut app, &key, &ss, themes));
         assert_eq!(app.scroll(), expected);
     }
 
@@ -265,16 +267,16 @@ mod tests {
         app.install_diff(
             files,
             DiffSpec::default(),
-            std::sync::Arc::new(ss.clone()),
+            ss.clone(),
             std::sync::Arc::new(theme.clone()),
         );
         let open_preview = KeyEvent::new(KeyCode::Char('p'), KeyModifiers::NONE);
-        handle_diff_keys(&mut app, &open_preview, &ss, &themes);
+        handle_diff_keys(&mut app, &open_preview, &ss, themes);
         assert!(app.diff().unwrap().preview_visible);
         let before_scroll = app.scroll();
 
         let key = KeyEvent::new(KeyCode::Char(' '), KeyModifiers::NONE);
-        assert!(handle_diff_keys(&mut app, &key, &ss, &themes));
+        assert!(handle_diff_keys(&mut app, &key, &ss, themes));
         assert_eq!(app.scroll(), before_scroll);
         assert!(app.diff().unwrap().preview_visible);
     }
@@ -289,13 +291,13 @@ mod tests {
         app.install_diff(
             files,
             DiffSpec::default(),
-            std::sync::Arc::new(ss.clone()),
+            ss.clone(),
             std::sync::Arc::new(theme.clone()),
         );
         assert!(!app.diff().unwrap().preview_visible);
 
         let key = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
-        assert!(handle_diff_keys(&mut app, &key, &ss, &themes));
+        assert!(handle_diff_keys(&mut app, &key, &ss, themes));
         assert!(app.diff().unwrap().preview_visible);
     }
 
@@ -309,15 +311,15 @@ mod tests {
         app.install_diff(
             files,
             DiffSpec::default(),
-            std::sync::Arc::new(ss.clone()),
+            ss.clone(),
             std::sync::Arc::new(theme.clone()),
         );
         let open_preview = KeyEvent::new(KeyCode::Char('p'), KeyModifiers::NONE);
-        handle_diff_keys(&mut app, &open_preview, &ss, &themes);
+        handle_diff_keys(&mut app, &open_preview, &ss, themes);
         assert!(app.diff().unwrap().preview_visible);
 
         let key = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
-        assert!(handle_diff_keys(&mut app, &key, &ss, &themes));
+        assert!(handle_diff_keys(&mut app, &key, &ss, themes));
         assert!(
             app.diff().unwrap().preview_visible,
             "Enter in preview mode must NOT toggle the preview back off"
@@ -334,12 +336,12 @@ mod tests {
         app.install_diff(
             files,
             DiffSpec::default(),
-            std::sync::Arc::new(ss.clone()),
+            ss.clone(),
             std::sync::Arc::new(theme.clone()),
         );
 
         let key = KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE);
-        let handled = handle_diff_keys(&mut app, &key, &ss, &themes);
+        let handled = handle_diff_keys(&mut app, &key, &ss, themes);
         assert!(!handled, "Tab must no longer be bound in Diff mode");
     }
 
@@ -356,7 +358,7 @@ mod tests {
         app.install_diff(
             files,
             DiffSpec::default(),
-            std::sync::Arc::new(ss.clone()),
+            ss.clone(),
             std::sync::Arc::new(theme.clone()),
         );
         app.set_search_query("hello");
@@ -367,7 +369,7 @@ mod tests {
         assert_eq!(app.diff().unwrap().current_file_idx, 0);
 
         let key = KeyEvent::new(KeyCode::Char('n'), KeyModifiers::NONE);
-        assert!(handle_diff_keys(&mut app, &key, &ss, &themes));
+        assert!(handle_diff_keys(&mut app, &key, &ss, themes));
         assert_eq!(
             app.scroll(),
             matches[1] - 2,
@@ -393,13 +395,13 @@ mod tests {
         app.install_diff(
             files,
             DiffSpec::default(),
-            std::sync::Arc::new(ss.clone()),
+            ss.clone(),
             std::sync::Arc::new(theme.clone()),
         );
         assert!(!app.has_active_search());
 
         let key = KeyEvent::new(KeyCode::Char('n'), KeyModifiers::NONE);
-        assert!(handle_diff_keys(&mut app, &key, &ss, &themes));
+        assert!(handle_diff_keys(&mut app, &key, &ss, themes));
         assert_eq!(app.diff().unwrap().current_file_idx, 1);
     }
 
@@ -428,22 +430,22 @@ mod tests {
                 source: DiffSource::Patch("change.patch".into()),
                 ..DiffSpec::default()
             },
-            std::sync::Arc::new(ss.clone()),
+            ss.clone(),
             std::sync::Arc::new(theme),
         );
 
         let open_preview = KeyEvent::new(KeyCode::Char('p'), KeyModifiers::NONE);
-        assert!(handle_diff_keys(&mut app, &open_preview, &ss, &themes));
+        assert!(handle_diff_keys(&mut app, &open_preview, &ss, themes));
         assert!(app.scroll() > 0, "preview starts below the top of the file");
 
         let next = KeyEvent::new(KeyCode::Char('n'), KeyModifiers::NONE);
-        assert!(handle_diff_keys(&mut app, &next, &ss, &themes));
+        assert!(handle_diff_keys(&mut app, &next, &ss, themes));
         assert_eq!(app.diff().unwrap().current_file_idx, 1);
         assert_eq!(app.scroll(), 0);
 
         app.scroll_down(5);
         let previous = KeyEvent::new(KeyCode::Char('N'), KeyModifiers::SHIFT);
-        assert!(handle_diff_keys(&mut app, &previous, &ss, &themes));
+        assert!(handle_diff_keys(&mut app, &previous, &ss, themes));
         assert_eq!(app.diff().unwrap().current_file_idx, 0);
         assert_eq!(app.scroll(), 0);
     }
@@ -457,7 +459,7 @@ mod tests {
         app.install_diff(
             files,
             DiffSpec::default(),
-            std::sync::Arc::new(ss.clone()),
+            ss,
             std::sync::Arc::new(theme.clone()),
         );
         assert_eq!(app.mode(), AppMode::Diff);
@@ -476,13 +478,13 @@ mod tests {
         app.install_diff(
             parse_unified_diff(src),
             DiffSpec::default(),
-            std::sync::Arc::new(ss.clone()),
+            ss.clone(),
             std::sync::Arc::new(theme.clone()),
         );
         assert!(app.diff_toggle_preview(&ss, &theme));
 
         let key = KeyEvent::new(KeyCode::Char('v'), KeyModifiers::NONE);
-        assert!(handle_diff_keys(&mut app, &key, &ss, &themes));
+        assert!(handle_diff_keys(&mut app, &key, &ss, themes));
         assert_eq!(app.diff().unwrap().layout, crate::diff::DiffLayout::Unified);
     }
 }

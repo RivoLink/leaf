@@ -962,7 +962,7 @@ fn link_selection_is_document_only() {
             "diff --git a/a.md b/a.md\n--- a/a.md\n+++ b/a.md\n@@ -1 +1 @@\n-before\n+after\n",
         ),
         crate::app::DiffSpec::default(),
-        std::sync::Arc::new(ss),
+        ss,
         std::sync::Arc::new(theme),
     );
     let idle = draw(&mut app, 90, 14);

@@ -8,7 +8,6 @@ use ratatui::{
     style::Style,
     text::{Line, Span},
 };
-use syntect::parsing::SyntaxSet;
 
 fn adversarial_table_fixture() -> (Vec<Line<'static>>, Vec<LinkSpan>, Vec<String>) {
     let (ss, theme) = super::test_assets();
@@ -328,7 +327,7 @@ fn highlight_line_no_match_returns_clone() {
 
 #[test]
 fn resolve_syntax_supports_common_language_aliases() {
-    let ss = SyntaxSet::load_defaults_newlines();
+    let ss = super::test_syntax_set();
 
     assert_eq!(
         resolve_syntax("py", &ss).name,
@@ -368,7 +367,7 @@ fn resolve_syntax_supports_common_language_aliases() {
 
 #[test]
 fn resolve_syntax_php_uses_php_source() {
-    let ss = SyntaxSet::load_defaults_newlines();
+    let ss = super::test_syntax_set();
 
     for tag in &["php", "PHP", "php3", "php4", "php5", "php7", "phtml"] {
         assert_eq!(

@@ -17,7 +17,7 @@ fn diff_app(src: &str) -> App {
     app.install_diff(
         parse_unified_diff(src),
         DiffSpec::default(),
-        std::sync::Arc::new(ss),
+        ss,
         std::sync::Arc::new(theme),
     );
     app

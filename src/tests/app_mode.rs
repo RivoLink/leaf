@@ -1,7 +1,7 @@
 use crate::app::{App, AppConfig, AppMode, DiffSource, DiffSpec, PreviewPair};
 use crate::diff::{parse_unified_diff, DiffLayout};
 use ratatui::text::Line;
-use syntect::{highlighting::ThemeSet, parsing::SyntaxSet};
+use syntect::parsing::SyntaxSet;
 
 fn make_app() -> App {
     App::new(
@@ -15,23 +15,16 @@ fn make_app() -> App {
     )
 }
 
-fn syntect_defaults() -> (SyntaxSet, syntect::highlighting::Theme) {
-    let ss = SyntaxSet::load_defaults_newlines();
-    let ts = ThemeSet::load_defaults();
-    let theme = ts.themes["base16-ocean.dark"].clone();
-    (ss, theme)
-}
-
 #[test]
 fn install_diff_switches_mode_and_populates_state() {
     let src = "diff --git a/x b/x\n--- a/x\n+++ b/x\n@@ -1,1 +1,1 @@\n-old\n+new\n";
     let files = parse_unified_diff(src);
     let mut app = make_app();
-    let (ss, theme) = syntect_defaults();
+    let (ss, theme) = super::test_assets();
     app.install_diff(
         files,
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss,
         std::sync::Arc::new(theme.clone()),
     );
     assert_eq!(app.mode(), AppMode::Diff);
@@ -45,11 +38,11 @@ fn diff_next_file_moves_across_files() {
     let src = "diff --git a/a b/a\n--- a/a\n+++ b/a\n@@ -1 +1 @@\n-x\n+X\ndiff --git a/b b/b\n--- a/b\n+++ b/b\n@@ -1 +1 @@\n-y\n+Y\n";
     let files = parse_unified_diff(src);
     let mut app = make_app();
-    let (ss, theme) = syntect_defaults();
+    let (ss, theme) = super::test_assets();
     app.install_diff(
         files,
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss,
         std::sync::Arc::new(theme.clone()),
     );
     assert!(app.diff_next_file());
@@ -60,11 +53,11 @@ fn diff_next_file_moves_across_files() {
 #[test]
 fn diff_spec_source_defaults_to_working() {
     let mut app = make_app();
-    let (ss, theme) = syntect_defaults();
+    let (ss, theme) = super::test_assets();
     app.install_diff(
         Vec::new(),
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss,
         std::sync::Arc::new(theme.clone()),
     );
     assert_eq!(app.diff().unwrap().spec.source, DiffSource::Working);
@@ -73,11 +66,11 @@ fn diff_spec_source_defaults_to_working() {
 #[test]
 fn install_diff_creates_no_hunks_when_diff_is_empty() {
     let mut app = make_app();
-    let (ss, theme) = syntect_defaults();
+    let (ss, theme) = super::test_assets();
     app.install_diff(
         Vec::new(),
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss,
         std::sync::Arc::new(theme.clone()),
     );
     let state = app.diff().unwrap();
@@ -89,13 +82,13 @@ fn install_diff_creates_no_hunks_when_diff_is_empty() {
 fn install_diff_applies_the_configured_line_numbers() {
     let src = "diff --git a/x b/x\n--- a/x\n+++ b/x\n@@ -1 +1 @@\n-a\n+b\n";
     let mut app = make_app();
-    let (ss, theme) = syntect_defaults();
+    let (ss, theme) = super::test_assets();
     app.set_diff_line_numbers(false);
     app.set_line_numbers_visible(true);
     app.install_diff(
         parse_unified_diff(src),
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss,
         std::sync::Arc::new(theme.clone()),
     );
     assert!(
@@ -109,13 +102,13 @@ fn install_diff_enables_line_numbers_by_default() {
     let src = "diff --git a/x b/x\n--- a/x\n+++ b/x\n@@ -1 +1 @@\n-a\n+b\n";
     let files = parse_unified_diff(src);
     let mut app = make_app();
-    let (ss, theme) = syntect_defaults();
+    let (ss, theme) = super::test_assets();
 
     assert!(!app.is_line_number_visible());
     app.install_diff(
         files,
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss,
         std::sync::Arc::new(theme.clone()),
     );
     assert!(app.is_line_number_visible());
@@ -129,11 +122,11 @@ fn diff_toggle_tree_flips_visibility() {
     let src = "diff --git a/x b/x\n--- a/x\n+++ b/x\n@@ -1 +1 @@\n-a\n+b\n";
     let files = parse_unified_diff(src);
     let mut app = make_app();
-    let (ss, theme) = syntect_defaults();
+    let (ss, theme) = super::test_assets();
     app.install_diff(
         files,
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss,
         std::sync::Arc::new(theme.clone()),
     );
     assert!(!app.diff().unwrap().tree_visible);
@@ -146,11 +139,11 @@ fn diff_toggle_tree_flips_visibility() {
 #[test]
 fn diff_toggle_layout_flips_unified_split() {
     let mut app = make_app();
-    let (ss, theme) = syntect_defaults();
+    let (ss, theme) = super::test_assets();
     app.install_diff(
         Vec::new(),
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss.clone(),
         std::sync::Arc::new(theme.clone()),
     );
     assert_eq!(app.diff().unwrap().layout, DiffLayout::Unified);
@@ -166,11 +159,11 @@ fn install_diff_preserves_view_state_across_reinstall() {
     let src = "diff --git a/x b/x\n--- a/x\n+++ b/x\n@@ -1 +1 @@\n-a\n+b\n";
     let files = parse_unified_diff(src);
     let mut app = make_app();
-    let (ss, theme) = syntect_defaults();
+    let (ss, theme) = super::test_assets();
     app.install_diff(
         files.clone(),
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss.clone(),
         std::sync::Arc::new(theme.clone()),
     );
     app.diff_toggle_tree();
@@ -180,7 +173,7 @@ fn install_diff_preserves_view_state_across_reinstall() {
     app.install_diff(
         files,
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss,
         std::sync::Arc::new(theme.clone()),
     );
     assert!(app.diff().unwrap().tree_visible);
@@ -192,11 +185,11 @@ fn install_diff_builds_split_lines_alongside_unified() {
     let src = "diff --git a/x b/x\n--- a/x\n+++ b/x\n@@ -1,2 +1,2 @@\n-old1\n-old2\n+new1\n+new2\n";
     let files = parse_unified_diff(src);
     let mut app = make_app();
-    let (ss, theme) = syntect_defaults();
+    let (ss, theme) = super::test_assets();
     app.install_diff(
         files,
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss.clone(),
         std::sync::Arc::new(theme.clone()),
     );
     app.build_split_now(&ss, &theme);
@@ -226,11 +219,11 @@ fn sync_render_width_preserves_diff_lines() {
             last_file_state: None,
         },
     );
-    let (ss, theme) = syntect_defaults();
+    let (ss, theme) = super::test_assets();
     app.install_diff(
         files,
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss.clone(),
         std::sync::Arc::new(theme.clone()),
     );
 
@@ -244,8 +237,8 @@ fn sync_render_width_preserves_diff_lines() {
         "expected human-readable file top frame before sync, got {first_text:?}"
     );
 
-    let ts = ThemeSet::load_defaults();
-    let changed = app.sync_render_width(120, &ss, &ts);
+    let ts = super::test_theme_set();
+    let changed = app.sync_render_width(120, &ss, ts);
     assert!(changed, "render_width should have changed from default 80");
 
     assert_eq!(app.mode(), AppMode::Diff, "mode must remain Diff");
@@ -278,12 +271,12 @@ fn diff_toggle_preview_flips_flag_on_markdown_file() {
     let src = "diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-# Old\n+# New\n";
     let files = parse_unified_diff(src);
     let mut app = make_app();
-    let (ss, theme) = syntect_defaults();
+    let (ss, theme) = super::test_assets();
     app.set_source_for_test(src.to_string());
     app.install_diff(
         files,
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss.clone(),
         std::sync::Arc::new(theme.clone()),
     );
     assert!(!app.diff().unwrap().preview_visible);
@@ -303,12 +296,12 @@ fn diff_toggle_preview_works_on_non_markdown_file() {
         "diff --git a/main.rs b/main.rs\n--- a/main.rs\n+++ b/main.rs\n@@ -1 +1 @@\n-old\n+new\n";
     let files = parse_unified_diff(src);
     let mut app = make_app();
-    let (ss, theme) = syntect_defaults();
+    let (ss, theme) = super::test_assets();
     app.set_source_for_test(src.to_string());
     app.install_diff(
         files,
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss.clone(),
         std::sync::Arc::new(theme.clone()),
     );
     let flipped = app.diff_toggle_preview(&ss, &theme);
@@ -322,12 +315,12 @@ fn diff_toggle_preview_cache_hit_avoids_rebuild() {
     let src = "diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-# Old\n+# New\n";
     let files = parse_unified_diff(src);
     let mut app = make_app();
-    let (ss, theme) = syntect_defaults();
+    let (ss, theme) = super::test_assets();
     app.set_source_for_test(src.to_string());
     app.install_diff(
         files,
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss.clone(),
         std::sync::Arc::new(theme.clone()),
     );
     app.diff_toggle_preview(&ss, &theme);
@@ -358,12 +351,12 @@ fn install_diff_invalidates_preview_cache() {
     let src = "diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-# Old\n+# New\n";
     let files = parse_unified_diff(src);
     let mut app = make_app();
-    let (ss, theme) = syntect_defaults();
+    let (ss, theme) = super::test_assets();
     app.set_source_for_test(src.to_string());
     app.install_diff(
         files.clone(),
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss.clone(),
         std::sync::Arc::new(theme.clone()),
     );
     app.diff_toggle_preview(&ss, &theme);
@@ -373,7 +366,7 @@ fn install_diff_invalidates_preview_cache() {
     app.install_diff(
         files,
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss,
         std::sync::Arc::new(theme.clone()),
     );
     assert!(app.diff().unwrap().preview_cache.is_empty());
@@ -395,11 +388,11 @@ fn diff_current_file_from_scroll_follows_passive_scroll() {
     let src = multi_file_diff_src(12);
     let files = parse_unified_diff(&src);
     let mut app = make_app();
-    let (ss, theme) = syntect_defaults();
+    let (ss, theme) = super::test_assets();
     app.install_diff(
         files,
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss,
         std::sync::Arc::new(theme.clone()),
     );
     assert_eq!(app.diff().unwrap().current_file_idx, 0);
@@ -415,11 +408,11 @@ fn diff_current_file_from_scroll_updates_when_n_pressed() {
     let src = multi_file_diff_src(12);
     let files = parse_unified_diff(&src);
     let mut app = make_app();
-    let (ss, theme) = syntect_defaults();
+    let (ss, theme) = super::test_assets();
     app.install_diff(
         files,
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss,
         std::sync::Arc::new(theme.clone()),
     );
 
@@ -436,11 +429,11 @@ fn diff_current_file_from_scroll_falls_forward_between_files() {
     let src = multi_file_diff_src(4);
     let files = parse_unified_diff(&src);
     let mut app = make_app();
-    let (ss, theme) = syntect_defaults();
+    let (ss, theme) = super::test_assets();
     app.install_diff(
         files,
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss,
         std::sync::Arc::new(theme.clone()),
     );
     let bottom_of_file_1 = app.diff().unwrap().file_bottom_idx[1];
@@ -456,11 +449,11 @@ fn diff_current_file_from_scroll_at_start_returns_first_file() {
     let src = multi_file_diff_src(3);
     let files = parse_unified_diff(&src);
     let mut app = make_app();
-    let (ss, theme) = syntect_defaults();
+    let (ss, theme) = super::test_assets();
     app.install_diff(
         files,
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss,
         std::sync::Arc::new(theme.clone()),
     );
 
@@ -473,11 +466,11 @@ fn diff_current_file_from_scroll_middle_of_file_2_returns_1() {
     let src = multi_file_diff_src(4);
     let files = parse_unified_diff(&src);
     let mut app = make_app();
-    let (ss, theme) = syntect_defaults();
+    let (ss, theme) = super::test_assets();
     app.install_diff(
         files,
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss,
         std::sync::Arc::new(theme.clone()),
     );
     let top_f1 = app.diff().unwrap().file_top_idx[1];
@@ -492,11 +485,11 @@ fn diff_status_cache_refreshes_on_diff_scroll() {
     let src = multi_file_diff_src(6);
     let files = parse_unified_diff(&src);
     let mut app = make_app();
-    let (ss, theme) = syntect_defaults();
+    let (ss, theme) = super::test_assets();
     app.install_diff(
         files,
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss,
         std::sync::Arc::new(theme.clone()),
     );
 
@@ -542,16 +535,16 @@ fn reconstruct_after_from_hunks_applies_add_and_del() {
     assert!(after.contains("bottom"));
 }
 
-fn preview_error_app() -> (App, SyntaxSet, syntect::highlighting::Theme) {
+fn preview_error_app() -> (App, std::sync::Arc<SyntaxSet>, syntect::highlighting::Theme) {
     let src = "diff --git a/x b/x\n--- a/x\n+++ b/x\n@@ -1,1 +1,1 @@\n-old\n+new\n";
     let files = parse_unified_diff(src);
     let mut app = make_app();
-    let (ss, theme) = syntect_defaults();
+    let (ss, theme) = super::test_assets();
     app.set_source_for_test(src.to_string());
     app.install_diff(
         files,
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss.clone(),
         std::sync::Arc::new(theme.clone()),
     );
     (app, ss, theme)

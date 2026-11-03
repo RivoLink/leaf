@@ -826,7 +826,7 @@ diff --git a/x b/x
     app.install_diff(
         files,
         DiffSpec::default(),
-        std::sync::Arc::new(ss.clone()),
+        ss.clone(),
         std::sync::Arc::new(theme.clone()),
     );
     app.build_split_now(&ss, &theme);

@@ -3,7 +3,6 @@ use crate::app::{App, AppConfig, DiffSpec};
 use crate::diff::{parse_unified_diff, DiffLayout};
 use crate::theme::{current_theme_selection, set_theme_preset, set_theme_selection, ThemePreset};
 use ratatui::text::Line;
-use syntect::highlighting::ThemeSet;
 
 const SRC: &str = "\
 diff --git a/a.rs b/a.rs
@@ -45,7 +44,7 @@ fn diff_app(src: &str, filepath: Option<std::path::PathBuf>) -> App {
     app.install_diff(
         parse_unified_diff(src),
         DiffSpec::default(),
-        std::sync::Arc::new(ss),
+        ss,
         std::sync::Arc::new(theme),
     );
     app
@@ -57,19 +56,19 @@ fn theme_preview_in_diff_mode_keeps_diff_lines() {
     let original = current_theme_selection();
     set_theme_preset(ThemePreset::OceanDark);
     let (ss, _) = test_assets();
-    let ts = ThemeSet::load_defaults();
+    let ts = super::test_theme_set();
     let mut app = diff_app(SRC, None);
     let before = plain_lines(&app);
 
     app.open_theme_picker();
-    app.preview_theme_preset(ThemePreset::Forest, &ss, &ts);
+    app.preview_theme_preset(ThemePreset::Forest, &ss, ts);
     assert_eq!(
         plain_lines(&app),
         before,
         "preview must not re-render the diff"
     );
 
-    app.restore_theme_picker_preview(&ss, &ts);
+    app.restore_theme_picker_preview(&ss, ts);
     assert_eq!(
         plain_lines(&app),
         before,
@@ -86,12 +85,12 @@ fn theme_preview_and_confirm_in_diff_mode_rebuild_diff_view() {
     let original = current_theme_selection();
     set_theme_preset(ThemePreset::OceanDark);
     let (ss, _) = test_assets();
-    let ts = ThemeSet::load_defaults();
+    let ts = super::test_theme_set();
     let mut app = diff_app(SRC, None);
     let before = plain_lines(&app);
 
     app.open_theme_picker();
-    app.preview_theme_preset(ThemePreset::Forest, &ss, &ts);
+    app.preview_theme_preset(ThemePreset::Forest, &ss, ts);
     app.close_theme_picker();
 
     assert!(!app.is_theme_picker_open());
@@ -162,7 +161,7 @@ fn rebuild_diff_view_rebuilds_visible_preview() {
 #[test]
 fn reload_in_diff_mode_keeps_diff_view() {
     let (ss, _) = test_assets();
-    let ts = ThemeSet::load_defaults();
+    let ts = super::test_theme_set();
     let dir = unique_temp_dir("leaf-diff-reload");
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("change.patch");
@@ -171,7 +170,7 @@ fn reload_in_diff_mode_keeps_diff_view() {
 
     let updated = SRC.replace("+new", "+newer");
     std::fs::write(&path, &updated).unwrap();
-    assert!(app.reload(&ss, &ts));
+    assert!(app.reload(&ss, ts));
 
     let lines = plain_lines(&app);
     let _ = std::fs::remove_dir_all(&dir);
@@ -206,11 +205,11 @@ fn theme_preview_in_diff_mode_recolors_rows() {
     let original = current_theme_selection();
     set_theme_preset(ThemePreset::OceanDark);
     let (ss, _) = test_assets();
-    let ts = ThemeSet::load_defaults();
+    let ts = super::test_theme_set();
     let mut app = diff_app(SRC, None);
 
     app.open_theme_picker();
-    app.preview_theme_preset(ThemePreset::Forest, &ss, &ts);
+    app.preview_theme_preset(ThemePreset::Forest, &ss, ts);
 
     let del_bg = crate::theme::app_theme().diff.del_bg;
     let del_row = app
@@ -226,7 +225,7 @@ fn theme_preview_in_diff_mode_recolors_rows() {
         del_row.spans.iter().any(|s| s.style.bg == Some(del_bg)),
         "the deleted row uses the previewed theme"
     );
-    app.restore_theme_picker_preview(&ss, &ts);
+    app.restore_theme_picker_preview(&ss, ts);
     set_theme_selection(original);
 }
 
@@ -293,7 +292,7 @@ fn file_tree_renders_the_scrolled_window() {
 #[test]
 fn reload_in_split_layout_rebuilds_the_split_rows() {
     let (ss, theme) = test_assets();
-    let ts = ThemeSet::load_defaults();
+    let ts = super::test_theme_set();
     let dir = unique_temp_dir("leaf-diff-reload-split");
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("change.patch");
@@ -303,7 +302,7 @@ fn reload_in_split_layout_rebuilds_the_split_rows() {
     assert!(app.diff_toggle_layout(&ss, &theme));
 
     std::fs::write(&path, SRC.replace("+new", "+newer")).unwrap();
-    assert!(app.reload(&ss, &ts));
+    assert!(app.reload(&ss, ts));
 
     let _ = std::fs::remove_dir_all(&dir);
     let state = app.diff().unwrap();

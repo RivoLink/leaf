@@ -2,7 +2,6 @@ use crate::app::{App, DiffSpec};
 use crate::diff::parse_unified_diff;
 use crate::tests::common::git_scratch::ScratchRepo;
 use ratatui::text::Line;
-use syntect::{highlighting::ThemeSet, parsing::SyntaxSet};
 
 fn make_app() -> App {
     App::new(
@@ -14,13 +13,6 @@ fn make_app() -> App {
         None,
         None,
     )
-}
-
-fn syntect_defaults() -> (SyntaxSet, syntect::highlighting::Theme) {
-    let ss = SyntaxSet::load_defaults_newlines();
-    let ts = ThemeSet::load_defaults();
-    let theme = ts.themes["base16-ocean.dark"].clone();
-    (ss, theme)
 }
 
 fn flatten_lines(lines: &[Line<'static>]) -> String {
@@ -58,7 +50,7 @@ fn build_preview_pair_before_and_after_are_distinct_for_modified_file() {
     let diff_src = String::from_utf8(diff_out.stdout).unwrap();
     let files = parse_unified_diff(&diff_src);
     assert_eq!(files.len(), 1, "one file diff expected");
-    let (ss, theme) = syntect_defaults();
+    let (ss, theme) = super::test_assets();
     let spec = DiffSpec::default();
 
     let pair = crate::app::build_preview_pair(&files[0], &spec, &ss, &theme);
@@ -87,7 +79,7 @@ fn build_preview_pair_before_and_after_are_distinct_for_modified_file() {
     app.install_diff(
         files.clone(),
         spec.clone(),
-        std::sync::Arc::new(ss.clone()),
+        ss.clone(),
         std::sync::Arc::new(theme.clone()),
     );
     let flipped = app.diff_toggle_preview(&ss, &theme);
@@ -151,7 +143,7 @@ fn build_preview_pair_markdown_before_and_after_are_distinct() {
     let diff_src = String::from_utf8(diff_out.stdout).unwrap();
     let files = parse_unified_diff(&diff_src);
     assert_eq!(files.len(), 1, "one file diff expected");
-    let (ss, theme) = syntect_defaults();
+    let (ss, theme) = super::test_assets();
     let spec = DiffSpec::default();
 
     let pair = crate::app::build_preview_pair(&files[0], &spec, &ss, &theme);
@@ -176,7 +168,7 @@ fn build_preview_pair_markdown_before_and_after_are_distinct() {
     app.install_diff(
         files.clone(),
         spec.clone(),
-        std::sync::Arc::new(ss.clone()),
+        ss.clone(),
         std::sync::Arc::new(theme.clone()),
     );
 
@@ -252,7 +244,7 @@ fn preview_panel_short_column_stays_pinned_on_deep_scroll() {
     let diff_src = String::from_utf8(diff_out.stdout).unwrap();
     let files = parse_unified_diff(&diff_src);
     assert_eq!(files.len(), 1);
-    let (ss, theme) = syntect_defaults();
+    let (ss, theme) = super::test_assets();
     let spec = DiffSpec::default();
 
     use ratatui::{backend::TestBackend, Terminal};
@@ -261,7 +253,7 @@ fn preview_panel_short_column_stays_pinned_on_deep_scroll() {
     app.install_diff(
         files.clone(),
         spec.clone(),
-        std::sync::Arc::new(ss.clone()),
+        ss.clone(),
         std::sync::Arc::new(theme.clone()),
     );
     assert!(app.diff_toggle_preview(&ss, &theme));

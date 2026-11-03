@@ -7,12 +7,12 @@ use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, Padding, Paragraph},
+    widgets::{Block, Borders, Padding, Paragraph},
     Frame,
 };
 use std::time::Duration;
 
-use super::centered_rect;
+use super::{centered_rect, clear_popup_area, HELP_DOCUMENT_POPUP_SIZE, THEME_POPUP_SIZE};
 
 const FUZZY_PICKER_FOOTER_INIT: &[&str] = &[
     "↑/↓ move",
@@ -84,7 +84,11 @@ pub(super) fn render_help_popup(f: &mut Frame, app: &App) {
 
 fn render_help_document(f: &mut Frame, _app: &App) {
     let theme = app_theme();
-    let area = centered_rect(53, 27, f.area());
+    let area = centered_rect(
+        HELP_DOCUMENT_POPUP_SIZE.0,
+        HELP_DOCUMENT_POPUP_SIZE.1,
+        f.area(),
+    );
 
     let select_hint =
         crate::editor::selection_modifier_label(&crate::editor::detect_terminal_emulator());
@@ -226,7 +230,7 @@ fn render_help_document(f: &mut Frame, _app: &App) {
         popup_footer_line(&["esc close", "? close"], theme.ui.toc_bg),
     ];
 
-    f.render_widget(Clear, area);
+    clear_popup_area(f, area);
     f.render_widget(
         Paragraph::new(lines).block(
             Block::default()
@@ -291,7 +295,7 @@ fn render_help_diff(f: &mut Frame, _app: &App) {
         popup_footer_line(&["esc close", "? close"], theme.ui.toc_bg),
     ];
 
-    f.render_widget(Clear, area);
+    clear_popup_area(f, area);
     f.render_widget(
         Paragraph::new(lines).block(
             Block::default()
@@ -307,7 +311,7 @@ fn render_help_diff(f: &mut Frame, _app: &App) {
 
 pub(super) fn render_theme_popup(f: &mut Frame, app: &App) {
     let theme = app_theme();
-    let area = centered_rect(43, 10, f.area());
+    let area = centered_rect(THEME_POPUP_SIZE.0, THEME_POPUP_SIZE.1, f.area());
     let active = app.theme_picker_reference_preset();
 
     let mut lines = vec![
@@ -370,7 +374,7 @@ pub(super) fn render_theme_popup(f: &mut Frame, app: &App) {
         theme.ui.toc_bg,
     ));
 
-    f.render_widget(Clear, area);
+    clear_popup_area(f, area);
     f.render_widget(
         Paragraph::new(lines).block(
             Block::default()
@@ -599,7 +603,7 @@ pub(super) fn render_path_popup(f: &mut Frame, app: &mut App) {
         theme.ui.toc_bg,
     ));
 
-    f.render_widget(Clear, area);
+    clear_popup_area(f, area);
     f.render_widget(
         Paragraph::new(lines).block(
             Block::default()

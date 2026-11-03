@@ -1,9 +1,31 @@
+use std::{cell::Cell, panic, sync::Once};
 use unicode_width::UnicodeWidthStr;
 
 pub(crate) fn to_unicode(text: &str) -> String {
     let preprocessed = strip_command_spaces(text);
-    let converted = unicodeit::replace(&preprocessed);
+    let converted = replace_or_keep(&preprocessed);
     postprocess(&converted)
+}
+
+// unicodeit 0.2 panics on certain inputs (e.g. \not\\h)
+fn replace_or_keep(text: &str) -> String {
+    thread_local! {
+        static SILENCE_PANIC: Cell<bool> = const { Cell::new(false) };
+    }
+    static HOOK: Once = Once::new();
+    HOOK.call_once(|| {
+        let previous = panic::take_hook();
+        panic::set_hook(Box::new(move |info| {
+            if !SILENCE_PANIC.get() {
+                previous(info);
+            }
+        }));
+    });
+
+    SILENCE_PANIC.set(true);
+    let result = panic::catch_unwind(|| unicodeit::replace(text));
+    SILENCE_PANIC.set(false);
+    result.unwrap_or_else(|_| text.to_string())
 }
 
 fn strip_command_spaces(input: &str) -> String {

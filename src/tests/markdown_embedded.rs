@@ -75,6 +75,28 @@ fn inline_latex_is_searchable() {
 }
 
 #[test]
+fn latex_that_breaks_unicodeit_keeps_raw_text() {
+    let (ss, theme) = test_assets();
+    let (lines, _, _, _) = parse_markdown(
+        "inline $\\not\\\\h$ math\n\n$$\n\\hat{\\alpha\\beta}\n$$\n",
+        &ss,
+        &theme,
+        &test_md_theme(),
+        false,
+        true,
+    )
+    .into();
+    let rendered = rendered_non_empty_lines(&lines);
+
+    for raw in ["\\not\\\\h", "\\hat{\\alpha\\beta}"] {
+        assert!(
+            rendered.iter().any(|line| line.contains(raw)),
+            "{raw} should fall back to raw text, got {rendered:?}"
+        );
+    }
+}
+
+#[test]
 fn superscript_fallback_keeps_caret() {
     let (ss, theme) = test_assets();
     let (lines, _, _, _) = parse_markdown(

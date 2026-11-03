@@ -41,6 +41,10 @@ pub(crate) fn markdown_app(
 
 pub(crate) fn draw_app(app: &mut App, width: u16, height: u16) -> Buffer {
     let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
+    draw_on(&mut terminal, app)
+}
+
+pub(crate) fn draw_on(terminal: &mut Terminal<TestBackend>, app: &mut App) -> Buffer {
     terminal
         .draw(|frame| crate::render::ui(frame, app))
         .unwrap();

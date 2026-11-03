@@ -21,7 +21,9 @@ pub(crate) use diff::{
     mode_change_label, resolve_file_syntax, syntect_to_color, BuiltDiffLines, BuiltSplitLines,
 };
 use ratatui::{
+    buffer::CellWidth,
     layout::{Constraint, Direction, Layout, Rect},
+    widgets::Clear,
     Frame,
 };
 
@@ -107,6 +109,28 @@ pub(crate) fn ui(f: &mut Frame, app: &mut App) {
         popup::render_path_popup(f, app);
     }
 }
+
+const MAX_GRAPHEME_OVERLAP: u16 = 3;
+
+pub(super) fn clear_popup_area(f: &mut Frame, area: Rect) {
+    f.render_widget(Clear, area);
+    let buf = f.buffer_mut();
+    for y in area.top()..area.bottom() {
+        for offset in 1..=MAX_GRAPHEME_OVERLAP {
+            let Some(x) = area.x.checked_sub(offset) else {
+                break;
+            };
+            if let Some(cell) = buf.cell_mut((x, y)) {
+                if cell.cell_width() > offset {
+                    cell.set_symbol(" ");
+                }
+            }
+        }
+    }
+}
+
+pub(super) const THEME_POPUP_SIZE: (u16, u16) = (43, 10);
+pub(super) const HELP_DOCUMENT_POPUP_SIZE: (u16, u16) = (53, 27);
 
 pub(super) fn centered_rect(width: u16, height: u16, area: Rect) -> Rect {
     let popup_width = width.min(area.width.saturating_sub(2)).max(1);

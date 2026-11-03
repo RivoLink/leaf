@@ -49,6 +49,7 @@ mod render_frame;
 mod render_gutter;
 mod render_hunk_header;
 mod render_intra_line;
+mod render_popup;
 mod render_preview;
 mod render_split_body;
 mod render_split_frame;

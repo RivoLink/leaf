@@ -31,6 +31,7 @@ enum Role {
     Marker,
     Footnote,
     Padding,
+    Border,
 }
 
 struct Cluster<'a> {
@@ -65,7 +66,7 @@ fn is_decoration(symbol: &str) -> bool {
 fn is_strippable(cluster: &Cluster<'_>) -> bool {
     match cluster.role {
         Role::Padding => false,
-        Role::Marker | Role::Footnote => true,
+        Role::Marker | Role::Footnote | Role::Border => true,
         Role::Text => cluster.symbol.trim().is_empty() || is_decoration(cluster.symbol),
     }
 }
@@ -93,6 +94,7 @@ fn line_clusters<'a>(line: &'a Line<'_>) -> Vec<Cluster<'a>> {
         let footnote = span.style.fg == Some(theme.footnote_ref)
             && is_footnote_number(span.content.trim_end());
         let markers = marker_len(&span.content);
+        let border = span.content == "│";
         let chip = span.style.bg.is_some_and(|bg| chip_bgs.contains(&bg));
         for (idx, symbol) in span.content.graphemes(true).enumerate() {
             let start_col = col;
@@ -101,7 +103,9 @@ fn line_clusters<'a>(line: &'a Line<'_>) -> Vec<Cluster<'a>> {
                 symbol,
                 start_col,
                 end_col: col,
-                role: if footnote {
+                role: if border {
+                    Role::Border
+                } else if footnote {
                     Role::Footnote
                 } else if idx < markers {
                     Role::Marker
@@ -127,7 +131,49 @@ fn line_clusters<'a>(line: &'a Line<'_>) -> Vec<Cluster<'a>> {
     clusters
 }
 
+fn border_positions(clusters: &[Cluster<'_>]) -> Vec<usize> {
+    clusters
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| c.role == Role::Border)
+        .map(|(idx, _)| idx)
+        .collect()
+}
+
+fn table_cell_clusters(clusters: Vec<Cluster<'_>>, cell: usize) -> Option<Vec<Cluster<'_>>> {
+    let borders = border_positions(&clusters);
+    let (&left, &right) = (borders.get(cell)?, borders.get(cell + 1)?);
+    Some(
+        clusters
+            .into_iter()
+            .skip(left + 1)
+            .take(right - left - 1)
+            .collect(),
+    )
+}
+
 impl App {
+    fn table_cell_at(&self, col: u16, row: u16, line_idx: usize) -> Option<Option<usize>> {
+        let clusters = line_clusters(&self.lines[line_idx]);
+        let borders = border_positions(&clusters);
+        if borders.is_empty() {
+            return Some(None);
+        }
+        let (column, row) = self.screen_cell(col, row)?;
+        let line_col = (*self.screen_geometry.rows.get(row)?.get(column)?)?;
+        let hit = clusters
+            .iter()
+            .find(|c| c.start_col <= line_col && line_col < c.end_col)?;
+        if hit.role == Role::Border {
+            return None;
+        }
+        let passed = borders
+            .iter()
+            .filter(|&&idx| clusters[idx].end_col <= line_col)
+            .count();
+        (passed > 0 && passed < borders.len()).then(|| Some(passed - 1))
+    }
+
     pub(crate) fn word_at(&self, col: u16, row: u16) -> Option<CopyTarget> {
         let (column, row) = self.screen_cell(col, row)?;
         let line_idx = *self.screen_geometry.row_lines.get(row)?;
@@ -180,6 +226,7 @@ impl App {
     pub(crate) fn logical_line_at(&self, col: u16, row: u16) -> Option<CopyTarget> {
         let line_idx = self.line_idx_at(col, row)?;
         let number = self.line_number_at(line_idx);
+        let cell = self.table_cell_at(col, row, line_idx)?;
         let mut start = line_idx;
         while start > 0 && self.line_number_at(start - 1) == number {
             start -= 1;
@@ -192,7 +239,13 @@ impl App {
         let mut parts = Vec::new();
         let mut ranges = Vec::new();
         for idx in start..=end {
-            let clusters = line_clusters(&self.lines[idx]);
+            let clusters = match cell {
+                Some(cell) => match table_cell_clusters(line_clusters(&self.lines[idx]), cell) {
+                    Some(clusters) => clusters,
+                    None => continue,
+                },
+                None => line_clusters(&self.lines[idx]),
+            };
             let Some(first) = clusters.iter().position(|c| !is_strippable(c)) else {
                 continue;
             };

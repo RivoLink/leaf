@@ -184,6 +184,34 @@ fn ctrl_double_click_stops_at_the_source_newline() {
 }
 
 #[test]
+fn ctrl_double_click_in_table_copies_only_the_clicked_cell() {
+    let _guard = lock_theme_test_state();
+    let source = "| Name | Notes | Code |\n|---|---|---|\n| alpha | one two | `a│b` |";
+    let ctrl = KeyModifiers::CONTROL;
+    assert_eq!(copy_at(source, "alpha", ctrl), ["alpha"]);
+    assert_eq!(copy_at(source, "two", ctrl), ["one two"]);
+    assert_eq!(copy_at(source, "Name", ctrl), ["Name"]);
+    assert_eq!(copy_at(source, "a│b", ctrl), ["a│b"]);
+
+    let mut app = app_for(source);
+    let buffer = draw(&mut app, WIDTH, HEIGHT);
+    let (_, row) = text_cell(&buffer, "alpha");
+    let (copied, _) = double_click(&mut app, (0, row), ctrl);
+    assert!(copied.is_empty());
+}
+
+#[test]
+fn ctrl_double_click_in_wrapped_table_cell_joins_its_lines() {
+    let _guard = lock_theme_test_state();
+    let source = "| A | B |\n|---|---|\n| x | alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi omicron pi rho sigma |";
+    assert_eq!(
+        copy_at(source, "alpha", KeyModifiers::CONTROL),
+        ["alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi omicron pi rho sigma"]
+    );
+    assert_eq!(copy_at(source, "x", KeyModifiers::CONTROL), ["x"]);
+}
+
+#[test]
 fn line_copy_strips_list_quote_and_task_decorations_only() {
     let _guard = lock_theme_test_state();
     for (source, text, expected) in [

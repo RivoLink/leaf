@@ -262,18 +262,9 @@ impl App {
                 self.mode = super::AppMode::Document;
                 let (wrapped, is_code_file) = Self::wrap_as_code_block(src, &ext, ss);
                 self.file_mode = is_code_file;
+                self.plain_text_file = Self::is_plain_text_extension(&ext);
                 self.source = wrapped;
-                let theme = current_syntect_theme(themes);
-                let at = app_theme();
-                let parsed = parse_markdown_with_width(
-                    &self.source,
-                    ss,
-                    theme,
-                    self.render_width,
-                    &at.markdown,
-                    self.file_mode,
-                    self.code_line_numbers,
-                );
+                let parsed = self.parse_current_source(ss, themes);
                 self.invalidate_theme_previews();
                 self.store_current_theme_preview_from(&parsed);
                 self.replace_content(parsed);
@@ -284,18 +275,8 @@ impl App {
     }
 
     pub(crate) fn reparse_source(&mut self, ss: &SyntaxSet, themes: &ThemeSet) {
-        let theme = current_syntect_theme(themes);
-        let at = app_theme();
         let old_total = self.total();
-        let parsed = parse_markdown_with_width(
-            &self.source,
-            ss,
-            theme,
-            self.render_width,
-            &at.markdown,
-            self.file_mode,
-            self.code_line_numbers,
-        );
+        let parsed = self.parse_current_source(ss, themes);
         let new_total = parsed.lines.len();
 
         if old_total > 0 {
@@ -304,6 +285,50 @@ impl App {
             self.scroll = self.scroll.min(new_total.saturating_sub(vh));
         }
 
+        self.apply_reparsed(parsed);
+    }
+
+    pub(crate) fn toggle_soft_breaks(&mut self, ss: &SyntaxSet, themes: &ThemeSet) {
+        let keep = !self.keep_soft_breaks();
+        self.soft_breaks_override = Some(keep);
+        let anchor = self.source_line_at(self.scroll);
+        let parsed = self.parse_current_source(ss, themes);
+        let new_total = parsed.lines.len();
+        let map = &parsed.source_line_map;
+        let target = map
+            .iter()
+            .copied()
+            .filter(|&line| line <= anchor)
+            .max()
+            .and_then(|best| map.iter().position(|&line| line == best))
+            .unwrap_or(0);
+        let vh = self.content_area.height as usize;
+        self.scroll = target.min(new_total.saturating_sub(vh));
+
+        self.apply_reparsed(parsed);
+        self.set_soft_break_flash(if keep {
+            super::SoftBreakFlash::Kept
+        } else {
+            super::SoftBreakFlash::Joined
+        });
+    }
+
+    pub(super) fn parse_current_source(&self, ss: &SyntaxSet, themes: &ThemeSet) -> ParseResult {
+        let theme = current_syntect_theme(themes);
+        let at = app_theme();
+        parse_markdown_with_width(
+            &self.source,
+            ss,
+            theme,
+            self.render_width,
+            &at.markdown,
+            self.file_mode,
+            self.code_line_numbers,
+            self.keep_soft_breaks(),
+        )
+    }
+
+    fn apply_reparsed(&mut self, parsed: ParseResult) {
         self.invalidate_theme_previews();
         self.store_current_theme_preview_from(&parsed);
         self.replace_content(parsed);

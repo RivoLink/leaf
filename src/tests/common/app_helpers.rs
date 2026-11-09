@@ -13,6 +13,7 @@ pub(crate) fn parse_markdown_for_test(source: &str, parse_width: usize) -> Parse
         &test_md_theme(),
         false,
         true,
+        true,
     )
 }
 

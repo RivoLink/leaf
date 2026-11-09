@@ -104,6 +104,14 @@ watch = false
 # Default: true
 # code-line-numbers = true
 
+# Keep soft line breaks inside paragraphs
+# Set to false to join paragraph lines and re-wrap them to the content width.
+# Can still be toggled interactively with 'Shift+B'.
+# Priority: LEAF_KEEP_SOFT_BREAKS > this setting > default (true)
+# Accepted env values: 1 = true, 0 = false (other values ignored)
+# Default: true
+# keep-soft-breaks = true
+
 # Maximum tab title length (in characters)
 # Controls the tab title of the terminal: "leaf: <filename>".
 # When the filename is long, it is truncated: "leaf: prefix...ext".

@@ -770,8 +770,17 @@ fn sync_render_width_preserves_scroll_proportion() {
         })
         .collect::<Vec<_>>()
         .join("\n\n");
-    let (lines, toc, _, _) =
-        parse_markdown_with_width(&source, &ss, &theme, 80, &test_md_theme(), false, true).into();
+    let (lines, toc, _, _) = parse_markdown_with_width(
+        &source,
+        &ss,
+        &theme,
+        80,
+        &test_md_theme(),
+        false,
+        true,
+        true,
+    )
+    .into();
     let mut app = App::new_with_source(
         lines,
         toc,
@@ -836,7 +845,8 @@ fn sync_render_width_returns_false_when_clamped_width_is_unchanged() {
     let ts = super::test_theme_set();
     let source = "One paragraph that does not matter much for this width clamp test.";
     let (lines, toc, _, _) =
-        parse_markdown_with_width(source, &ss, &theme, 20, &test_md_theme(), false, true).into();
+        parse_markdown_with_width(source, &ss, &theme, 20, &test_md_theme(), false, true, true)
+            .into();
     let mut app = App::new_with_source(
         lines,
         toc,
@@ -854,7 +864,7 @@ fn sync_render_width_returns_false_when_clamped_width_is_unchanged() {
     assert!(!app.sync_render_width(10, &ss, ts));
     assert_eq!(
         app.total(),
-        parse_markdown_with_width(source, &ss, &theme, 20, &test_md_theme(), false, true)
+        parse_markdown_with_width(source, &ss, &theme, 20, &test_md_theme(), false, true, true)
             .lines
             .len()
     );

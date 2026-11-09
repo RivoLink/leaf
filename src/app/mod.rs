@@ -63,8 +63,8 @@ pub(crate) use diff_preview::{fetch_before, reconstruct_after_from_hunks};
 
 mod flash;
 pub(crate) use flash::{
-    CodeBlockFlash, DiffFlash, EditorFlash, HistoryFlash, LinkFlash, PathFlash, WatchFlash,
-    COPY_HIGHLIGHT_DURATION_MS, FLASH_DURATION_MS,
+    CodeBlockFlash, DiffFlash, EditorFlash, HistoryFlash, LinkFlash, PathFlash, SoftBreakFlash,
+    WatchFlash, COPY_HIGHLIGHT_DURATION_MS, FLASH_DURATION_MS,
 };
 
 mod text_copy;
@@ -133,6 +133,7 @@ pub(crate) struct StatusCacheKey {
     code_block_flash_active: bool,
     history_flash_active: bool,
     diff_flash_active: bool,
+    soft_break_flash_active: bool,
     preview_reconstruct_error: bool,
     mouse_capture: bool,
     toc_scroll_hint_visible: bool,
@@ -196,6 +197,7 @@ pub(crate) struct App {
     pub(super) file_history_length: Option<i32>,
     pub(super) history_flash: Option<(HistoryFlash, std::time::Instant)>,
     pub(super) diff_flash: Option<(DiffFlash, std::time::Instant)>,
+    pub(super) soft_break_flash: Option<(SoftBreakFlash, std::time::Instant)>,
     pub(super) syntax_set: Option<std::sync::Arc<syntect::parsing::SyntaxSet>>,
     pub(super) diff_highlight: Option<(
         std::sync::Arc<syntect::parsing::SyntaxSet>,
@@ -238,6 +240,9 @@ pub(crate) struct App {
     reverse_mode: bool,
     pub(super) file_mode: bool,
     pub(super) code_line_numbers: bool,
+    keep_soft_breaks_pref: bool,
+    soft_breaks_override: Option<bool>,
+    pub(super) plain_text_file: bool,
     scroll_with_enter: bool,
     page_scroll_size: crate::config::PageScrollSize,
     max_width: Option<usize>,
@@ -381,6 +386,7 @@ impl App {
             file_history_length: None,
             history_flash: None,
             diff_flash: None,
+            soft_break_flash: None,
             syntax_set: None,
             diff_highlight: None,
             history_error_receiver: None,
@@ -429,6 +435,9 @@ impl App {
             reverse_mode: false,
             file_mode: false,
             code_line_numbers: true,
+            keep_soft_breaks_pref: true,
+            soft_breaks_override: None,
+            plain_text_file: false,
             scroll_with_enter: false,
             page_scroll_size: crate::config::PageScrollSize::default(),
             max_width: None,
@@ -469,6 +478,26 @@ impl App {
 
     pub(crate) fn set_code_line_numbers(&mut self, value: bool) {
         self.code_line_numbers = value;
+    }
+
+    pub(crate) fn set_keep_soft_breaks(&mut self, value: bool) {
+        self.keep_soft_breaks_pref = value;
+    }
+
+    pub(crate) fn set_plain_text_file(&mut self, value: bool) {
+        self.plain_text_file = value;
+    }
+
+    pub(crate) fn default_keep_soft_breaks(pref: bool, plain_text_file: bool) -> bool {
+        pref || plain_text_file
+    }
+
+    pub(crate) fn keep_soft_breaks(&self) -> bool {
+        self.soft_breaks_override
+            .unwrap_or(Self::default_keep_soft_breaks(
+                self.keep_soft_breaks_pref,
+                self.plain_text_file,
+            ))
     }
 
     pub(crate) fn set_scroll_with_enter(&mut self, value: bool) {
@@ -906,6 +935,11 @@ impl App {
                 .unwrap_or(false),
             diff_flash_active: self
                 .diff_flash
+                .as_ref()
+                .map(|(_, t)| t.elapsed() < Duration::from_millis(FLASH_DURATION_MS))
+                .unwrap_or(false),
+            soft_break_flash_active: self
+                .soft_break_flash
                 .as_ref()
                 .map(|(_, t)| t.elapsed() < Duration::from_millis(FLASH_DURATION_MS))
                 .unwrap_or(false),

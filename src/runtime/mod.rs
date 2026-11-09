@@ -180,6 +180,8 @@ pub(crate) fn run(
                 .and_then(|(_, started)| HISTORY_FLASH_DURATION.checked_sub(started.elapsed())),
             app.diff_flash()
                 .and_then(|(_, started)| FLASH_DURATION.checked_sub(started.elapsed())),
+            app.soft_break_flash()
+                .and_then(|(_, started)| FLASH_DURATION.checked_sub(started.elapsed())),
             app.copy_highlight()
                 .and_then(|(_, started)| COPY_HIGHLIGHT_DURATION.checked_sub(started.elapsed())),
             resize_timeout,
@@ -348,6 +350,13 @@ pub(crate) fn run(
         if let Some((_, started)) = app.diff_flash() {
             if started.elapsed() >= FLASH_DURATION {
                 app.clear_diff_flash();
+                needs_redraw = true;
+            }
+        }
+
+        if let Some((_, started)) = app.soft_break_flash() {
+            if started.elapsed() >= FLASH_DURATION {
+                app.clear_soft_break_flash();
                 needs_redraw = true;
             }
         }

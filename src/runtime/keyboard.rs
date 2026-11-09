@@ -639,6 +639,16 @@ fn handle_shared_keys(
             app.toggle_line_numbers();
             Ok(SharedOutcome::Handled)
         }
+        KeyCode::Char('B')
+            if !key.modifiers.contains(KeyModifiers::ALT)
+                && !key.modifiers.contains(KeyModifiers::CONTROL) =>
+        {
+            if app.is_diff_mode() {
+                return Ok(SharedOutcome::NotHandled);
+            }
+            app.toggle_soft_breaks(ss, themes);
+            Ok(SharedOutcome::Handled)
+        }
         KeyCode::Char('e') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             handle_open_in_editor(terminal, app, ss, themes)?;
             Ok(SharedOutcome::Handled)

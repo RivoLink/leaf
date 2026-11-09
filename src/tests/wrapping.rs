@@ -36,7 +36,8 @@ fn paragraph_with_vs16_emoji_fits_render_width() {
 ";
     let width = 40;
     let (lines, _, _, _) =
-        parse_markdown_with_width(md, &ss, &theme, width, &test_md_theme(), false, true).into();
+        parse_markdown_with_width(md, &ss, &theme, width, &test_md_theme(), false, true, true)
+            .into();
     let rendered = rendered_non_empty_lines(&lines);
     assert!(!rendered.is_empty());
     for line in &rendered {
@@ -55,7 +56,8 @@ fn code_block_with_vs16_emoji_wraps_within_width() {
     let md = "```\naaaaaaaa 🍀️ bbbbbbbb cccccccc dddddddd eeeeeeee ffffffff\n```\n";
     let width = 30;
     let (lines, _, _, _) =
-        parse_markdown_with_width(md, &ss, &theme, width, &test_md_theme(), false, true).into();
+        parse_markdown_with_width(md, &ss, &theme, width, &test_md_theme(), false, true, true)
+            .into();
     let rendered = rendered_non_empty_lines(&lines);
     assert!(!rendered.is_empty());
     for line in &rendered {

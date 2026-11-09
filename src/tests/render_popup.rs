@@ -81,3 +81,33 @@ fn help_popup_left_border_survives_wide_chars_underneath() {
     let popup = popup_area(HELP_DOCUMENT_POPUP_SIZE);
     assert_left_border_intact(&buffer, popup);
 }
+
+#[test]
+fn help_popup_lists_the_soft_breaks_toggle_above_the_footer() {
+    let _guard = lock_theme_test_state();
+    let mut app = markdown_app("alpha", WIDTH as usize, "doc.md", None);
+    app.open_help();
+
+    let buffer = draw_app(&mut app, WIDTH, 32);
+    let popup = centered_rect(
+        HELP_DOCUMENT_POPUP_SIZE.0,
+        HELP_DOCUMENT_POPUP_SIZE.1,
+        Rect::new(0, 0, WIDTH, 32),
+    );
+    let rows: Vec<String> = (popup.y..popup.bottom())
+        .map(|y| {
+            (popup.x..popup.right())
+                .map(|x| buffer[(x, y)].symbol())
+                .collect()
+        })
+        .collect();
+    let shift_b = rows
+        .iter()
+        .position(|row| row.contains("shift+b") && row.contains("soft breaks"))
+        .expect("missing shift+b row");
+    let footer = rows
+        .iter()
+        .position(|row| row.contains("esc close"))
+        .expect("footer must stay visible");
+    assert!(shift_b < footer);
+}

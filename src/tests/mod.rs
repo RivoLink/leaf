@@ -55,6 +55,7 @@ mod render_split_body;
 mod render_split_frame;
 mod render_sticky;
 mod render_unified_truncate;
+mod soft_breaks;
 mod theme;
 mod toc;
 mod update;

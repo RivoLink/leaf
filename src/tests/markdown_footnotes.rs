@@ -190,6 +190,7 @@ fn footnote_link_rewrap_keeps_zero_width_clusters_in_the_label() {
         &test_md_theme(),
         false,
         true,
+        true,
     );
     let rows: Vec<String> = parsed.lines[6..10].iter().map(line_plain_text).collect();
     assert_eq!(

@@ -130,7 +130,7 @@ pub(super) fn clear_popup_area(f: &mut Frame, area: Rect) {
 }
 
 pub(super) const THEME_POPUP_SIZE: (u16, u16) = (43, 10);
-pub(super) const HELP_DOCUMENT_POPUP_SIZE: (u16, u16) = (53, 27);
+pub(super) const HELP_DOCUMENT_POPUP_SIZE: (u16, u16) = (53, 28);
 
 pub(super) fn centered_rect(width: u16, height: u16, area: Rect) -> Rect {
     let popup_width = width.min(area.width.saturating_sub(2)).max(1);

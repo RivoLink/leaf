@@ -175,7 +175,7 @@ fn long_blockquotes_wrap_into_multiple_prefixed_lines() {
     let (ss, theme) = test_assets();
     let src = "> This is a long blockquote line that should wrap into multiple quoted lines at narrow widths.\n";
     let (lines, _, _, _) =
-        parse_markdown_with_width(src, &ss, &theme, 28, &test_md_theme(), false, true).into();
+        parse_markdown_with_width(src, &ss, &theme, 28, &test_md_theme(), false, true, true).into();
     let rendered = rendered_non_empty_lines(&lines);
     let quoted: Vec<_> = rendered
         .into_iter()
@@ -293,6 +293,7 @@ fn h2_headings_are_underlined_and_compact() {
         &test_md_theme(),
         false,
         true,
+        true,
     )
     .into();
     let rendered = rendered_non_empty_lines(&lines);
@@ -312,6 +313,7 @@ fn rules_use_render_width_without_extra_blank_after() {
         &test_md_theme(),
         false,
         true,
+        true,
     )
     .into();
     let rendered = rendered_non_empty_lines(&lines);
@@ -330,7 +332,7 @@ fn body_dashes_are_thematic_breaks_not_metadata_block() {
     let (ss, theme) = test_assets();
     let src = "# Title\n\n---\n### SSL\n\n- item 1\n- item 2\n\n---\n### TLS\nend\n";
     let (lines, _, _, _) =
-        parse_markdown_with_width(src, &ss, &theme, 40, &test_md_theme(), false, true).into();
+        parse_markdown_with_width(src, &ss, &theme, 40, &test_md_theme(), false, true, true).into();
     let rendered = rendered_non_empty_lines(&lines);
 
     let rule_count = rendered

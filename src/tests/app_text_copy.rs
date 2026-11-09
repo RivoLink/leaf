@@ -170,17 +170,71 @@ fn ctrl_or_alt_double_click_copies_the_whole_wrapped_line() {
 }
 
 #[test]
-fn ctrl_double_click_stops_at_the_source_newline() {
+fn ctrl_double_click_copies_the_whole_soft_broken_paragraph() {
     let _guard = lock_theme_test_state();
     let source = "first line here\nsecond line here";
-    assert_eq!(
-        copy_at(source, "first", KeyModifiers::CONTROL),
-        ["first line here"]
+    let mut app = app_for(source);
+    let buffer = draw(&mut app, WIDTH, HEIGHT);
+    let (first, second) = (text_cell(&buffer, "first"), text_cell(&buffer, "second"));
+    assert_ne!(
+        first.1, second.1,
+        "soft break must stay a visual line break"
     );
+    for cell in [first, second] {
+        let (copied, _) = double_click(&mut app, cell, KeyModifiers::CONTROL);
+        assert_eq!(copied, ["first line here second line here"], "{cell:?}");
+        assert_eq!(app.copy_highlight().unwrap().0.len(), 2);
+    }
+}
+
+#[test]
+fn ctrl_double_click_stops_at_hard_breaks_and_nested_blocks() {
+    let _guard = lock_theme_test_state();
+    for (source, text, expected) in [
+        ("alpha one  \nbeta two", "beta", "beta two"),
+        ("- parent one\n  parent two\n  - child", "child", "child"),
+        (
+            "- parent one\n  parent two\n  - child",
+            "two",
+            "parent one parent two",
+        ),
+    ] {
+        assert_eq!(
+            copy_at(source, text, KeyModifiers::CONTROL),
+            [expected],
+            "{source:?}"
+        );
+    }
+}
+
+#[test]
+fn ctrl_double_click_joins_soft_broken_cjk_lines_without_spaces() {
+    let _guard = lock_theme_test_state();
     assert_eq!(
-        copy_at(source, "second", KeyModifiers::CONTROL),
-        ["second line here"]
+        copy_at("abc中文\n中文", "abc", KeyModifiers::CONTROL),
+        ["abc中文中文"]
     );
+}
+
+#[test]
+fn ctrl_double_click_joins_wrapped_cjk_rows_without_spaces() {
+    let _guard = lock_theme_test_state();
+    let source = format!("abc{}", "漢字".repeat(30));
+    let mut app = app_for(&source);
+    let buffer = draw(&mut app, WIDTH, HEIGHT);
+    let (copied, _) = double_click(&mut app, text_cell(&buffer, "abc"), KeyModifiers::CONTROL);
+    assert_eq!(copied, [source]);
+    assert!(
+        app.copy_highlight().unwrap().0.len() > 1,
+        "source must wrap"
+    );
+}
+
+#[test]
+fn soft_breaks_keep_one_line_number_per_source_line() {
+    let parsed = parse_markdown_for_test("alpha\nbeta\ngamma", 80);
+    assert_eq!(&parsed.line_number_map[..3], [1, 2, 3]);
+    assert_eq!(&parsed.paragraph_map[..3], [1, 1, 1]);
 }
 
 #[test]

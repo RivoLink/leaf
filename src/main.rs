@@ -637,6 +637,7 @@ fn main() -> Result<()> {
         link_urls,
         line_number_map,
         source_line_map,
+        paragraph_map,
         code_blocks,
     } = parsed;
     let input_label = filename.clone();
@@ -655,7 +656,7 @@ fn main() -> Result<()> {
     app.set_diff_line_numbers(main_line_numbers);
     app.set_links(link_urls, link_spans);
     app.set_code_blocks(code_blocks);
-    app.set_line_maps(line_number_map, source_line_map);
+    app.set_line_maps(line_number_map, source_line_map, paragraph_map);
     app.set_mode(app_mode);
     app.set_syntax_set(std::sync::Arc::clone(&ss_arc));
     if let Some(files) = diff_files {

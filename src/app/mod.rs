@@ -157,6 +157,7 @@ pub(crate) struct App {
     toc_visible: bool,
     line_number_map: Vec<usize>,
     source_line_map: Vec<usize>,
+    paragraph_map: Vec<usize>,
     line_number_visible: bool,
     diff_line_numbers: bool,
     pub(super) search: SearchState,
@@ -315,6 +316,7 @@ impl App {
             toc_visible: false,
             line_number_map: Vec::new(),
             source_line_map: Vec::new(),
+            paragraph_map: Vec::new(),
             line_number_visible: false,
             diff_line_numbers: true,
             search: SearchState {
@@ -657,9 +659,15 @@ impl App {
         &mut self,
         line_number_map: Vec<usize>,
         source_line_map: Vec<usize>,
+        paragraph_map: Vec<usize>,
     ) {
         self.line_number_map = line_number_map;
         self.source_line_map = source_line_map;
+        self.paragraph_map = paragraph_map;
+    }
+
+    pub(crate) fn paragraph_at(&self, idx: usize) -> usize {
+        self.paragraph_map.get(idx).copied().unwrap_or(0)
     }
 
     pub(crate) fn source_line_at(&self, idx: usize) -> usize {

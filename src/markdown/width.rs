@@ -4,6 +4,26 @@ use unicode_width::UnicodeWidthStr;
 
 pub(crate) const TAB_STOP: usize = 4;
 
+fn is_cjk(c: char) -> bool {
+    matches!(
+        c as u32,
+        0x3000..=0x30FF
+            | 0x31F0..=0x31FF
+            | 0x3400..=0x4DBF
+            | 0x4E00..=0x9FFF
+            | 0xF900..=0xFAFF
+            | 0xFF00..=0xFFEF
+            | 0x20000..=0x2FA1F
+    )
+}
+
+pub(crate) fn soft_break_joiner(prev: Option<char>, next: Option<char>) -> &'static str {
+    match (prev, next) {
+        (Some(p), Some(n)) if is_cjk(p) && is_cjk(n) => "",
+        _ => " ",
+    }
+}
+
 pub(crate) fn line_plain_text(line: &Line<'_>) -> String {
     line.spans.iter().map(|s| s.content.as_ref()).collect()
 }

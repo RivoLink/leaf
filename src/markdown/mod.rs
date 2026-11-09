@@ -380,6 +380,7 @@ pub(crate) struct ParseResult {
     pub(crate) link_urls: Vec<String>,
     pub(crate) line_number_map: Vec<usize>,
     pub(crate) source_line_map: Vec<usize>,
+    pub(crate) paragraph_map: Vec<usize>,
     pub(crate) code_blocks: Vec<CodeBlockInfo>,
 }
 
@@ -497,6 +498,7 @@ pub(crate) fn parse_markdown_with_width(
         }
 
         let mut wraps = false;
+        let soft_break_flushed = !in_code && matches!(ev, MdEvent::SoftBreak);
         match ev {
             MdEvent::Start(Tag::Table(aligns)) => {
                 start_table(&mut table, &aligns);
@@ -964,6 +966,9 @@ pub(crate) fn parse_markdown_with_width(
         } else {
             state.mark_all_new(lines.len());
         }
+        if soft_break_flushed {
+            state.soft_continuation = true;
+        }
         prev_event_end = range.end;
     }
 
@@ -989,6 +994,7 @@ pub(crate) fn parse_markdown_with_width(
         link_urls,
         line_number_map: state.line_number_map,
         source_line_map: state.source_line_map,
+        paragraph_map: state.paragraph_map,
         code_blocks,
     }
 }
@@ -1000,7 +1006,10 @@ pub(super) fn is_empty_line(line: &Line) -> bool {
 pub(super) struct LineMapState {
     pub(super) line_number_map: Vec<usize>,
     pub(super) source_line_map: Vec<usize>,
+    pub(super) paragraph_map: Vec<usize>,
     pub(super) logical: usize,
+    paragraph: usize,
+    soft_continuation: bool,
     pub(super) current_src_line: usize,
 }
 
@@ -1009,17 +1018,25 @@ impl LineMapState {
         Self {
             line_number_map: Vec::new(),
             source_line_map: Vec::new(),
+            paragraph_map: Vec::new(),
             logical: 0,
+            paragraph: 0,
+            soft_continuation: false,
             current_src_line: 1,
         }
     }
 
     fn push(&mut self, is_new: bool) {
+        let continues_paragraph = std::mem::take(&mut self.soft_continuation);
         if is_new {
             self.logical += 1;
+            if !continues_paragraph {
+                self.paragraph += 1;
+            }
         }
         self.line_number_map.push(self.logical);
         self.source_line_map.push(self.current_src_line);
+        self.paragraph_map.push(self.paragraph);
     }
 
     pub(super) fn mark_all_new(&mut self, to: usize) {
@@ -1064,6 +1081,7 @@ impl LineMapState {
     fn truncate(&mut self, to: usize) {
         self.line_number_map.truncate(to);
         self.source_line_map.truncate(to);
+        self.paragraph_map.truncate(to);
     }
 }
 

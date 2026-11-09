@@ -34,6 +34,7 @@ impl App {
             link_urls,
             line_number_map,
             source_line_map,
+            paragraph_map,
             code_blocks,
         } = parsed;
 
@@ -50,7 +51,7 @@ impl App {
         self.copy_highlight = None;
         self.set_code_blocks(code_blocks);
         self.code_select = None;
-        self.set_line_maps(line_number_map, source_line_map);
+        self.set_line_maps(line_number_map, source_line_map, paragraph_map);
         self.refresh_static_caches();
     }
 
@@ -67,6 +68,7 @@ impl App {
             link_urls: self.link_urls.clone(),
             line_number_map: self.line_number_map.clone(),
             source_line_map: self.source_line_map.clone(),
+            paragraph_map: self.paragraph_map.clone(),
             code_blocks: self.code_blocks.clone(),
         }
     }

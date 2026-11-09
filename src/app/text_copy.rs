@@ -1,7 +1,8 @@
 use super::{App, LinkFlash};
 use crate::markdown::{
-    is_footnote_number, is_ordered_marker, width::rendered_cluster_width, ALERT_ICONS,
-    BLOCKQUOTE_BAR, BULLET_DEEP, BULLET_L1, BULLET_L2, TASK_CHECKED, TASK_CHECKED_ALT,
+    is_footnote_number, is_ordered_marker,
+    width::{rendered_cluster_width, soft_break_joiner},
+    ALERT_ICONS, BLOCKQUOTE_BAR, BULLET_DEEP, BULLET_L1, BULLET_L2, TASK_CHECKED, TASK_CHECKED_ALT,
     TASK_UNCHECKED,
 };
 use crate::theme::app_theme;
@@ -225,18 +226,18 @@ impl App {
 
     pub(crate) fn logical_line_at(&self, col: u16, row: u16) -> Option<CopyTarget> {
         let line_idx = self.line_idx_at(col, row)?;
-        let number = self.line_number_at(line_idx);
+        let paragraph = self.paragraph_at(line_idx);
         let cell = self.table_cell_at(col, row, line_idx)?;
         let mut start = line_idx;
-        while start > 0 && self.line_number_at(start - 1) == number {
+        while start > 0 && self.paragraph_at(start - 1) == paragraph {
             start -= 1;
         }
         let mut end = line_idx;
-        while end + 1 < self.lines.len() && self.line_number_at(end + 1) == number {
+        while end + 1 < self.lines.len() && self.paragraph_at(end + 1) == paragraph {
             end += 1;
         }
 
-        let mut parts = Vec::new();
+        let mut text = String::new();
         let mut ranges = Vec::new();
         for idx in start..=end {
             let clusters = match cell {
@@ -251,28 +252,31 @@ impl App {
             };
             let last = clusters.iter().rposition(|c| !is_strippable(c)).unwrap();
             let kept = &clusters[first..=last];
-            let text: String = kept
+            let part: String = kept
                 .iter()
                 .filter(|c| c.role == Role::Text)
                 .map(|c| c.symbol)
                 .collect();
-            if text.is_empty() {
+            if part.is_empty() {
                 continue;
             }
-            parts.push(text);
+            if !text.is_empty() {
+                text.push_str(soft_break_joiner(
+                    text.chars().next_back(),
+                    part.chars().next(),
+                ));
+            }
+            text.push_str(&part);
             ranges.push(CopyRange {
                 line_idx: idx,
                 start_col: clusters[first].start_col,
                 end_col: clusters[last].end_col,
             });
         }
-        if parts.is_empty() {
+        if ranges.is_empty() {
             return None;
         }
-        Some(CopyTarget {
-            text: parts.join(" "),
-            ranges,
-        })
+        Some(CopyTarget { text, ranges })
     }
 
     pub(crate) fn code_line_at(&self, block_idx: usize, line_idx: usize) -> Option<CopyTarget> {

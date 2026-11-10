@@ -588,3 +588,59 @@ fn highlight_matches_only_bolds_matches_without_line_bg() {
         .add_modifier
         .contains(ratatui::style::Modifier::BOLD));
 }
+
+#[test]
+fn resolve_syntax_supports_devops_file_types() {
+    let ss = super::test_syntax_set();
+
+    for tag in &[
+        "tf",
+        "tfvars",
+        "hcl",
+        "terraform",
+        "yaml",
+        "yml",
+        "toml",
+        "dockerfile",
+        "makefile",
+        "ini",
+        "env",
+        "groovy",
+        "j2",
+        "tpl",
+        "gotmpl",
+        "rego",
+        "proto",
+        "service",
+        "tiltfile",
+        "vagrantfile",
+        "inventory",
+    ] {
+        assert_ne!(
+            resolve_syntax(tag, &ss).name,
+            "Plain Text",
+            "{tag} should have syntax highlighting"
+        );
+    }
+    assert_eq!(
+        resolve_syntax("tf", &ss).name,
+        resolve_syntax("hcl", &ss).name
+    );
+}
+
+#[test]
+fn syntax_key_maps_extensionless_devops_files() {
+    use crate::markdown::syntax_key;
+    use std::path::Path;
+
+    assert_eq!(syntax_key(Path::new("main.tf")), "tf");
+    assert_eq!(syntax_key(Path::new("/x/Dockerfile")), "dockerfile");
+    assert_eq!(syntax_key(Path::new("Dockerfile.prod")), "dockerfile");
+    assert_eq!(syntax_key(Path::new("Makefile")), "makefile");
+    assert_eq!(syntax_key(Path::new("Jenkinsfile")), "jenkinsfile");
+    assert_eq!(syntax_key(Path::new(".env")), "env");
+    assert_eq!(syntax_key(Path::new("Tiltfile")), "tiltfile");
+    assert_eq!(syntax_key(Path::new("Vagrantfile")), "vagrantfile");
+    assert_eq!(syntax_key(Path::new("inventory")), "inventory");
+    assert_eq!(syntax_key(Path::new("README")), "");
+}

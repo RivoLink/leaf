@@ -34,11 +34,16 @@ impl App {
     }
 
     pub(super) fn is_accepted_path(path: &std::path::Path, extras: &[String]) -> bool {
-        match path.extension().and_then(|ext| ext.to_str()) {
-            Some(ext) if Self::is_markdown_extension(ext) => true,
-            Some(ext) => extras.iter().any(|e| e.eq_ignore_ascii_case(ext)),
-            None => false,
+        let key = crate::markdown::syntax_key(path);
+        if key.is_empty() {
+            return false;
         }
+        // Extensionless files can be listed by file name (`Dockerfile`) or by key.
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        Self::is_markdown_extension(&key)
+            || extras
+                .iter()
+                .any(|e| e.eq_ignore_ascii_case(&key) || e.eq_ignore_ascii_case(name))
     }
 
     pub(super) fn build_file_picker_entries(

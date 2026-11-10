@@ -338,6 +338,8 @@ extras = ["txt", "csv", "rs", "java", "json", "yaml"]
 
 Code files get syntax highlighting; text files are rendered as plain Markdown.
 
+Syntax highlighting covers common DevOps formats too: Terraform/HCL (`tf`, `tfvars`, `hcl`), YAML (`yaml`, `yml`, which covers Kubernetes manifests, Helm `values.yaml` and Ansible playbooks), Jinja2 (`j2`) and Helm templates (`tpl`, `gotmpl`, highlighted as Jinja2), Rego, Protocol Buffers, TOML, INI (also `service`, `timer`, `socket` and Ansible `inventory`), nginx `conf`, `.env`, Groovy, and extensionless `Dockerfile`, `Makefile`, `Jenkinsfile`, `Tiltfile` and `Vagrantfile`. To list extensionless files in the picker, add their file names to `extras`, e.g. `extras = ["yml", "tf", "Dockerfile", "Makefile"]`.
+
 Any file can also be opened directly from the command line, regardless of the `extras` setting:
 
 ```bash

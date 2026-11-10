@@ -63,7 +63,7 @@ mod wrapping;
 pub(super) static THEME_TEST_LOCK: RwLock<()> = RwLock::new(());
 
 static SYNTAX_SET: LazyLock<Arc<SyntaxSet>> =
-    LazyLock::new(|| Arc::new(SyntaxSet::load_defaults_newlines()));
+    LazyLock::new(|| Arc::new(two_face::syntax::extra_newlines()));
 static THEME_SET: LazyLock<ThemeSet> = LazyLock::new(ThemeSet::load_defaults);
 
 pub(super) fn test_syntax_set() -> Arc<SyntaxSet> {

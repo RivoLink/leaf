@@ -14,6 +14,30 @@ pub(super) fn syntect_to_color(c: syntect::highlighting::Color) -> Color {
     Color::Rgb(c.r, c.g, c.b)
 }
 
+/// Language key for a file: its extension, or for well-known extensionless
+/// DevOps files (`Dockerfile`, `Makefile`, `Jenkinsfile`, ...) the lowercased name.
+pub(crate) fn syntax_key(path: &std::path::Path) -> String {
+    let name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    if name.starts_with("dockerfile.") {
+        return "dockerfile".into();
+    }
+    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+        return ext.to_string();
+    }
+    match name.as_str() {
+        "dockerfile" | "containerfile" => "dockerfile".into(),
+        "makefile" | "gnumakefile" => "makefile".into(),
+        "jenkinsfile" => "jenkinsfile".into(),
+        ".env" | ".envrc" => "env".into(),
+        "tiltfile" | "vagrantfile" | "inventory" => name,
+        _ => String::new(),
+    }
+}
+
 pub(crate) fn resolve_syntax<'a>(
     lang: &str,
     ss: &'a SyntaxSet,
@@ -48,6 +72,20 @@ pub(crate) fn resolve_syntax<'a>(
         "kt" | "kotlin" => &["Kotlin", "kt", "kotlin", "Java", "java"],
         "ps1" | "powershell" | "pwsh" => &["PowerShell", "ps1", "powershell", "bash", "sh"],
         "docker" | "dockerfile" => &["Dockerfile", "dockerfile", "bash", "sh"],
+        "tf" | "tfvars" | "hcl" | "terraform" | "nomad" | "tfstate" => {
+            &["Terraform", "HCL", "tf", "hcl"]
+        }
+        "make" | "makefile" | "mk" => &["Makefile", "make", "mk"],
+        "env" | "dotenv" | "ini" | "conf" | "cfg" | "properties" => &["INI", "Properties", "bash"],
+        "jenkinsfile" | "groovy" | "gradle" => &["Groovy", "groovy"],
+        // No Go-template grammar ships with two-face; Jinja2 is the closest for Helm.
+        "tmpl" | "gotmpl" | "tpl" | "j2" | "jinja" | "jinja2" => &["Jinja2", "Go Template", "yaml"],
+        "service" | "timer" | "socket" | "mount" | "target" | "inventory" => &["INI", "ini"],
+        "rego" | "opa" => &["Rego", "rego"],
+        "proto" | "protobuf" => &["Protocol Buffer", "proto"],
+        "tiltfile" | "starlark" | "bzl" => &["Python", "py"],
+        "vagrantfile" => &["Ruby", "rb"],
+        "nginx" => &["nginx", "conf"],
         "yml" | "yaml" => &["YAML", "yml", "yaml"],
         "rs" | "rust" => &["Rust", "rs", "rust"],
         _ if normalized.is_empty() => &[],

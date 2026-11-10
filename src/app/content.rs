@@ -88,8 +88,7 @@ impl App {
         let file_state = read_file_state(path);
         let content_hash = hash_str(&src);
         self.source = if self.file_mode {
-            let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-            Self::fence_wrap(&src, ext)
+            Self::fence_wrap(&src, &crate::markdown::syntax_key(path))
         } else {
             src
         };
@@ -223,11 +222,7 @@ impl App {
         let file_state = read_file_state(&path);
         let content_hash = hash_str(&src);
         let detected_mode = super::mode::detect_mode(Some(&path), false, &src);
-        let ext = path
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("")
-            .to_string();
+        let ext = crate::markdown::syntax_key(&path);
 
         let first_load = self.filepath.is_none();
         self.filename = filename;

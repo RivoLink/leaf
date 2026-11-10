@@ -544,7 +544,7 @@ fn main() -> Result<()> {
     let is_file_input = filepath.is_some();
     let watch = watch_from_cli || (watch_from_config && is_file_input);
 
-    let ss_arc = std::sync::Arc::new(SyntaxSet::load_defaults_newlines());
+    let ss_arc = std::sync::Arc::new(two_face::syntax::extra_newlines());
     let ss: &SyntaxSet = &ss_arc;
     let ts = ThemeSet::load_defaults();
     append_config_warning(
@@ -570,10 +570,9 @@ fn main() -> Result<()> {
     let last_content_hash = hash_str(&src);
 
     let ext = filepath
-        .as_ref()
-        .and_then(|p| p.extension())
-        .and_then(|e| e.to_str())
-        .unwrap_or("");
+        .as_deref()
+        .map(markdown::syntax_key)
+        .unwrap_or_default();
 
     let app_mode = match mode_hint {
         Some(m) => m,
@@ -587,7 +586,7 @@ fn main() -> Result<()> {
     };
     let (src, file_mode) = match app_mode {
         AppMode::Diff => (src, false),
-        AppMode::Document => App::wrap_as_code_block(src, ext, ss),
+        AppMode::Document => App::wrap_as_code_block(src, &ext, ss),
     };
 
     if let Some(ref spec) = inline_spec {

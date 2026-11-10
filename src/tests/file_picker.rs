@@ -239,3 +239,48 @@ fn fuzzy_file_picker_page_moves_jump_and_clamp_at_edges() {
 
     let _ = fs::remove_dir_all(root);
 }
+
+#[test]
+fn file_picker_lists_extensionless_devops_files_from_extras() {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let root = std::env::temp_dir().join(format!("leaf-picker-devops-{unique}"));
+    let _ = fs::remove_dir_all(&root);
+    fs::create_dir_all(&root).unwrap();
+    for name in [
+        "Dockerfile",
+        "Dockerfile.prod",
+        "Makefile",
+        "docker-compose.yml",
+        "notes",
+    ] {
+        fs::write(root.join(name), "x\n").unwrap();
+    }
+
+    let mut app = new_file_picker_app();
+    app.set_extras(vec![
+        "Dockerfile".to_string(),
+        "makefile".to_string(),
+        "yml".to_string(),
+    ]);
+    assert!(app.open_file_picker(root.clone()));
+
+    let labels: Vec<_> = app
+        .file_picker_entries()
+        .iter()
+        .map(|entry| entry.label())
+        .collect();
+    for expected in [
+        "Dockerfile",
+        "Dockerfile.prod",
+        "Makefile",
+        "docker-compose.yml",
+    ] {
+        assert!(labels.contains(&expected), "{expected} missing: {labels:?}");
+    }
+    assert!(!labels.contains(&"notes"), "{labels:?}");
+
+    let _ = fs::remove_dir_all(root);
+}

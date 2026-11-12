@@ -55,11 +55,7 @@ pub(crate) struct CliOptions {
 }
 
 pub(crate) fn is_diff_spec(value: &str) -> bool {
-    if value.is_empty() || value.starts_with('-') {
-        return false;
-    }
-
-    true
+    !(value.is_empty() || value.starts_with('-'))
 }
 
 pub(crate) fn parse_diff_spec(value: &str) -> Result<DiffSpec> {

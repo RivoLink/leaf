@@ -303,9 +303,9 @@ fn trailing_blank_context_lines_are_trimmed() {
         "Add row must be emitted"
     );
 
-    for i in (header_idx + 3)..built.lines.len() {
+    for line in &built.lines[header_idx + 3..] {
         assert_ne!(
-            line_text(&built.lines[i]),
+            line_text(line),
             "│  ",
             "no trailing blank context body rows must survive the trim"
         );
@@ -331,9 +331,9 @@ fn both_leading_and_trailing_blanks_trimmed() {
         "content Add row must be emitted"
     );
 
-    for i in (header_idx + 3)..built.lines.len() {
+    for line in &built.lines[header_idx + 3..] {
         assert_ne!(
-            line_text(&built.lines[i]),
+            line_text(line),
             "│  ",
             "no blank context body rows must survive when both trims apply"
         );

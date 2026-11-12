@@ -32,6 +32,7 @@ mod history_picker;
 mod inline;
 mod link_mapping;
 mod markdown_blocks;
+mod markdown_callouts;
 mod markdown_embedded;
 mod markdown_footnotes;
 mod markdown_html_tag;
@@ -84,6 +85,24 @@ pub(super) fn test_theme_set() -> &'static ThemeSet {
 
 pub(super) fn test_md_theme() -> crate::theme::MarkdownTheme {
     crate::theme::app_theme().markdown
+}
+
+pub(super) fn parse_markdown_at(
+    src: &str,
+    width: usize,
+    keep_soft_breaks: bool,
+) -> crate::markdown::ParseResult {
+    let (ss, theme) = test_assets();
+    crate::markdown::parse_markdown_with_width(
+        src,
+        &ss,
+        &theme,
+        width,
+        &test_md_theme(),
+        false,
+        true,
+        keep_soft_breaks,
+    )
 }
 
 pub(super) fn render_buffer(lines: &[Line<'static>]) -> ratatui::buffer::Buffer {

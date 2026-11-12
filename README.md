@@ -419,6 +419,7 @@ leaf --theme rose-pine README.md
 - **Frontmatter support** : *YAML frontmatter rendered as a table (horizontal or vertical based on key count)*.
 - **Rich Markdown rendering** : *Tables, lists, blockquotes, rules, bold, italic, and strikethrough*.
 - **GitHub extras** : *Alert callouts, task list checkboxes, and `==mark==` text highlighting*.
+- **Obsidian callouts** : *All callout types and aliases, custom titles, and nested callouts*.
 - **Inline HTML tags** : *Common inline formatting tags (`<b>`, `<i>`, `<u>`, ...) rendered with proper styling*.
 - **Extra file types** : *Open any file; code files get syntax highlighting, text files render as Markdown*.
 - **Syntax highlighting** : *Common aliases like `py`, `cpp`, `json`, `toml`, `ps1`, `dockerfile`*.

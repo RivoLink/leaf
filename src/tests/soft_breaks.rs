@@ -1,27 +1,13 @@
 use super::common::app_helpers::{draw_app, markdown_app, status_text};
 use super::{
-    lock_theme_test_state, rendered_non_empty_lines, test_assets, test_md_theme, test_syntax_set,
-    test_theme_set,
+    lock_theme_test_state, parse_markdown_at as parse_at, rendered_non_empty_lines,
+    test_syntax_set, test_theme_set,
 };
 use crate::app::App;
-use crate::markdown::{parse_markdown_with_width, ParseResult};
+use crate::markdown::ParseResult;
 
 fn all_lines(app: &App) -> &[ratatui::text::Line<'static>] {
     app.visible_lines(0, app.total())
-}
-
-fn parse_at(src: &str, width: usize, keep_soft_breaks: bool) -> ParseResult {
-    let (ss, theme) = test_assets();
-    parse_markdown_with_width(
-        src,
-        &ss,
-        &theme,
-        width,
-        &test_md_theme(),
-        false,
-        true,
-        keep_soft_breaks,
-    )
 }
 
 fn parse(src: &str, keep_soft_breaks: bool) -> ParseResult {

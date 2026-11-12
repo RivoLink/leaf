@@ -1,12 +1,12 @@
 use super::{App, LinkFlash};
 use crate::markdown::{
-    is_footnote_number, is_ordered_marker,
+    is_callout_icon, is_footnote_number, is_ordered_marker,
     width::{rendered_cluster_width, soft_break_joiner},
-    ALERT_ICONS, BLOCKQUOTE_BAR, BULLET_DEEP, BULLET_L1, BULLET_L2, TASK_CHECKED, TASK_CHECKED_ALT,
+    BLOCKQUOTE_BAR, BULLET_DEEP, BULLET_L1, BULLET_L2, TASK_CHECKED, TASK_CHECKED_ALT,
     TASK_UNCHECKED,
 };
-use crate::theme::app_theme;
-use ratatui::text::Line;
+use crate::theme::{app_theme, MarkdownTheme};
+use ratatui::text::{Line, Span};
 use unicode_segmentation::UnicodeSegmentation;
 
 const BOX_DRAWING: &[&str] = &[
@@ -72,18 +72,16 @@ fn is_strippable(cluster: &Cluster<'_>) -> bool {
     }
 }
 
-fn marker_len(content: &str) -> usize {
+pub(crate) fn marker_len(span: &Span<'_>, theme: &MarkdownTheme) -> usize {
+    let content = span.content.as_ref();
     if is_ordered_marker(content) {
         return usize::MAX;
     }
-    ALERT_ICONS
-        .iter()
-        .find(|icon| {
-            content
-                .strip_prefix(**icon)
-                .is_some_and(|rest| rest.starts_with(' '))
-        })
-        .map_or(0, |icon| icon.len() + 1)
+    if is_callout_icon(span, theme) {
+        content.len()
+    } else {
+        0
+    }
 }
 
 fn line_clusters<'a>(line: &'a Line<'_>) -> Vec<Cluster<'a>> {
@@ -94,7 +92,7 @@ fn line_clusters<'a>(line: &'a Line<'_>) -> Vec<Cluster<'a>> {
     for span in &line.spans {
         let footnote = span.style.fg == Some(theme.footnote_ref)
             && is_footnote_number(span.content.trim_end());
-        let markers = marker_len(&span.content);
+        let markers = marker_len(span, &theme);
         let border = span.content == "│";
         let chip = span.style.bg.is_some_and(|bg| chip_bgs.contains(&bg));
         for (idx, symbol) in span.content.graphemes(true).enumerate() {

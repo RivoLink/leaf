@@ -1,4 +1,5 @@
 mod blocks;
+pub(crate) mod callouts;
 mod fences;
 mod footnotes;
 mod frontmatter;
@@ -28,10 +29,10 @@ pub(crate) use width::{
 
 use crate::theme::MarkdownTheme;
 use pulldown_cmark::{
-    BlockQuoteKind, CodeBlockKind, Event as MdEvent, HeadingLevel, Options, Parser, Tag, TagEnd,
+    CodeBlockKind, CowStr, Event as MdEvent, HeadingLevel, Options, Parser, Tag, TagEnd,
 };
 use ratatui::{
-    style::{Color, Modifier, Style},
+    style::Color,
     text::{Line, Span},
 };
 use std::{
@@ -48,6 +49,8 @@ use blocks::{
     CODE_BLOCK_GUTTER,
 };
 pub(crate) use blocks::{CodeRow, BLOCKQUOTE_BAR};
+pub(crate) use callouts::is_callout_icon;
+use callouts::{callout_color, callout_icon, callout_title_style, CalloutTitle, TitleStep};
 use fences::normalize_code_fences;
 pub(crate) use footnotes::is_footnote_number;
 use links::{emit_linked_line, LinkedSpan};
@@ -174,7 +177,7 @@ fn end_paragraph(
     item_stack: &mut [ItemState],
     render_width: usize,
     theme: &MarkdownTheme,
-    marker_color: Option<Color>,
+    marker_colors: &[Option<Color>],
 ) {
     flush_wrapped_spans(
         lines,
@@ -185,7 +188,7 @@ fn end_paragraph(
         item_stack,
         render_width,
         theme,
-        marker_color,
+        marker_colors,
     );
     let gap = if blockquote_depth > 0 {
         if !item_stack.is_empty() {
@@ -194,10 +197,10 @@ fn end_paragraph(
                 list_stack,
                 item_stack,
                 theme,
-                marker_color,
+                marker_colors,
             ))
         } else {
-            Line::from(block_prefix(blockquote_depth, theme, marker_color))
+            Line::from(block_prefix(blockquote_depth, theme, marker_colors))
         }
     } else {
         Line::from("")
@@ -215,7 +218,7 @@ fn flush_pending_inline_if_any(
     item_stack: &mut [ItemState],
     render_width: usize,
     theme: &MarkdownTheme,
-    marker_color: Option<Color>,
+    marker_colors: &[Option<Color>],
 ) -> bool {
     if spans.is_empty() {
         return false;
@@ -229,7 +232,7 @@ fn flush_pending_inline_if_any(
         item_stack,
         render_width,
         theme,
-        marker_color,
+        marker_colors,
     );
     true
 }
@@ -240,13 +243,10 @@ fn end_blockquote(
     spans: &mut Vec<LinkedSpan>,
     blockquote_depth: &mut usize,
     theme: &MarkdownTheme,
-    marker_color: Option<Color>,
+    marker_colors: &[Option<Color>],
 ) {
     if !spans.is_empty() {
-        let mut all: Vec<LinkedSpan> = block_prefix(*blockquote_depth, theme, marker_color)
-            .into_iter()
-            .map(|span| LinkedSpan::new(span, None))
-            .collect();
+        let mut all = wrapping::unowned(block_prefix(*blockquote_depth, theme, marker_colors));
         all.append(spans);
         emit_linked_line(lines, ranges, all);
     }
@@ -258,32 +258,53 @@ fn end_blockquote(
         lines.push(Line::from(block_prefix(
             *blockquote_depth,
             theme,
-            marker_color,
+            marker_colors,
         )));
     }
 }
 
-pub(crate) const ALERT_ICONS: [&str; 4] = ["[i]", "[*]", "[!]", "[x]"];
-
-fn alert_icon_label(kind: BlockQuoteKind) -> (&'static str, &'static str) {
-    let [info, tip, warning, caution] = ALERT_ICONS;
-    match kind {
-        BlockQuoteKind::Note => (info, "Note"),
-        BlockQuoteKind::Tip => (tip, "Tip"),
-        BlockQuoteKind::Important => (warning, "Important"),
-        BlockQuoteKind::Warning => (warning, "Warning"),
-        BlockQuoteKind::Caution => (caution, "Caution"),
+#[allow(clippy::too_many_arguments)]
+fn push_callout_header(
+    lines: &mut Vec<Line<'static>>,
+    ranges: &mut Vec<LinkSpan>,
+    spans: &mut Vec<LinkedSpan>,
+    title: CalloutTitle,
+    blockquote_depth: usize,
+    list_stack: &[ListKind],
+    item_stack: &mut [ItemState],
+    render_width: usize,
+    theme: &MarkdownTheme,
+    marker_colors: &[Option<Color>],
+) {
+    let style = callout_title_style(callout_color(title.marker.kind, theme));
+    let icon = LinkedSpan::new(
+        Span::styled(format!("{} ", callout_icon(title.marker.kind)), style),
+        None,
+    );
+    if title.marker.has_title && !spans.is_empty() {
+        for linked in spans.iter_mut() {
+            if linked.link_id.is_none() && linked.span.style.bg.is_none() {
+                linked.span.style = linked.span.style.patch(style);
+            }
+        }
+        spans.insert(0, icon);
+    } else {
+        *spans = vec![
+            icon,
+            LinkedSpan::new(Span::styled(title.marker.label, style), None),
+        ];
     }
-}
-
-fn alert_color(kind: BlockQuoteKind, theme: &MarkdownTheme) -> Color {
-    match kind {
-        BlockQuoteKind::Note => theme.alert_note,
-        BlockQuoteKind::Tip => theme.alert_tip,
-        BlockQuoteKind::Important => theme.alert_important,
-        BlockQuoteKind::Warning => theme.alert_warning,
-        BlockQuoteKind::Caution => theme.alert_caution,
-    }
+    flush_wrapped_spans(
+        lines,
+        ranges,
+        spans,
+        blockquote_depth,
+        list_stack,
+        item_stack,
+        render_width,
+        theme,
+        marker_colors,
+    );
 }
 
 fn rule_width(render_width: usize, indent: usize) -> usize {
@@ -455,22 +476,80 @@ pub(crate) fn parse_markdown_with_width(
     let mut item_stack: Vec<ItemState> = Vec::new();
     let mut table: Option<TableBuf> = None;
     let mut last_block = LastBlock::Other;
-    let mut blockquote_color: Option<Color> = None;
+    let mut blockquote_colors: Vec<Option<Color>> = Vec::new();
+    let mut callout_title: Option<CalloutTitle> = None;
     let mut prev_event_end: usize = 0;
     let mut footnotes = footnotes::FootnotesBuf::default();
 
     let normalized = normalize_code_fences(src);
     let line_starts = compute_line_starts(&normalized);
     let parser_options = Options::all()
+        - Options::ENABLE_GFM
         - Options::ENABLE_YAML_STYLE_METADATA_BLOCKS
         - Options::ENABLE_PLUSES_DELIMITED_METADATA_BLOCKS;
-    for (ev, range) in Parser::new_ext(&normalized, parser_options).into_offset_iter() {
+    for (mut ev, range) in Parser::new_ext(&normalized, parser_options).into_offset_iter() {
         state.truncate(lines.len());
-        let before = lines.len();
+        let mut before = lines.len();
         let raw_line = byte_to_line(&line_starts, range.start);
         state.current_src_line = (raw_line + fm_line_count)
             .saturating_sub(file_mode_offset)
             .max(1);
+        match callout_title.as_mut().map(|title| title.step(&ev, &range)) {
+            None | Some(TitleStep::Pass) => {}
+            Some(TitleStep::Cancel) => {
+                callout_title = None;
+                if let Some(color) = blockquote_colors.last_mut() {
+                    *color = None;
+                }
+            }
+            Some(TitleStep::Skip) => {
+                prev_event_end = range.end;
+                continue;
+            }
+            Some(TitleStep::Trim(offset)) => {
+                if let MdEvent::Text(text) = ev {
+                    ev = MdEvent::Text(match text {
+                        CowStr::Borrowed(text) => CowStr::Borrowed(&text[offset..]),
+                        text => text[offset..].to_string().into(),
+                    });
+                }
+            }
+            Some(TitleStep::Finish { consume }) => {
+                close_inline_block(
+                    &mut html_style_buffer,
+                    &mut spans,
+                    &mut inline,
+                    theme_colors,
+                );
+                let title = callout_title
+                    .take()
+                    .expect("finish implies a pending title");
+                push_callout_header(
+                    &mut lines,
+                    &mut link_spans,
+                    &mut spans,
+                    title,
+                    blockquote_depth,
+                    &list_stack,
+                    &mut item_stack,
+                    render_width,
+                    theme_colors,
+                    &blockquote_colors,
+                );
+                state.mark_wrapped(before, lines.len(), &lines);
+                last_block = LastBlock::Other;
+                if consume {
+                    prev_event_end = range.end;
+                    continue;
+                }
+                before = lines.len();
+            }
+        }
+        let text_depth = if callout_title.is_some() {
+            0
+        } else {
+            blockquote_depth
+        };
         if table.is_some()
             && handle_table_event(
                 &mut table,
@@ -494,7 +573,7 @@ pub(crate) fn parse_markdown_with_width(
             &mut inline,
             &mut spans,
             theme_colors,
-            blockquote_depth,
+            text_depth,
             &mut link_urls,
         ) {
             prev_event_end = range.end;
@@ -505,7 +584,11 @@ pub(crate) fn parse_markdown_with_width(
         let soft_break_flushed = !in_code && keep_soft_breaks && matches!(ev, MdEvent::SoftBreak);
         match ev {
             MdEvent::Start(Tag::Table(aligns)) => {
-                start_table(&mut table, &aligns);
+                start_table(
+                    &mut table,
+                    &aligns,
+                    block_prefix(blockquote_depth, theme_colors, &blockquote_colors),
+                );
             }
             MdEvent::Start(Tag::Heading { level, .. }) => {
                 start_heading(&mut in_heading, level);
@@ -545,7 +628,7 @@ pub(crate) fn parse_markdown_with_width(
                     &mut item_stack,
                     render_width,
                     theme_colors,
-                    blockquote_color,
+                    &blockquote_colors,
                 );
                 wraps = true;
                 last_block = LastBlock::Paragraph;
@@ -560,7 +643,7 @@ pub(crate) fn parse_markdown_with_width(
                     &mut item_stack,
                     render_width,
                     theme_colors,
-                    blockquote_color,
+                    &blockquote_colors,
                 ) {
                     wraps = true;
                 }
@@ -587,6 +670,7 @@ pub(crate) fn parse_markdown_with_width(
                             render_width,
                             theme: theme_colors,
                             blockquote_depth,
+                            blockquote_colors: &blockquote_colors,
                             list_stack: &list_stack,
                             code_line_numbers,
                         },
@@ -604,6 +688,7 @@ pub(crate) fn parse_markdown_with_width(
                             render_width,
                             theme: theme_colors,
                             blockquote_depth,
+                            blockquote_colors: &blockquote_colors,
                             list_stack: &list_stack,
                             code_line_numbers,
                         },
@@ -623,6 +708,7 @@ pub(crate) fn parse_markdown_with_width(
                             render_width,
                             theme_colors,
                             blockquote_depth,
+                            blockquote_colors: &blockquote_colors,
                             list_stack: &list_stack,
                             file_mode,
                             code_line_numbers,
@@ -653,7 +739,7 @@ pub(crate) fn parse_markdown_with_width(
             MdEvent::Code(text) => {
                 push_inline_code_span(&mut spans, text.as_ref(), theme_colors, inline.link_id);
             }
-            MdEvent::Start(Tag::BlockQuote(kind)) => {
+            MdEvent::Start(Tag::BlockQuote(_)) => {
                 if flush_pending_inline_if_any(
                     &mut lines,
                     &mut link_spans,
@@ -663,7 +749,7 @@ pub(crate) fn parse_markdown_with_width(
                     &mut item_stack,
                     render_width,
                     theme_colors,
-                    blockquote_color,
+                    &blockquote_colors,
                 ) {
                     wraps = true;
                 }
@@ -683,23 +769,13 @@ pub(crate) fn parse_markdown_with_width(
                     trim_paragraph_gap_before_block(&mut lines, &mut link_spans, last_block);
                 }
                 blockquote_depth += 1;
-                if let Some(k) = kind {
-                    let color = alert_color(k, theme_colors);
-                    blockquote_color = Some(color);
-                    let (icon, label) = alert_icon_label(k);
-                    let mut header = list_item_prefix(
-                        blockquote_depth,
-                        &list_stack,
-                        &mut item_stack,
-                        theme_colors,
-                        blockquote_color,
-                    );
-                    header.push(Span::styled(
-                        format!("{icon} {label}"),
-                        Style::default().fg(color).add_modifier(Modifier::BOLD),
-                    ));
-                    lines.push(Line::from(header));
-                }
+                let marker = callouts::parse_callout_marker(&normalized, range.start);
+                blockquote_colors.push(
+                    marker
+                        .as_ref()
+                        .map(|marker| callout_color(marker.kind, theme_colors)),
+                );
+                callout_title = marker.map(CalloutTitle::new);
             }
             MdEvent::End(TagEnd::BlockQuote(_)) => {
                 close_inline_block(
@@ -714,8 +790,9 @@ pub(crate) fn parse_markdown_with_width(
                     &mut spans,
                     &mut blockquote_depth,
                     theme_colors,
-                    blockquote_color.take(),
+                    &blockquote_colors,
                 );
+                blockquote_colors.pop();
                 wraps = true;
                 last_block = LastBlock::Blockquote;
             }
@@ -730,7 +807,7 @@ pub(crate) fn parse_markdown_with_width(
                         blockquote_depth,
                         render_width,
                         theme_colors,
-                        blockquote_color,
+                        &blockquote_colors,
                     );
                     wraps = true;
                 }
@@ -766,7 +843,7 @@ pub(crate) fn parse_markdown_with_width(
                     blockquote_depth,
                     render_width,
                     theme_colors,
-                    blockquote_color,
+                    &blockquote_colors,
                 );
                 wraps = true;
                 last_block = LastBlock::Other;
@@ -782,7 +859,7 @@ pub(crate) fn parse_markdown_with_width(
                     text.as_ref(),
                     in_code,
                     theme_colors,
-                    blockquote_depth,
+                    text_depth,
                     inline,
                     &mut html_style_buffer,
                 );
@@ -813,7 +890,7 @@ pub(crate) fn parse_markdown_with_width(
                     &mut item_stack,
                     render_width,
                     theme_colors,
-                    blockquote_color,
+                    &blockquote_colors,
                 );
                 wraps = true;
             }
@@ -846,7 +923,7 @@ pub(crate) fn parse_markdown_with_width(
                             &mut item_stack,
                             render_width,
                             theme_colors,
-                            blockquote_color,
+                            &blockquote_colors,
                         );
                         wraps = true;
                     }
@@ -881,6 +958,7 @@ pub(crate) fn parse_markdown_with_width(
                         render_width,
                         theme: theme_colors,
                         blockquote_depth,
+                        blockquote_colors: &blockquote_colors,
                         list_stack: &list_stack,
                         code_line_numbers,
                     },
@@ -918,7 +996,7 @@ pub(crate) fn parse_markdown_with_width(
                     &mut item_stack,
                     render_width,
                     theme_colors,
-                    blockquote_color,
+                    &blockquote_colors,
                 ) {
                     wraps = true;
                 }
@@ -934,7 +1012,7 @@ pub(crate) fn parse_markdown_with_width(
                     &mut code_lang,
                     &mut code_buf,
                     &mut inline,
-                    &mut blockquote_color,
+                    &mut blockquote_colors,
                     &mut in_heading,
                     &mut table,
                     &mut last_block,
@@ -954,7 +1032,7 @@ pub(crate) fn parse_markdown_with_width(
                         &mut item_stack,
                         render_width,
                         theme_colors,
-                        blockquote_color,
+                        &blockquote_colors,
                     );
                 }
                 let captured_lines = std::mem::take(&mut lines);
@@ -971,7 +1049,7 @@ pub(crate) fn parse_markdown_with_width(
                     &mut code_lang,
                     &mut code_buf,
                     &mut inline,
-                    &mut blockquote_color,
+                    &mut blockquote_colors,
                     &mut in_heading,
                     &mut table,
                     &mut last_block,

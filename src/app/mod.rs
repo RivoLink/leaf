@@ -70,6 +70,8 @@ pub(crate) use flash::{
 mod text_copy;
 #[cfg(test)]
 pub(crate) use text_copy::is_word_char;
+#[cfg(test)]
+pub(crate) use text_copy::marker_len;
 pub(crate) use text_copy::CopyRange;
 
 pub(crate) mod history;

@@ -36,21 +36,21 @@ pub(crate) const BLOCKQUOTE_BAR: &str = "▏ ";
 pub(super) fn block_prefix(
     blockquote_depth: usize,
     theme: &MarkdownTheme,
-    marker_color: Option<Color>,
+    marker_colors: &[Option<Color>],
 ) -> Vec<Span<'static>> {
     if blockquote_depth == 0 {
         return vec![];
     }
-    let default_color = theme.blockquote_marker;
-    let outer_color = marker_color.unwrap_or(default_color);
-    let outer_style = Style::default().fg(outer_color);
-    let inner_style = Style::default().fg(default_color);
-    let mut spans = Vec::with_capacity(blockquote_depth);
-    spans.push(Span::styled(BLOCKQUOTE_BAR, outer_style));
-    for _ in 1..blockquote_depth {
-        spans.push(Span::styled(BLOCKQUOTE_BAR, inner_style));
-    }
-    spans
+    (0..blockquote_depth)
+        .map(|level| {
+            let color = marker_colors
+                .get(level)
+                .copied()
+                .flatten()
+                .unwrap_or(theme.blockquote_marker);
+            Span::styled(BLOCKQUOTE_BAR, Style::default().fg(color))
+        })
+        .collect()
 }
 
 fn is_blockquote_blank_text(plain: &str) -> bool {
@@ -73,9 +73,9 @@ pub(super) fn push_wrapped_blockquote_lines(
     blockquote_depth: usize,
     render_width: usize,
     theme: &MarkdownTheme,
-    marker_color: Option<Color>,
+    marker_colors: &[Option<Color>],
 ) {
-    let prefix = block_prefix(blockquote_depth, theme, marker_color);
+    let prefix = block_prefix(blockquote_depth, theme, marker_colors);
     push_wrapped_prefixed_lines(
         lines,
         ranges,
@@ -96,7 +96,7 @@ pub(super) fn flush_wrapped_spans(
     item_stack: &mut [ItemState],
     render_width: usize,
     theme: &MarkdownTheme,
-    marker_color: Option<Color>,
+    marker_colors: &[Option<Color>],
 ) {
     if blockquote_depth > 0 && item_stack.is_empty() {
         push_wrapped_blockquote_lines(
@@ -106,7 +106,7 @@ pub(super) fn flush_wrapped_spans(
             blockquote_depth,
             render_width,
             theme,
-            marker_color,
+            marker_colors,
         );
     } else if !item_stack.is_empty() {
         let first_prefix = list_item_prefix(
@@ -114,14 +114,14 @@ pub(super) fn flush_wrapped_spans(
             list_stack,
             item_stack,
             theme,
-            marker_color,
+            marker_colors,
         );
         let continuation_prefix = list_item_prefix(
             blockquote_depth,
             list_stack,
             item_stack,
             theme,
-            marker_color,
+            marker_colors,
         );
         push_wrapped_prefixed_lines(
             lines,
@@ -222,6 +222,7 @@ pub(super) struct CodeBlockRenderContext<'a> {
     pub(super) render_width: usize,
     pub(super) theme_colors: &'a MarkdownTheme,
     pub(super) blockquote_depth: usize,
+    pub(super) blockquote_colors: &'a [Option<Color>],
     pub(super) list_stack: &'a [ListKind],
     pub(super) file_mode: bool,
     pub(super) code_line_numbers: bool,
@@ -234,19 +235,13 @@ pub(super) fn push_code_block_lines(
     ctx: CodeBlockRenderContext<'_>,
     item_stack: &mut [ItemState],
 ) -> BlockLayout {
-    let prefix = if !item_stack.is_empty() {
-        list_item_prefix(
-            ctx.blockquote_depth,
-            ctx.list_stack,
-            item_stack,
-            ctx.theme_colors,
-            None,
-        )
-    } else if ctx.blockquote_depth > 0 {
-        block_prefix(ctx.blockquote_depth, ctx.theme_colors, None)
-    } else {
-        Vec::new()
-    };
+    let prefix = list_item_prefix(
+        ctx.blockquote_depth,
+        ctx.list_stack,
+        item_stack,
+        ctx.theme_colors,
+        ctx.blockquote_colors,
+    );
     let prefix_width: usize = prefix
         .iter()
         .map(|span| display_width(span.content.as_ref()))
@@ -366,22 +361,24 @@ pub(super) struct SpecialBlockCtx<'a, F: Fn(&str) -> Vec<Span<'static>>> {
     pub(super) make_spans: F,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn push_special_block_lines<F: Fn(&str) -> Vec<Span<'static>>>(
     lines: &mut Vec<Line<'static>>,
     render_width: usize,
     theme: &MarkdownTheme,
     blockquote_depth: usize,
+    blockquote_colors: &[Option<Color>],
     list_stack: &[ListKind],
     item_stack: &mut [ItemState],
     ctx: SpecialBlockCtx<'_, F>,
 ) -> BlockLayout {
-    let prefix = if !item_stack.is_empty() {
-        list_item_prefix(blockquote_depth, list_stack, item_stack, theme, None)
-    } else if blockquote_depth > 0 {
-        block_prefix(blockquote_depth, theme, None)
-    } else {
-        Vec::new()
-    };
+    let prefix = list_item_prefix(
+        blockquote_depth,
+        list_stack,
+        item_stack,
+        theme,
+        blockquote_colors,
+    );
     push_special_block_lines_with_prefix(lines, render_width, theme, prefix, ctx)
 }
 
@@ -508,6 +505,7 @@ pub(super) struct EmbeddedBlockCtx<'a> {
     pub(super) render_width: usize,
     pub(super) theme: &'a MarkdownTheme,
     pub(super) blockquote_depth: usize,
+    pub(super) blockquote_colors: &'a [Option<Color>],
     pub(super) list_stack: &'a [ListKind],
     pub(super) code_line_numbers: bool,
 }
@@ -534,6 +532,7 @@ pub(super) fn push_latex_block_lines(
         ctx.render_width,
         ctx.theme,
         ctx.blockquote_depth,
+        ctx.blockquote_colors,
         ctx.list_stack,
         item_stack,
         SpecialBlockCtx {
@@ -552,19 +551,13 @@ pub(super) fn push_mermaid_block_lines(
     ctx: EmbeddedBlockCtx<'_>,
     item_stack: &mut [ItemState],
 ) -> BlockLayout {
-    let prefix = if !item_stack.is_empty() {
-        list_item_prefix(
-            ctx.blockquote_depth,
-            ctx.list_stack,
-            item_stack,
-            ctx.theme,
-            None,
-        )
-    } else if ctx.blockquote_depth > 0 {
-        block_prefix(ctx.blockquote_depth, ctx.theme, None)
-    } else {
-        Vec::new()
-    };
+    let prefix = list_item_prefix(
+        ctx.blockquote_depth,
+        ctx.list_stack,
+        item_stack,
+        ctx.theme,
+        ctx.blockquote_colors,
+    );
     let prefix_width: usize = prefix
         .iter()
         .map(|span| display_width(span.content.as_ref()))

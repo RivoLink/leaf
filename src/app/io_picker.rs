@@ -25,6 +25,10 @@ impl App {
         format!("````{ext}\n{src}\n````")
     }
 
+    pub(crate) fn is_plain_text_extension(ext: &str) -> bool {
+        !ext.is_empty() && !Self::is_markdown_extension(ext)
+    }
+
     pub(crate) fn wrap_as_code_block(src: String, ext: &str, ss: &SyntaxSet) -> (String, bool) {
         if Self::is_markdown_extension(ext) || !Self::has_code_syntax(ext, ss) {
             (src, false)

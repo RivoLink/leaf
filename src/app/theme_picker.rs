@@ -1,8 +1,8 @@
 use crate::{
-    markdown::{parse_markdown_with_width, ParseResult},
+    markdown::ParseResult,
     theme::{
-        app_theme, current_syntect_theme, current_theme_selection, set_theme_preset,
-        set_theme_selection, theme_preset_index, ThemePreset, ThemeSelection, THEME_PRESETS,
+        current_syntect_theme, current_theme_selection, set_theme_preset, set_theme_selection,
+        theme_preset_index, ThemePreset, ThemeSelection, THEME_PRESETS,
     },
 };
 use syntect::{highlighting::ThemeSet, parsing::SyntaxSet};
@@ -116,17 +116,7 @@ impl App {
             return;
         }
 
-        let theme = current_syntect_theme(themes);
-        let at = app_theme();
-        let parsed = parse_markdown_with_width(
-            &self.source,
-            ss,
-            theme,
-            self.render_width,
-            &at.markdown,
-            self.file_mode,
-            self.code_line_numbers,
-        );
+        let parsed = self.parse_current_source(ss, themes);
         self.store_theme_preview(preset, parsed.clone());
         self.replace_content(parsed);
     }
@@ -145,17 +135,7 @@ impl App {
             if let Some(parsed) = self.theme_picker.original_preview.take() {
                 self.replace_content(parsed);
             } else {
-                let theme = current_syntect_theme(themes);
-                let at = app_theme();
-                let parsed = parse_markdown_with_width(
-                    &self.source,
-                    ss,
-                    theme,
-                    self.render_width,
-                    &at.markdown,
-                    self.file_mode,
-                    self.code_line_numbers,
-                );
+                let parsed = self.parse_current_source(ss, themes);
                 self.replace_content(parsed);
             }
         }

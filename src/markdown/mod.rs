@@ -108,7 +108,7 @@ pub(crate) fn hash_file_contents(path: &PathBuf) -> io::Result<u64> {
     std::fs::read_to_string(path).map(|contents| hash_str(&contents))
 }
 
-const DEFAULT_RENDER_WIDTH: usize = 80;
+pub(crate) const DEFAULT_RENDER_WIDTH: usize = 80;
 
 fn heading_level(level: HeadingLevel) -> u8 {
     match level {
@@ -391,6 +391,7 @@ impl From<ParseResult> for (Vec<Line<'static>>, Vec<TocEntry>, Vec<LinkSpan>, Ve
     }
 }
 
+#[cfg(test)]
 pub(crate) fn parse_markdown(
     src: &str,
     ss: &syntect::parsing::SyntaxSet,
@@ -407,9 +408,11 @@ pub(crate) fn parse_markdown(
         md_theme,
         file_mode,
         code_line_numbers,
+        true,
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn parse_markdown_with_width(
     src: &str,
     ss: &syntect::parsing::SyntaxSet,
@@ -418,6 +421,7 @@ pub(crate) fn parse_markdown_with_width(
     theme_colors: &MarkdownTheme,
     file_mode: bool,
     code_line_numbers: bool,
+    keep_soft_breaks: bool,
 ) -> ParseResult {
     let original_src = src;
     let (src, fm_pairs) = frontmatter::extract_frontmatter(src);
@@ -498,7 +502,7 @@ pub(crate) fn parse_markdown_with_width(
         }
 
         let mut wraps = false;
-        let soft_break_flushed = !in_code && matches!(ev, MdEvent::SoftBreak);
+        let soft_break_flushed = !in_code && keep_soft_breaks && matches!(ev, MdEvent::SoftBreak);
         match ev {
             MdEvent::Start(Tag::Table(aligns)) => {
                 start_table(&mut table, &aligns);
@@ -776,6 +780,22 @@ pub(crate) fn parse_markdown_with_width(
                     &mut spans,
                     &mut code_buf,
                     text.as_ref(),
+                    in_code,
+                    theme_colors,
+                    blockquote_depth,
+                    inline,
+                    &mut html_style_buffer,
+                );
+            }
+            MdEvent::SoftBreak if !in_code && !keep_soft_breaks => {
+                let prev = normalized[..range.start].chars().next_back();
+                let next = normalized[range.end..]
+                    .chars()
+                    .find(|c| !matches!(c, ' ' | '\t' | '>'));
+                push_text_event(
+                    &mut spans,
+                    &mut code_buf,
+                    width::soft_break_joiner(prev, next),
                     in_code,
                     theme_colors,
                     blockquote_depth,

@@ -30,7 +30,7 @@ mod update;
 
 use app::{mode::detect_mode, App, AppConfig, AppMode};
 use cli::{parse_cli, print_usage, print_version, CliOptions};
-use markdown::{hash_str, parse_markdown, parse_markdown_with_width, read_file_state};
+use markdown::{hash_str, parse_markdown_with_width, read_file_state, DEFAULT_RENDER_WIDTH};
 use runtime::run;
 use terminal::{finish_with_restore, TerminalSession};
 use theme::{
@@ -186,26 +186,30 @@ fn resolve_configured_width(
     config_width.map(|w| w.max(20))
 }
 
-fn resolve_main_line_numbers(config_value: Option<bool>) -> bool {
-    if let Ok(val) = std::env::var("LEAF_MAIN_LINE_NUMBERS") {
-        match val.as_str() {
-            "1" => return true,
-            "0" => return false,
-            _ => {}
-        }
+fn env_bool(name: &str) -> Option<bool> {
+    match std::env::var(name).ok()?.as_str() {
+        "1" => Some(true),
+        "0" => Some(false),
+        _ => None,
     }
-    config_value.unwrap_or(false)
+}
+
+fn resolve_main_line_numbers(config_value: Option<bool>) -> bool {
+    env_bool("LEAF_MAIN_LINE_NUMBERS")
+        .or(config_value)
+        .unwrap_or(false)
+}
+
+fn resolve_keep_soft_breaks(config_value: Option<bool>) -> bool {
+    env_bool("LEAF_KEEP_SOFT_BREAKS")
+        .or(config_value)
+        .unwrap_or(true)
 }
 
 fn resolve_code_line_numbers(config_value: Option<bool>) -> bool {
-    if let Ok(val) = std::env::var("LEAF_CODE_LINE_NUMBERS") {
-        match val.as_str() {
-            "1" => return true,
-            "0" => return false,
-            _ => {}
-        }
-    }
-    config_value.unwrap_or(true)
+    env_bool("LEAF_CODE_LINE_NUMBERS")
+        .or(config_value)
+        .unwrap_or(true)
 }
 
 const LEAF_TAB_PREFIX_LEN: usize = 6;
@@ -396,6 +400,7 @@ fn main() -> Result<()> {
     let max_width = resolve_configured_width(cli_width, user_config.width);
     let main_line_numbers = resolve_main_line_numbers(user_config.main_line_numbers);
     let code_line_numbers = resolve_code_line_numbers(user_config.code_line_numbers);
+    let keep_soft_breaks_pref = resolve_keep_soft_breaks(user_config.keep_soft_breaks);
     let tab_title_length = resolve_tab_title_length_n(user_config.tab_title_length);
     let tab_title_max_filename_len = tab_title_length.and_then(tab_title_n_to_max_filename_len);
     let file_picker_width = resolve_file_picker_width(user_config.file_picker_width);
@@ -574,6 +579,8 @@ fn main() -> Result<()> {
         .and_then(|p| p.extension())
         .and_then(|e| e.to_str())
         .unwrap_or("");
+    let plain_text_file = App::is_plain_text_extension(ext);
+    let keep_soft_breaks = App::default_keep_soft_breaks(keep_soft_breaks_pref, plain_text_file);
 
     let app_mode = match mode_hint {
         Some(m) => m,
@@ -608,6 +615,7 @@ fn main() -> Result<()> {
             &at.markdown,
             file_mode,
             code_line_numbers,
+            keep_soft_breaks,
         );
 
         while parsed.lines.last().is_some_and(|l| {
@@ -628,7 +636,16 @@ fn main() -> Result<()> {
     let parsed = if diff_files.is_some() {
         crate::markdown::ParseResult::default()
     } else {
-        parse_markdown(&src, ss, &theme, &at.markdown, file_mode, code_line_numbers)
+        parse_markdown_with_width(
+            &src,
+            ss,
+            &theme,
+            DEFAULT_RENDER_WIDTH,
+            &at.markdown,
+            file_mode,
+            code_line_numbers,
+            keep_soft_breaks,
+        )
     };
     let crate::markdown::ParseResult {
         lines,
@@ -700,6 +717,8 @@ fn main() -> Result<()> {
     app.set_editor_config(Some(resolved_editor));
     app.set_line_numbers_visible(main_line_numbers);
     app.set_code_line_numbers(code_line_numbers);
+    app.set_keep_soft_breaks(keep_soft_breaks_pref);
+    app.set_plain_text_file(plain_text_file);
     app.set_scroll_with_enter(user_config.scroll_with_enter.unwrap_or(false));
     app.set_config_warning(config_warning);
     if let Some(dir) = dir_arg {

@@ -287,7 +287,7 @@ fn blockquote_long_line_in_list_item_wraps_with_correct_indent() {
     let (ss, theme) = test_assets();
     let md = "- one\n  > This is a long blockquote line that should wrap into multiple prefixed lines at a narrow width.\n";
     let (lines, _, _, _) =
-        parse_markdown_with_width(md, &ss, &theme, 32, &test_md_theme(), false, true).into();
+        parse_markdown_with_width(md, &ss, &theme, 32, &test_md_theme(), false, true, true).into();
     let rendered = rendered_non_empty_lines(&lines);
     let quoted: Vec<_> = rendered.iter().filter(|line| line.contains('▏')).collect();
 

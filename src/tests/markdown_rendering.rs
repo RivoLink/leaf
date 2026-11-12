@@ -34,6 +34,7 @@ fn file_mode_code_block_fills_full_render_width() {
         &test_md_theme(),
         true,
         true,
+        true,
     )
     .into();
     let buffer = render_buffer(&lines);

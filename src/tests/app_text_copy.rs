@@ -381,6 +381,7 @@ fn code_line_copy_in_file_mode() {
         &test_md_theme(),
         true,
         true,
+        true,
     );
     let mut app = markdown_app(&source, usize::from(WIDTH) - 3, "a.rs", Some("/src/a.rs"));
     app.set_file_mode(true);

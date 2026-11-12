@@ -488,3 +488,17 @@ fn validate_hyper_link_prefix_graphemes() {
     assert!(!is_valid_hyper_link_prefix(" "));
     assert!(!is_valid_hyper_link_prefix("→→"));
 }
+
+#[test]
+fn parse_keep_soft_breaks_true() {
+    let toml = r#"keep-soft-breaks = true"#;
+    let config: LeafConfig = toml::from_str(toml).unwrap();
+    assert_eq!(config.keep_soft_breaks, Some(true));
+}
+
+#[test]
+fn parse_keep_soft_breaks_missing_defaults_to_none() {
+    let toml = r#"theme = "ocean""#;
+    let config: LeafConfig = toml::from_str(toml).unwrap();
+    assert_eq!(config.keep_soft_breaks, None);
+}

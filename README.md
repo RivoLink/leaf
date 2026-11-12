@@ -288,6 +288,7 @@ file-picker-width = "75%"    # width of the file picker (fuzzy + file browser)
 toc-filelist-width = "25%"   # width of the TOC and file-list side panels
 main-line-numbers = false    # show line numbers in the main document by default
 code-line-numbers = true     # show line numbers inside fenced code blocks
+keep-soft-breaks = true      # keep source line breaks inside paragraphs
 tab-title-length = -1        # terminal tab title truncation (min: 20, -1: no truncation)
 file-history-length = 0      # recent file history length (0 disables, max: 50)
 hyper-link-prefix = "#"      # single character before link text ("" for none)
@@ -390,7 +391,7 @@ leaf --theme rose-pine README.md
 | Key | Action | Key | Action |
 |---|---|---|---|
 | `j` / `↓` | Scroll down | `?` | Show help popup |
-| `k` / `↑` | Scroll up | `p` | Show file path |
+| `k` / `↑` | Scroll up | `Shift+B` | Toggle soft breaks |
 | `d` / PgDn | Page down (20 lines) | `Shift+L` | Toggle line numbers |
 | `u` / PgUp | Page up (20 lines) | `Shift+T` | Open theme picker |
 | `g` / Home | Top | `Shift+E` | Open editor picker |
@@ -405,7 +406,8 @@ leaf --theme rose-pine README.md
 | `w` | Toggle watch mode | `Double-Click` (code) | Copy code block |
 | `r` | Force reload (watch mode) | `Shift+Drag` | Select text |
 | `t` | Toggle TOC sidebar | `Option+Drag` | Select text (iTerm2) |
-| `q` | Quit | `Ctrl+Double-Click` | Copy line |
+| `p` | Show file path | `Ctrl+Double-Click` | Copy line |
+| `q` | Quit | | |
 
 ## Features
 

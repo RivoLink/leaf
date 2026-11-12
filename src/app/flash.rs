@@ -51,6 +51,12 @@ pub(crate) enum HistoryFlash {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum SoftBreakFlash {
+    Kept,
+    Joined,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum DiffFlash {
     SearchInPreview,
     Refreshed,
@@ -230,5 +236,17 @@ impl App {
 
     pub(crate) fn clear_diff_flash(&mut self) {
         self.diff_flash = None;
+    }
+
+    pub(crate) fn set_soft_break_flash(&mut self, flash: SoftBreakFlash) {
+        self.soft_break_flash = Some((flash, Instant::now()));
+    }
+
+    pub(crate) fn soft_break_flash(&self) -> Option<(&SoftBreakFlash, &Instant)> {
+        self.soft_break_flash.as_ref().map(|(f, t)| (f, t))
+    }
+
+    pub(crate) fn clear_soft_break_flash(&mut self) {
+        self.soft_break_flash = None;
     }
 }

@@ -163,7 +163,7 @@ fn wrapped_list_items_align_continuation_under_text() {
     let (ss, theme) = test_assets();
     let src = "- First item with enough text to wrap when the terminal is narrow and show continuation alignment.\n8. Eighth item with enough text to wrap and keep numeric alignment readable.\n";
     let (lines, _, _, _) =
-        parse_markdown_with_width(src, &ss, &theme, 36, &test_md_theme(), false, true).into();
+        parse_markdown_with_width(src, &ss, &theme, 36, &test_md_theme(), false, true, true).into();
     let rendered = rendered_non_empty_lines(&lines);
 
     assert!(rendered.iter().any(|line| line.starts_with("• First item")));
@@ -227,7 +227,8 @@ fn wrapped_list_inline_code_keeps_left_padding_in_rendered_line() {
     let (ss, theme) = test_assets();
     let source = "- `leaf --theme ocean README.md` exercises wrapping inside a list item.\n";
     let (lines, _, _, _) =
-        parse_markdown_with_width(source, &ss, &theme, 22, &test_md_theme(), false, true).into();
+        parse_markdown_with_width(source, &ss, &theme, 22, &test_md_theme(), false, true, true)
+            .into();
 
     let target = lines
         .iter()

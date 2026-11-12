@@ -21,6 +21,7 @@ fn adversarial_table_fixture() -> (Vec<Line<'static>>, Vec<LinkSpan>, Vec<String
         &super::test_md_theme(),
         false,
         true,
+        true,
     );
     (parsed.lines, parsed.link_spans, parsed.link_urls)
 }
@@ -173,7 +174,8 @@ fn link_spans_in_table_are_detected() {
 fn wrapped_repeated_destinations_keep_distinct_ids_and_continuations() {
     let (ss, theme) = test_assets();
     let md = "[one two three four five six seven](https://example.test/repeat) and [again](https://example.test/repeat)";
-    let parsed = parse_markdown_with_width(md, &ss, &theme, 18, &test_md_theme(), false, true);
+    let parsed =
+        parse_markdown_with_width(md, &ss, &theme, 18, &test_md_theme(), false, true, true);
     assert_eq!(parsed.link_urls.len(), 2);
     assert_eq!(parsed.link_urls[0], parsed.link_urls[1]);
     let first_rows: Vec<String> = parsed
@@ -419,7 +421,8 @@ impl Drop for LinkMarkerGuard {
 
 fn link_texts(md: &str, width: usize) -> Vec<(String, String)> {
     let (ss, theme) = test_assets();
-    let parsed = parse_markdown_with_width(md, &ss, &theme, width, &test_md_theme(), false, true);
+    let parsed =
+        parse_markdown_with_width(md, &ss, &theme, width, &test_md_theme(), false, true, true);
     parsed
         .link_spans
         .iter()

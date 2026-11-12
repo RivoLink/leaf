@@ -2,7 +2,7 @@ use crate::{
     app::{
         history::{msg_history_capped, MSG_HISTORY_WRITE_FAILED},
         App, AppMode, CodeBlockFlash, DiffFlash, DiffSource, EditorFlash, HistoryFlash, LinkFlash,
-        PathFlash, WatchFlash, FLASH_DURATION_MS,
+        PathFlash, SoftBreakFlash, WatchFlash, FLASH_DURATION_MS,
     },
     markdown::{truncate_display_width, width::spans_width},
     theme::app_theme,
@@ -211,6 +211,23 @@ pub(crate) fn status_percent_section(pct: u16, bar_bg: Color) -> Vec<Span<'stati
     )]
 }
 
+fn soft_break_flash_section(app: &App) -> Option<Vec<Span<'static>>> {
+    let (flash, started) = app.soft_break_flash()?;
+    if started.elapsed() >= std::time::Duration::from_millis(FLASH_DURATION_MS) {
+        return None;
+    }
+    let theme = app_theme();
+    let bar_bg = status_bar_bg();
+    let text = match flash {
+        SoftBreakFlash::Kept => " Soft breaks kept ",
+        SoftBreakFlash::Joined => " Soft breaks joined ",
+    };
+    Some(vec![Span::styled(
+        text,
+        Style::default().fg(theme.ui.status_success_fg).bg(bar_bg),
+    )])
+}
+
 fn config_flash_section(app: &App) -> Option<Vec<Span<'static>>> {
     let (message, started) = app.config_flash()?;
     if started.elapsed() >= std::time::Duration::from_millis(FLASH_DURATION_MS) {
@@ -385,6 +402,12 @@ pub(crate) fn build_status_bar(app: &App, pct: u16) -> Vec<Span<'static>> {
     }
 
     if let Some(flash_section) = watch_flash_section(app) {
+        let mut left = status_brand_section();
+        left.extend(flash_section);
+        return join_span_sections(vec![left], outer_separator);
+    }
+
+    if let Some(flash_section) = soft_break_flash_section(app) {
         let mut left = status_brand_section();
         left.extend(flash_section);
         return join_span_sections(vec![left], outer_separator);

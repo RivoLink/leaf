@@ -234,7 +234,7 @@ fn oversized_horizontal_mermaid_reflows_vertically() {
     let (ss, theme) = test_assets();
     let src = "```mermaid\nflowchart LR\n  A[Collect request] --> B[Validate request] --> C[Store response]\n```\n";
     let (lines, _, _, _) =
-        parse_markdown_with_width(src, &ss, &theme, 50, &test_md_theme(), false, true).into();
+        parse_markdown_with_width(src, &ss, &theme, 50, &test_md_theme(), false, true, true).into();
     let rendered = rendered_non_empty_lines(&lines);
 
     assert!(
@@ -260,7 +260,8 @@ fn oversized_mermaid_falls_back_instead_of_wrapping_diagram_rows() {
         "oversized ".repeat(10)
     );
     let (lines, _, _, _) =
-        parse_markdown_with_width(&src, &ss, &theme, 50, &test_md_theme(), false, true).into();
+        parse_markdown_with_width(&src, &ss, &theme, 50, &test_md_theme(), false, true, true)
+            .into();
     let rendered = rendered_non_empty_lines(&lines);
 
     assert!(
@@ -276,7 +277,8 @@ fn oversized_mermaid_falls_back_instead_of_wrapping_diagram_rows() {
 fn mermaid_header(src: &str, width: usize) -> String {
     let (ss, theme) = test_assets();
     let (lines, _, _, _) =
-        parse_markdown_with_width(src, &ss, &theme, width, &test_md_theme(), false, true).into();
+        parse_markdown_with_width(src, &ss, &theme, width, &test_md_theme(), false, true, true)
+            .into();
     rendered_non_empty_lines(&lines)
         .into_iter()
         .find(|line| line.contains("┌─ mermaid"))
@@ -345,7 +347,7 @@ fn oversized_class_diagram_uses_vertical_cards() {
     let (ss, theme) = test_assets();
     let src = "```mermaid\nclassDiagram\n  class Client {\n    +BackendCapabilities capabilities\n    +from_profile()\n  }\n  class BackendAdapter {\n    <<Protocol>>\n    +invoke(OperationDef, input, deadline)\n  }\n  Client *-- BackendAdapter\n```\n";
     let (lines, _, _, _) =
-        parse_markdown_with_width(src, &ss, &theme, 32, &test_md_theme(), false, true).into();
+        parse_markdown_with_width(src, &ss, &theme, 32, &test_md_theme(), false, true, true).into();
     let rendered = rendered_non_empty_lines(&lines);
 
     assert!(

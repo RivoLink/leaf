@@ -68,6 +68,8 @@ pub(crate) struct LeafConfig {
     pub(crate) file_history_length: Option<i32>,
     #[serde(rename = "hyper-link-prefix")]
     pub(crate) hyper_link_prefix: Option<String>,
+    #[serde(rename = "keep-soft-breaks")]
+    pub(crate) keep_soft_breaks: Option<bool>,
     #[serde(rename = "scroll-with-enter")]
     pub(crate) scroll_with_enter: Option<bool>,
     #[serde(

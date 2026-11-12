@@ -16,11 +16,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14
+          - os: macos-15
             artifact_name: leaf-macos-x86_64
             binary_path: target/x86_64-apple-darwin/release/leaf
             target: x86_64-apple-darwin
-          - os: macos-14
+          - os: macos-15
             artifact_name: leaf-macos-arm64
             binary_path: target/aarch64-apple-darwin/release/leaf
             target: aarch64-apple-darwin

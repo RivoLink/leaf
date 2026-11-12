@@ -1,6 +1,6 @@
 [package]
 name = "leaf-markdown-viewer"
-version = "1.29.2"
+version = "1.29.3"
 edition = "2021"
 description = "Terminal Markdown previewer with a GUI-like experience"
 license = "MIT"

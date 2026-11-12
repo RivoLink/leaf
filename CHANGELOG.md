@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- next-version -->
 
+## [[1.29.3](https://github.com/RivoLink/leaf/releases/tag/1.29.3)] - 2026-11-12
+
+### Fixed
+
+- cargo audit rustix warning ([#368](https://github.com/RivoLink/leaf/pull/368))
+- new clippy ci errors ([#367](https://github.com/RivoLink/leaf/pull/367))
+- soft break paragraph copy ([#364](https://github.com/RivoLink/leaf/pull/364))
+- ctrl-click table cell copy ([#361](https://github.com/RivoLink/leaf/pull/361))
+- zsh completion autoload ([#351](https://github.com/RivoLink/leaf/pull/351))
+- latex formulas unicode panic ([#359](https://github.com/RivoLink/leaf/pull/359))
+- popup border wide chars ([#354](https://github.com/RivoLink/leaf/pull/354))
+
+### Changed
+
+- macos release runner ([#371](https://github.com/RivoLink/leaf/pull/371))
+- support obsidian callouts ([#370](https://github.com/RivoLink/leaf/pull/370))
+- toggle soft line breaks ([#369](https://github.com/RivoLink/leaf/pull/369))
+- update toml crate version ([#358](https://github.com/RivoLink/leaf/pull/358))
+- cache test syntect assets ([#357](https://github.com/RivoLink/leaf/pull/357))
+- parallelize locked tests ([#353](https://github.com/RivoLink/leaf/pull/353))
+- slim down dependencies ([#352](https://github.com/RivoLink/leaf/pull/352))
+
 ## [[1.29.2](https://github.com/RivoLink/leaf/releases/tag/1.29.2)] - 2026-10-25
 
 ### Fixed

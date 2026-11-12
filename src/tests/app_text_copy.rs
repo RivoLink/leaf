@@ -3,7 +3,7 @@ use super::common::app_helpers::{
 };
 use super::{lock_theme_test_state, test_assets, test_md_theme};
 use crate::{
-    app::{is_word_char, App, AppMode, CopyRange, COPY_HIGHLIGHT_DURATION_MS},
+    app::{is_word_char, marker_len, App, AppMode, CopyRange, COPY_HIGHLIGHT_DURATION_MS},
     markdown::parse_markdown_with_width,
     runtime::handle_mouse_event_with,
     theme::app_theme,
@@ -84,6 +84,30 @@ fn copy_at(source: &str, text: &str, modifiers: KeyModifiers) -> Vec<String> {
     let mut app = app_for(source);
     let buffer = draw(&mut app, WIDTH, HEIGHT);
     double_click(&mut app, text_cell(&buffer, text), modifiers).0
+}
+
+#[test]
+fn only_callout_header_icon_spans_are_copy_markers() {
+    use ratatui::style::{Modifier, Style};
+    use ratatui::text::Span;
+
+    let _guard = lock_theme_test_state();
+    let theme = test_md_theme();
+    let header = |color| Style::default().fg(color).add_modifier(Modifier::BOLD);
+    let caution = header(theme.alert_caution);
+    assert_eq!(marker_len(&Span::styled("[x] ", caution), &theme), 4);
+    let question = header(theme.alert_warning);
+    assert_eq!(marker_len(&Span::styled("[?] ", question), &theme), 4);
+    for span in [
+        Span::raw("[x] "),
+        Span::styled("[?] ", caution),
+        Span::styled("[x] ", Style::default().fg(theme.alert_caution)),
+        Span::styled("[x] ", Style::default().add_modifier(Modifier::BOLD)),
+        Span::styled("[x] text", caution),
+        Span::styled("[y] ", caution),
+    ] {
+        assert_eq!(marker_len(&span, &theme), 0, "{span:?}");
+    }
 }
 
 #[test]
@@ -266,6 +290,17 @@ fn ctrl_double_click_in_wrapped_table_cell_joins_its_lines() {
 }
 
 #[test]
+fn ctrl_double_click_copies_table_cell_inside_blockquote() {
+    let _guard = lock_theme_test_state();
+    let source = "> [!NOTE]\n> | A | B |\n> |---|---|\n> | left | right cell |";
+    assert_eq!(
+        copy_at(source, "right", KeyModifiers::CONTROL),
+        ["right cell"]
+    );
+    assert_eq!(copy_at(source, "left", KeyModifiers::CONTROL), ["left"]);
+}
+
+#[test]
 fn line_copy_strips_list_quote_and_task_decorations_only() {
     let _guard = lock_theme_test_state();
     for (source, text, expected) in [
@@ -279,6 +314,8 @@ fn line_copy_strips_list_quote_and_task_decorations_only() {
         ("2024. year item", "year", "year item"),
         ("> [!NOTE]\n> body", "Note", "Note"),
         ("> [!WARNING]\n> body", "Warning", "Warning"),
+        ("> [!faq] Custom title\n> body", "Custom", "Custom title"),
+        ("> [!bug]\n> body", "Bug", "Bug"),
         ("# 1. Heading", "Heading", "1. Heading"),
         ("1\\. escaped item", "escaped", "1. escaped item"),
         (

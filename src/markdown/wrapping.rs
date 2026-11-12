@@ -198,7 +198,7 @@ pub(super) fn push_wrapped_prefixed_lines(
     }
 }
 
-fn unowned(spans: Vec<Span<'static>>) -> Vec<LinkedSpan> {
+pub(super) fn unowned(spans: Vec<Span<'static>>) -> Vec<LinkedSpan> {
     spans
         .into_iter()
         .map(|s| LinkedSpan::new(s, None))

@@ -55,7 +55,7 @@ pub(super) struct DefinitionSnapshot {
     pub(super) code_lang: String,
     pub(super) code_buf: String,
     pub(super) inline: InlineStyleState,
-    pub(super) blockquote_color: Option<Color>,
+    pub(super) blockquote_colors: Vec<Option<Color>>,
     pub(super) in_heading: Option<u8>,
     pub(super) table: Option<TableBuf>,
     pub(super) last_block: LastBlock,
@@ -76,7 +76,7 @@ impl DefinitionSnapshot {
         code_lang: &mut String,
         code_buf: &mut String,
         inline: &mut InlineStyleState,
-        blockquote_color: &mut Option<Color>,
+        blockquote_colors: &mut Vec<Option<Color>>,
         in_heading: &mut Option<u8>,
         table: &mut Option<TableBuf>,
         last_block: &mut LastBlock,
@@ -94,7 +94,7 @@ impl DefinitionSnapshot {
             code_lang: std::mem::take(code_lang),
             code_buf: std::mem::take(code_buf),
             inline: std::mem::take(inline),
-            blockquote_color: std::mem::take(blockquote_color),
+            blockquote_colors: std::mem::take(blockquote_colors),
             in_heading: std::mem::take(in_heading),
             table: std::mem::take(table),
             last_block: std::mem::replace(last_block, LastBlock::Other),
@@ -116,7 +116,7 @@ impl DefinitionSnapshot {
         code_lang: &mut String,
         code_buf: &mut String,
         inline: &mut InlineStyleState,
-        blockquote_color: &mut Option<Color>,
+        blockquote_colors: &mut Vec<Option<Color>>,
         in_heading: &mut Option<u8>,
         table: &mut Option<TableBuf>,
         last_block: &mut LastBlock,
@@ -133,7 +133,7 @@ impl DefinitionSnapshot {
         *code_lang = self.code_lang;
         *code_buf = self.code_buf;
         *inline = self.inline;
-        *blockquote_color = self.blockquote_color;
+        *blockquote_colors = self.blockquote_colors;
         *in_heading = self.in_heading;
         *table = self.table;
         *last_block = self.last_block;

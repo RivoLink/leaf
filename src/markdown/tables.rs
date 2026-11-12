@@ -15,7 +15,8 @@ use super::table_layout::{
     align_cell, cap_table_widths, fit_table_widths, fragments_display_width, min_table_cell_width,
     wrap_table_cell,
 };
-use super::width::display_width;
+use super::width::{display_width, spans_width};
+use super::wrapping::unowned;
 
 #[derive(Clone, Copy, Default)]
 pub(super) struct CellInlineStyle {
@@ -103,6 +104,7 @@ pub(super) struct TableBuf {
     html_style_buffer: HtmlStyleBuffer,
     key_column: Option<usize>,
     fill_width: bool,
+    prefix: Vec<Span<'static>>,
 }
 
 struct TableBorder<'a> {
@@ -231,8 +233,12 @@ pub(super) fn handle_table_event(
     }
 }
 
-pub(super) fn start_table(table: &mut Option<TableBuf>, aligns: &[Alignment]) {
-    *table = Some(TableBuf::new(aligns.to_vec()));
+pub(super) fn start_table(
+    table: &mut Option<TableBuf>,
+    aligns: &[Alignment],
+    prefix: Vec<Span<'static>>,
+) {
+    *table = Some(TableBuf::new(aligns.to_vec(), prefix));
 }
 
 pub(super) fn handle_html_tag_event_cell(raw: &str, tb: &mut TableBuf) -> HtmlTagOutcome {
@@ -292,7 +298,7 @@ pub(super) fn handle_html_tag_event_cell(raw: &str, tb: &mut TableBuf) -> HtmlTa
 }
 
 impl TableBuf {
-    fn new(alignments: Vec<Alignment>) -> Self {
+    fn new(alignments: Vec<Alignment>, prefix: Vec<Span<'static>>) -> Self {
         Self {
             alignments,
             rows: vec![],
@@ -304,6 +310,7 @@ impl TableBuf {
             html_style_buffer: None,
             key_column: None,
             fill_width: false,
+            prefix,
         }
     }
 
@@ -331,6 +338,7 @@ impl TableBuf {
                 html_style_buffer: None,
                 key_column: Some(0),
                 fill_width: true,
+                prefix: Vec::new(),
             }
         } else {
             let alignments = vec![Alignment::None; pairs.len()];
@@ -353,6 +361,7 @@ impl TableBuf {
                 html_style_buffer: None,
                 key_column: None,
                 fill_width: true,
+                prefix: Vec::new(),
             }
         }
     }
@@ -493,6 +502,8 @@ impl TableBuf {
         if col_count == 0 {
             return;
         }
+        let prefix = self.prefix.as_slice();
+        let render_width = render_width.saturating_sub(spans_width(prefix));
 
         let mut col_widths: Vec<usize> = vec![1; col_count];
         let mut min_widths: Vec<usize> = vec![4; col_count];
@@ -528,10 +539,9 @@ impl TableBuf {
             .fg(theme.table_header)
             .add_modifier(Modifier::BOLD);
         let cell = Style::default().fg(theme.table_cell);
-        let ind = "";
 
         out.push(self.hline(
-            ind,
+            prefix,
             TableBorder {
                 left: "┌",
                 fill: "─",
@@ -559,10 +569,8 @@ impl TableBuf {
                 .unwrap_or(1);
 
             for line_idx in 0..row_height {
-                let mut spans = vec![
-                    LinkedSpan::new(Span::raw(ind), None),
-                    LinkedSpan::new(Span::styled("│", border), None),
-                ];
+                let mut spans = unowned(prefix.to_vec());
+                spans.push(LinkedSpan::new(Span::styled("│", border), None));
                 for (ci, width) in col_widths.iter().copied().enumerate().take(col_count) {
                     let frags = wrapped_cells[ci].get(line_idx).unwrap_or(&empty_cell);
                     let align = self.alignments.get(ci).copied().unwrap_or(Alignment::None);
@@ -580,7 +588,7 @@ impl TableBuf {
 
             if is_hdr && ri == self.header_count - 1 {
                 out.push(self.hline(
-                    ind,
+                    prefix,
                     TableBorder {
                         left: "╞",
                         fill: "═",
@@ -592,7 +600,7 @@ impl TableBuf {
                 ));
             } else if !is_hdr && ri < self.rows.len() - 1 {
                 out.push(self.hline(
-                    ind,
+                    prefix,
                     TableBorder {
                         left: "├",
                         fill: "─",
@@ -606,7 +614,7 @@ impl TableBuf {
         }
 
         out.push(self.hline(
-            ind,
+            prefix,
             TableBorder {
                 left: "└",
                 fill: "─",
@@ -616,20 +624,22 @@ impl TableBuf {
             &col_widths,
             border,
         ));
-        out.push(Line::from(""));
+        out.push(if prefix.is_empty() {
+            Line::from("")
+        } else {
+            Line::from(prefix.to_vec())
+        });
     }
 
     fn hline(
         &self,
-        indent: &str,
+        prefix: &[Span<'static>],
         border: TableBorder<'_>,
         col_widths: &[usize],
         style: Style,
     ) -> Line<'static> {
-        let mut spans = vec![
-            Span::raw(indent.to_string()),
-            Span::styled(border.left.to_string(), style),
-        ];
+        let mut spans = prefix.to_vec();
+        spans.push(Span::styled(border.left.to_string(), style));
         for (ci, &w) in col_widths.iter().enumerate() {
             spans.push(Span::styled(border.fill.repeat(w + 2), style));
             if ci < col_widths.len() - 1 {

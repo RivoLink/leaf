@@ -46,11 +46,11 @@ pub(super) fn list_item_prefix(
     list_stack: &[ListKind],
     item_stack: &mut [ItemState],
     theme: &MarkdownTheme,
-    marker_color: Option<ratatui::style::Color>,
+    marker_colors: &[Option<ratatui::style::Color>],
 ) -> Vec<Span<'static>> {
     let in_bq = blockquote_depth > 0;
     let Some(item) = item_stack.last_mut() else {
-        return block_prefix(blockquote_depth, theme, marker_color);
+        return block_prefix(blockquote_depth, theme, marker_colors);
     };
 
     let bq_is_outer = in_bq && blockquote_depth == item.opened_at_bq_depth;
@@ -58,7 +58,7 @@ pub(super) fn list_item_prefix(
     let mut prefix = Vec::new();
 
     if bq_is_outer {
-        prefix.extend(block_prefix(blockquote_depth, theme, marker_color));
+        prefix.extend(block_prefix(blockquote_depth, theme, marker_colors));
     }
 
     if item.marker_emitted {
@@ -100,7 +100,7 @@ pub(super) fn list_item_prefix(
     }
 
     if in_bq && !bq_is_outer {
-        prefix.extend(block_prefix(blockquote_depth, theme, marker_color));
+        prefix.extend(block_prefix(blockquote_depth, theme, marker_colors));
     }
 
     prefix
@@ -116,7 +116,7 @@ pub(super) fn flush_list_item_spans(
     blockquote_depth: usize,
     render_width: usize,
     theme: &MarkdownTheme,
-    marker_color: Option<ratatui::style::Color>,
+    marker_colors: &[Option<ratatui::style::Color>],
 ) {
     if spans.is_empty() {
         return;
@@ -127,14 +127,14 @@ pub(super) fn flush_list_item_spans(
         list_stack,
         item_stack,
         theme,
-        marker_color,
+        marker_colors,
     );
     let continuation_prefix = list_item_prefix(
         blockquote_depth,
         list_stack,
         item_stack,
         theme,
-        marker_color,
+        marker_colors,
     );
     push_wrapped_prefixed_lines(
         lines,
@@ -186,7 +186,7 @@ pub(super) fn end_item(
     blockquote_depth: usize,
     render_width: usize,
     theme: &MarkdownTheme,
-    marker_color: Option<ratatui::style::Color>,
+    marker_colors: &[Option<ratatui::style::Color>],
 ) {
     flush_list_item_spans(
         lines,
@@ -197,7 +197,7 @@ pub(super) fn end_item(
         blockquote_depth,
         render_width,
         theme,
-        marker_color,
+        marker_colors,
     );
     item_stack.pop();
     if let Some(ListKind::Ordered(next)) = list_stack.last_mut() {

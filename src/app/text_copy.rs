@@ -239,13 +239,13 @@ impl App {
 
         let mut text = String::new();
         let mut ranges = Vec::new();
-        for idx in start..=end {
+        for (idx, line) in self.lines.iter().enumerate().take(end + 1).skip(start) {
             let clusters = match cell {
-                Some(cell) => match table_cell_clusters(line_clusters(&self.lines[idx]), cell) {
+                Some(cell) => match table_cell_clusters(line_clusters(line), cell) {
                     Some(clusters) => clusters,
                     None => continue,
                 },
-                None => line_clusters(&self.lines[idx]),
+                None => line_clusters(line),
             };
             let Some(first) = clusters.iter().position(|c| !is_strippable(c)) else {
                 continue;

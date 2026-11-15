@@ -283,6 +283,58 @@ fn frontmatter_is_ignored_in_preview() {
 }
 
 #[test]
+fn frontmatter_with_crlf_line_endings_is_ignored_in_preview() {
+    let (ss, theme) = test_assets();
+    let src = "---\r\ntitle: Demo\r\nowner: me\r\n---\r\n# Visible\r\nBody\r\n";
+    let (lines, _, _, _) = parse_markdown(src, &ss, &theme, &test_md_theme(), false, true).into();
+    let rendered = rendered_non_empty_lines(&lines);
+
+    assert!(!rendered.iter().any(|line| line.contains("title: Demo")));
+    assert!(rendered
+        .iter()
+        .any(|line| line.starts_with('│') && line.contains("Demo")));
+    assert!(!rendered.iter().any(|line| line.contains('\r')));
+    assert!(rendered.iter().any(|line| line.contains("Visible")));
+}
+
+#[test]
+fn frontmatter_closing_fence_accepts_lone_cr() {
+    let (ss, theme) = test_assets();
+    let src = "---\r\ntitle: Demo\r\n---\r\r\nbody\r\n";
+    let parsed = parse_markdown(src, &ss, &theme, &test_md_theme(), false, true);
+    let rendered: Vec<String> = parsed.lines.iter().map(line_plain_text).collect();
+
+    assert!(rendered[0].starts_with('┌'), "{rendered:?}");
+    assert!(!rendered.iter().any(|line| line.contains("title: Demo")));
+    assert!(rendered.iter().any(|line| line == "body"));
+}
+
+#[test]
+fn frontmatter_closing_fence_variants_are_detected() {
+    let (ss, theme) = test_assets();
+    for (src, has_body) in [
+        ("---\ntitle: Demo\n...\nbody\n", true),
+        ("---\ntitle: Demo\n---", false),
+        ("---\ntitle: Demo\n...", false),
+        ("---\r\ntitle: Demo\r\n...\r\nbody\r\n", true),
+    ] {
+        let parsed = parse_markdown(src, &ss, &theme, &test_md_theme(), false, true);
+        let rendered: Vec<String> = parsed.lines.iter().map(line_plain_text).collect();
+
+        assert!(rendered[0].starts_with('┌'), "{src:?}: {rendered:?}");
+        assert!(
+            !rendered.iter().any(|line| line.contains("title: Demo")),
+            "{src:?}: {rendered:?}"
+        );
+        assert_eq!(
+            rendered.iter().any(|line| line == "body"),
+            has_body,
+            "{src:?}: {rendered:?}"
+        );
+    }
+}
+
+#[test]
 fn h2_headings_are_underlined_and_compact() {
     let (ss, theme) = test_assets();
     let (lines, _, _, _) = parse_markdown_with_width(
@@ -385,6 +437,21 @@ fn source_line_map_frontmatter_lines_point_to_line_one() {
     let parsed = parse_markdown(src, &ss, &theme, &test_md_theme(), false, true);
     assert_eq!(parsed.source_line_map[0], 1);
     let rendered: Vec<String> = parsed.lines.iter().map(line_plain_text).collect();
+    let body_idx = rendered
+        .iter()
+        .position(|l| l == "body")
+        .expect("body rendered");
+    assert_eq!(parsed.source_line_map[body_idx], 5);
+}
+
+#[test]
+fn source_line_map_crlf_frontmatter_lines_point_to_line_one() {
+    let (ss, theme) = test_assets();
+    let src = "---\r\ntitle: Hello\r\nauthor: Me\r\n---\r\nbody\r\n";
+    let parsed = parse_markdown(src, &ss, &theme, &test_md_theme(), false, true);
+    assert_eq!(parsed.source_line_map[0], 1);
+    let rendered: Vec<String> = parsed.lines.iter().map(line_plain_text).collect();
+    assert!(rendered[0].starts_with('┌'), "{rendered:?}");
     let body_idx = rendered
         .iter()
         .position(|l| l == "body")

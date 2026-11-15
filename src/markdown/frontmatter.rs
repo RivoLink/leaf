@@ -1,14 +1,20 @@
 const FRONTMATTER_VERTICAL_THRESHOLD: usize = 5;
 
 pub(super) fn extract_frontmatter(src: &str) -> (&str, Option<Vec<(String, String)>>) {
-    let Some(rest) = src.strip_prefix("---\n") else {
+    let Some(rest) = src
+        .strip_prefix("---\n")
+        .or_else(|| src.strip_prefix("---\r\n"))
+    else {
         return (src, None);
     };
 
-    let mut offset = 4usize;
+    let open_len = src.len() - rest.len();
+    let mut offset = open_len;
     for line in rest.split_inclusive('\n') {
-        if line == "---\n" || line == "...\n" || line == "---" || line == "..." {
-            let fm_block = &src[4..offset];
+        // A lone CR is a line ending (CommonMark/YAML), so "---\r\r\n" still closes.
+        let fence = line.trim_end_matches(['\r', '\n']);
+        if fence == "---" || fence == "..." {
+            let fm_block = &src[open_len..offset];
             let content = &src[offset + line.len()..];
             let pairs = parse_pairs(fm_block);
             if pairs.is_empty() {

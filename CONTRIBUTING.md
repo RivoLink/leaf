@@ -30,6 +30,16 @@ cargo build
 cargo run -- README.md
 ```
 
+### Nix
+
+If you use Nix, the repository ships a flake with the toolchain and the package:
+
+```bash
+nix develop          # cargo, clippy, rustfmt, rust-analyzer
+nix build            # build the release binary into ./result
+nix flake check      # build the package and run the test suite
+```
+
 ## Development Workflow
 
 Before submitting a PR, run the full validation sequence:

@@ -51,6 +51,20 @@ Install the crate from [crates.io](https://crates.io/crates/leaf-markdown-viewer
 cargo install leaf-markdown-viewer
 ```
 
+**Nix**
+
+Install the package from [nixpkgs](https://search.nixos.org/packages?channel=unstable&show=leaf-markdown-viewer):
+
+```bash
+nix profile install nixpkgs#leaf-markdown-viewer
+```
+
+Or build straight from this repository with flakes, without installing:
+
+```bash
+nix run github:RivoLink/leaf -- README.md
+```
+
 **Scoop (Windows)**
 
 Install the app from [scoop.sh](https://scoop.sh/#/apps?q=leaf-markdown-viewer):
@@ -103,6 +117,12 @@ brew upgrade leaf-markdown-viewer
 
 ```bash
 cargo install leaf-markdown-viewer --force
+```
+
+**Nix**
+
+```bash
+nix profile upgrade leaf-markdown-viewer
 ```
 
 **Scoop (Windows)**

@@ -97,6 +97,14 @@ pub(super) fn handle_key_event(
     ss: &SyntaxSet,
     themes: &ThemeSet,
 ) -> anyhow::Result<HandleResult> {
+    #[cfg(unix)]
+    if matches!(key.code, KeyCode::Char('z') | KeyCode::Char('Z'))
+        && key.modifiers.contains(KeyModifiers::CONTROL)
+    {
+        crate::terminal::TerminalSession::suspend_job(terminal, app.is_mouse_capture_enabled())?;
+        return Ok(HandleResult::Continue { redraw: true });
+    }
+
     if matches!(key.code, KeyCode::Char('m') | KeyCode::Char('M'))
         && !key.modifiers.contains(KeyModifiers::CONTROL)
     {

@@ -26,12 +26,12 @@ jobs:
             target: aarch64-apple-darwin
           - os: ubuntu-22.04
             artifact_name: leaf-linux-x86_64
-            binary_path: target/release/leaf
-            target: ""
+            binary_path: target/x86_64-unknown-linux-musl/release/leaf
+            target: x86_64-unknown-linux-musl
           - os: ubuntu-22.04
             artifact_name: leaf-linux-arm64
-            binary_path: target/aarch64-unknown-linux-gnu/release/leaf
-            target: aarch64-unknown-linux-gnu
+            binary_path: target/aarch64-unknown-linux-musl/release/leaf
+            target: aarch64-unknown-linux-musl
           - os: ubuntu-22.04
             artifact_name: leaf-android-arm64
             binary_path: target/aarch64-linux-android/release/leaf
@@ -63,22 +63,21 @@ jobs:
         with:
           ndk-version: r26d
 
-      - name: Setup Linux ARM64 linker
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
+      - name: Setup Zig toolchain
+        if: endsWith(matrix.target, '-linux-musl')
+        run: pip3 install ziglang==0.17.1
+
+      - name: Install cargo-zigbuild
+        if: endsWith(matrix.target, '-linux-musl')
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-zigbuild@0.24.1
 
       - name: Configure Android linker
         if: matrix.target == 'aarch64-linux-android'
         run: |
           echo "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/bin" >> "$GITHUB_PATH"
           echo "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=aarch64-linux-android21-clang" >> "$GITHUB_ENV"
-
-      - name: Configure Linux ARM64 linker
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
 
       - name: Build release
         if: matrix.target == ''
@@ -88,8 +87,24 @@ jobs:
         if: matrix.target == 'aarch64-linux-android'
         run: cargo build --release --target aarch64-linux-android
 
+      - name: Build Linux static release
+        if: endsWith(matrix.target, '-linux-musl')
+        run: cargo zigbuild --release --locked --target ${{ matrix.target }}
+
+      - name: Verify Linux static binary
+        if: endsWith(matrix.target, '-linux-musl')
+        run: |
+          file "${{ matrix.binary_path }}"
+          file "${{ matrix.binary_path }}" | grep -q "statically linked"
+
+      - name: Smoke test Linux static binary
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: |
+          "${{ matrix.binary_path }}" --version
+          printf '# ok\n' | "${{ matrix.binary_path }}" --inline
+
       - name: Build targeted release
-        if: matrix.target != '' && matrix.target != 'aarch64-linux-android'
+        if: matrix.target != '' && matrix.target != 'aarch64-linux-android' && !endsWith(matrix.target, '-linux-musl')
         run: cargo build --release --target ${{ matrix.target }}
 
       - name: Stage artifact

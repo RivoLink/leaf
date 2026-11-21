@@ -1,8 +1,8 @@
 use crate::{
     app::{
         history::{msg_history_capped, MSG_HISTORY_WRITE_FAILED},
-        App, AppMode, CodeBlockFlash, DiffFlash, DiffSource, EditorFlash, HistoryFlash, LinkFlash,
-        PathFlash, SoftBreakFlash, WatchFlash, FLASH_DURATION_MS,
+        App, AppMode, CodeBlockFlash, CommentFlash, DiffFlash, DiffSource, EditorFlash,
+        HistoryFlash, LinkFlash, PathFlash, SoftBreakFlash, WatchFlash, FLASH_DURATION_MS,
     },
     markdown::{truncate_display_width, width::spans_width},
     theme::app_theme,
@@ -175,7 +175,18 @@ pub(crate) fn status_goto_line_section(app: &App) -> Option<Vec<Span<'static>>> 
 }
 
 pub(crate) fn status_hint_segments(app: &App) -> &'static [&'static str] {
-    if app.is_link_select_mode() {
+    if app.is_comment_input() {
+        &["enter save", "esc cancel"]
+    } else if app.is_comment_mode() {
+        &[
+            "v range",
+            "enter comment",
+            "x delete",
+            "n/N jump",
+            "y copy",
+            "esc exit",
+        ]
+    } else if app.is_link_select_mode() {
         &["x/X next/prev", "enter copy", "ctrl+o open", "esc cancel"]
     } else if app.is_goto_line_mode() || app.is_search_mode() {
         &["enter confirm", "esc cancel"]
@@ -359,6 +370,99 @@ fn path_flash_section(app: &App) -> Option<Vec<Span<'static>>> {
     Some(vec![Span::styled(text, Style::default().fg(fg).bg(bar_bg))])
 }
 
+fn plural(n: usize) -> &'static str {
+    if n == 1 {
+        ""
+    } else {
+        "s"
+    }
+}
+
+fn comment_flash_section(app: &App) -> Option<Vec<Span<'static>>> {
+    let (flash, started) = app.comment_flash()?;
+    if started.elapsed() >= std::time::Duration::from_millis(FLASH_DURATION_MS) {
+        return None;
+    }
+    let theme = app_theme();
+    let bar_bg = status_bar_bg();
+    let (text, fg) = match *flash {
+        CommentFlash::Saved => (" Comment saved ".to_string(), theme.ui.status_success_fg),
+        CommentFlash::Deleted => (" Comment deleted ".to_string(), theme.ui.status_warning_fg),
+        CommentFlash::Cleared => (
+            " All comments cleared ".to_string(),
+            theme.ui.status_warning_fg,
+        ),
+        CommentFlash::Copied(n) => (
+            format!(" Copied {n} comment{} to clipboard ", plural(n)),
+            theme.ui.status_success_fg,
+        ),
+        CommentFlash::CopyFailed => (clipboard_hint().to_string(), theme.ui.status_error_fg),
+        CommentFlash::NothingToCopy => (
+            " No comments to copy ".to_string(),
+            theme.ui.status_error_fg,
+        ),
+        CommentFlash::ConfirmClear(n) => (
+            format!(" Press X again to delete {n} comment{} ", plural(n)),
+            theme.ui.status_warning_fg,
+        ),
+        CommentFlash::ConfirmQuit(n) => (
+            format!(" {n} uncopied comment{}, press q again to quit ", plural(n)),
+            theme.ui.status_warning_fg,
+        ),
+    };
+    Some(vec![Span::styled(text, Style::default().fg(fg).bg(bar_bg))])
+}
+
+fn status_comment_section(app: &App) -> Option<Vec<Span<'static>>> {
+    let theme = app_theme();
+    let count = app.comments().len();
+    let count_style = Style::default()
+        .fg(theme.ui.status_warning_fg)
+        .bg(status_bar_bg());
+    if !app.is_comment_mode() {
+        return (count > 0).then(|| {
+            vec![Span::styled(
+                format!(" {count} comment{} ", plural(count)),
+                count_style,
+            )]
+        });
+    }
+    let mut spans = vec![Span::styled(
+        format!(
+            " COMMENT {} ",
+            app.comment_source_label().unwrap_or_default()
+        ),
+        Style::default()
+            .fg(theme.ui.status_search_fg)
+            .bg(theme.ui.status_search_bg),
+    )];
+    if count > 0 {
+        spans.push(Span::styled(format!(" {count} "), count_style));
+    }
+    Some(spans)
+}
+
+fn hovered_comment_section(
+    app: &App,
+    left: &[Span<'static>],
+    right: &[Span<'static>],
+) -> Option<Vec<Span<'static>>> {
+    if !app.is_comment_mode() || app.has_comment_range() || app.is_comment_input() {
+        return None;
+    }
+    let comment = app.comment_at_cursor()?;
+    let available =
+        usize::from(app.terminal_width).saturating_sub(spans_width(left) + spans_width(right) + 2);
+    let theme = app_theme();
+    let text = truncate_display_width(&format!("✎ {}", comment.text), available.max(1));
+    Some(vec![Span::styled(
+        text,
+        Style::default()
+            .fg(theme.ui.status_filename_fg)
+            .bg(status_bar_bg()),
+    )])
+}
+
 fn link_select_status(app: &App, destination: &str, bar_bg: Color) -> Vec<Span<'static>> {
     let width = usize::from(app.terminal_width);
     let brand = status_brand_section();
@@ -392,6 +496,12 @@ pub(crate) fn build_status_bar(app: &App, pct: u16) -> Vec<Span<'static>> {
             " Mouse capture disabled ",
             Style::default().fg(theme.ui.status_warning_fg).bg(bar_bg),
         ));
+        return join_span_sections(vec![left], outer_separator);
+    }
+
+    if let Some(flash_section) = comment_flash_section(app) {
+        let mut left = status_brand_section();
+        left.extend(flash_section);
         return join_span_sections(vec![left], outer_separator);
     }
 
@@ -508,11 +618,17 @@ fn build_document_sections(
         if let Some(section) = status_watch_section(app) {
             left_section.extend(section);
         }
+        if let Some(section) = status_comment_section(app) {
+            left_section.extend(section);
+        }
     }
 
-    let mut sections = vec![left_section, status_shortcuts_section(app, bar_bg)];
+    let percent = status_percent_section(pct, bar_bg);
+    let middle = hovered_comment_section(app, &left_section, &percent)
+        .unwrap_or_else(|| status_shortcuts_section(app, bar_bg));
+    let mut sections = vec![left_section, middle];
     if file_open {
-        sections.push(status_percent_section(pct, bar_bg));
+        sections.push(percent);
     }
     sections
 }

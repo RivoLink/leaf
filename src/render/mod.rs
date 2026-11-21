@@ -91,7 +91,9 @@ pub(crate) fn ui(f: &mut Frame, app: &mut App) {
     }
     content::render_status_bar(f, app, root[1]);
 
-    if app.is_help_open() {
+    if app.is_comment_input() {
+        popup::render_comment_popup(f, app);
+    } else if app.is_help_open() {
         popup::render_help_popup(f, app);
     } else if app.is_history_picker_loading() {
         popup_picker::render_history_loading_popup(f, app);
@@ -130,7 +132,7 @@ pub(super) fn clear_popup_area(f: &mut Frame, area: Rect) {
 }
 
 pub(super) const THEME_POPUP_SIZE: (u16, u16) = (43, 10);
-pub(super) const HELP_DOCUMENT_POPUP_SIZE: (u16, u16) = (53, 28);
+pub(super) const HELP_DOCUMENT_POPUP_SIZE: (u16, u16) = (53, 29);
 
 pub(super) fn centered_rect(width: u16, height: u16, area: Rect) -> Rect {
     let popup_width = width.min(area.width.saturating_sub(2)).max(1);

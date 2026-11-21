@@ -250,6 +250,7 @@ impl App {
         self.search.mode = false;
         self.reset_search_state();
         self.clear_active_goto_line();
+        self.exit_comment_mode();
 
         match detected_mode {
             super::AppMode::Diff => {

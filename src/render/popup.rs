@@ -7,7 +7,7 @@ use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Padding, Paragraph},
+    widgets::{Block, Borders, Padding, Paragraph, Wrap},
     Frame,
 };
 use std::time::Duration;
@@ -225,6 +225,13 @@ fn render_help_document(f: &mut Frame, _app: &App) {
             Span::raw("      "),
             Span::styled("q           ", key_style),
             Span::styled("quit", text_style),
+        ]),
+        Line::from(vec![
+            Span::styled("i          ", key_style),
+            Span::styled("comment mode", text_style),
+            Span::raw("     "),
+            Span::styled("shift+s     ", key_style),
+            Span::styled("copy cmts", text_style),
         ]),
         Line::from(vec![
             Span::styled("?          ", key_style),
@@ -612,6 +619,58 @@ pub(super) fn render_path_popup(f: &mut Frame, app: &mut App) {
         Paragraph::new(lines).block(
             Block::default()
                 .title("─ File Path ")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(theme.ui.toc_border))
+                .style(Style::default().bg(theme.ui.toc_bg))
+                .padding(Padding::new(1, 1, 0, 0)),
+        ),
+        area,
+    );
+}
+
+const COMMENT_POPUP_WIDTH: u16 = 72;
+
+pub(super) fn render_comment_popup(f: &mut Frame, app: &App) {
+    let Some(draft) = app.comment_draft() else {
+        return;
+    };
+    let theme = app_theme();
+    let excerpt_style = Style::default()
+        .fg(theme.ui.toc_secondary_text_inactive)
+        .add_modifier(Modifier::ITALIC);
+    let input_style = Style::default().fg(theme.ui.toc_primary_active);
+    let cursor_style = Style::default().fg(theme.ui.toc_accent);
+
+    let mut lines = vec![Line::from("")];
+    if !draft.comment.excerpt.is_empty() {
+        lines.push(Line::from(Span::styled(
+            format!("> {}", draft.comment.excerpt),
+            excerpt_style,
+        )));
+        lines.push(Line::from(""));
+    }
+    lines.push(Line::from(vec![
+        Span::styled(draft.comment.text.clone(), input_style),
+        Span::styled("▏", cursor_style),
+    ]));
+    lines.push(Line::from(""));
+    lines.push(popup_footer_line(
+        &["enter save", "ctrl+u clear", "esc cancel"],
+        theme.ui.toc_bg,
+    ));
+
+    let inner_width = COMMENT_POPUP_WIDTH
+        .min(f.area().width.saturating_sub(2))
+        .saturating_sub(4);
+    let body = Paragraph::new(lines).wrap(Wrap { trim: false });
+    let height = body.line_count(inner_width.max(1)) as u16 + 2;
+    let area = centered_rect(COMMENT_POPUP_WIDTH, height, f.area());
+
+    clear_popup_area(f, area);
+    f.render_widget(
+        body.block(
+            Block::default()
+                .title(format!("─ Comment · {} ", draft.comment.anchor()))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(theme.ui.toc_border))
                 .style(Style::default().bg(theme.ui.toc_bg))

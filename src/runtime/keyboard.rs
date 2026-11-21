@@ -97,11 +97,21 @@ pub(super) fn handle_key_event(
     ss: &SyntaxSet,
     themes: &ThemeSet,
 ) -> anyhow::Result<HandleResult> {
+    let ctrl = key.modifiers.contains(KeyModifiers::CONTROL);
+    let quit_key = match key.code {
+        KeyCode::Char('q') | KeyCode::Char('Q') => !ctrl,
+        KeyCode::Char('c') => ctrl,
+        _ => false,
+    };
+    if !quit_key {
+        app.disarm_comment_quit();
+    }
     if matches!(key.code, KeyCode::Char('m') | KeyCode::Char('M'))
         && !key.modifiers.contains(KeyModifiers::CONTROL)
     {
         let in_text_input = app.is_search_mode()
             || app.is_goto_line_mode()
+            || app.is_comment_input()
             || (app.is_file_picker_open() && app.is_fuzzy_file_picker());
         if !in_text_input {
             app.exit_link_select_mode();
@@ -116,7 +126,9 @@ pub(super) fn handle_key_event(
     }
 
     let mut state_changed = true;
-    if app.is_help_open() {
+    if app.is_comment_input() {
+        state_changed = super::comment_keys::handle_comment_input_key(app, &key);
+    } else if app.is_help_open() {
         match key.code {
             KeyCode::Esc | KeyCode::Char('?') => app.close_help(),
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -404,12 +416,18 @@ pub(super) fn handle_key_event(
     } else {
         let mut mode_exited = false;
 
-        match handle_select_mode_keys(app, &key) {
-            SelectModeOutcome::Consumed => {
+        if app.is_comment_mode() && app.mode() == crate::app::AppMode::Document {
+            if super::comment_keys::handle_comment_mode_key(app, &key) {
                 return Ok(HandleResult::Continue { redraw: true });
             }
-            SelectModeOutcome::Exited => mode_exited = true,
-            SelectModeOutcome::Inactive => {}
+        } else {
+            match handle_select_mode_keys(app, &key) {
+                SelectModeOutcome::Consumed => {
+                    return Ok(HandleResult::Continue { redraw: true });
+                }
+                SelectModeOutcome::Exited => mode_exited = true,
+                SelectModeOutcome::Inactive => {}
+            }
         }
 
         match handle_shared_keys(terminal, app, &key, ss, themes)? {
@@ -528,7 +546,13 @@ fn handle_shared_keys(
             app.queue_fuzzy_file_picker(app.picker_dir());
             Ok(SharedOutcome::Handled)
         }
-        KeyCode::Char('q') | KeyCode::Char('Q') => Ok(SharedOutcome::Break),
+        KeyCode::Char('q') | KeyCode::Char('Q') => {
+            if app.confirm_quit_with_comments() {
+                Ok(SharedOutcome::Break)
+            } else {
+                Ok(SharedOutcome::Handled)
+            }
+        }
         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             if app.is_diff_preview_visible() {
                 let theme = crate::theme::current_syntect_theme(themes);
@@ -541,8 +565,10 @@ fn handle_shared_keys(
             } else if app.has_active_goto_line() {
                 app.clear_active_goto_line();
                 Ok(SharedOutcome::Handled)
-            } else {
+            } else if app.confirm_quit_with_comments() {
                 Ok(SharedOutcome::Break)
+            } else {
+                Ok(SharedOutcome::Handled)
             }
         }
         KeyCode::Char('j') | KeyCode::Down => {
@@ -695,6 +721,13 @@ fn reload_helper(app: &mut App, ss: &SyntaxSet, themes: &ThemeSet) {
 
 fn handle_document_keys(app: &mut App, key: &KeyEvent) -> bool {
     match key.code {
+        KeyCode::Char('i') if !key.modifiers.contains(KeyModifiers::CONTROL) => {
+            app.enter_comment_mode()
+        }
+        KeyCode::Char('S') => {
+            app.copy_comments();
+            true
+        }
         KeyCode::Char('J') if app.can_scroll_toc() => {
             app.focus_next_top_level_toc();
             true

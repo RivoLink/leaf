@@ -15,11 +15,12 @@
   - `diff_preview.rs` obtains or reconstructs before/after file content for diff previews.
   - `file_picker.rs`, `fuzzy.rs`, and `io_picker.rs` implement browser/fuzzy picker state, matching, indexing, and asynchronous loading.
   - `history.rs` and `history_picker.rs` persist, load, and present recent files.
+  - `comments.rs` holds review comments: comment-mode cursor and range, source-line anchors, and clipboard export.
   - `search.rs`, `goto_line.rs`, `links.rs`, `code_blocks.rs`, `theme_picker.rs`, `popups.rs`, and `flash.rs` hold interaction-specific state and behavior.
 - `src/markdown/`: width-aware Markdown parsing and text layout. `mod.rs` drives `pulldown-cmark`; supporting modules render blocks, inline spans, lists, tables, links, footnotes, frontmatter, LaTeX, Mermaid, and the table of contents. `syntax.rs` and `highlight.rs` integrate Syntect; `width.rs` and `wrapping.rs` handle display width.
 - `src/diff/`: Git diff data types, unified-diff parsing, and the unified/split layout choice.
 - `src/render/`: Ratatui frame composition. `content.rs`, `toc.rs`, `diff_tree.rs`, `status.rs`, `popup.rs`, and `popup_picker.rs` render the main panels and overlays; `diff/` builds and draws unified, split, and preview panels.
-- `src/runtime/`: Crossterm event loop, timers, resize handling, keyboard routing, diff/code-selection key handling, and mouse interactions.
+- `src/runtime/`: Crossterm event loop, timers, resize handling, keyboard routing, diff/code-selection/comment-mode key handling (`comment_keys.rs`), and mouse interactions.
 - `src/theme/`: built-in presets, custom-theme deserialization and resolution, UI/Markdown/diff colors, and the selected Syntect syntax theme.
 - Supporting modules: `editor.rs` launches configured editors; `clipboard.rs` opens links and copies text; `completions.rs` installs shell completions; `inline.rs` serializes rendered lines; `terminal.rs` manages terminal state; `update.rs` downloads and verifies releases.
 - `src/tests/`: in-binary unit and regression tests, organized by subsystem. Shared helpers live in `src/tests/common/`; diff fixtures live in `tests/fixtures/diff/`.

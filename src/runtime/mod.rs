@@ -1,4 +1,5 @@
 mod code_select_keys;
+mod comment_keys;
 mod diff_keys;
 mod keyboard;
 mod link_select_keys;
@@ -182,6 +183,8 @@ pub(crate) fn run(
                 .and_then(|(_, started)| FLASH_DURATION.checked_sub(started.elapsed())),
             app.soft_break_flash()
                 .and_then(|(_, started)| FLASH_DURATION.checked_sub(started.elapsed())),
+            app.comment_flash()
+                .and_then(|(_, started)| FLASH_DURATION.checked_sub(started.elapsed())),
             app.copy_highlight()
                 .and_then(|(_, started)| COPY_HIGHLIGHT_DURATION.checked_sub(started.elapsed())),
             resize_timeout,
@@ -257,7 +260,9 @@ pub(crate) fn run(
                     }
                 }
                 Event::Resize(_, _) => {
-                    needs_redraw |= app.exit_code_select_mode() | app.exit_link_select_mode();
+                    needs_redraw |= app.exit_code_select_mode()
+                        | app.exit_link_select_mode()
+                        | app.exit_comment_mode();
                     pending_resize = Some(Instant::now());
                 }
                 _ => {}
@@ -357,6 +362,13 @@ pub(crate) fn run(
         if let Some((_, started)) = app.soft_break_flash() {
             if started.elapsed() >= FLASH_DURATION {
                 app.clear_soft_break_flash();
+                needs_redraw = true;
+            }
+        }
+
+        if let Some((_, started)) = app.comment_flash() {
+            if started.elapsed() >= FLASH_DURATION {
+                app.clear_comment_flash();
                 needs_redraw = true;
             }
         }

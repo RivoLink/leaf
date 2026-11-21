@@ -105,6 +105,16 @@ pub(super) fn render_content_panel(f: &mut Frame, app: &mut App, area: Rect) {
         }
     }
 
+    let comment_marks = comment_marks(app, scroll, visible_end);
+    let selection_bg = theme.ui.toc_active_bg;
+    for (line, mark) in visible_lines.iter_mut().zip(&comment_marks) {
+        if *mark == CommentMark::Selected {
+            for span in &mut line.spans {
+                span.style = span.style.bg(selection_bg);
+            }
+        }
+    }
+
     if app.is_line_number_visible() {
         let digit_width = app.line_number_total().max(1).to_string().len();
         let gutter_style = Style::default().fg(theme.markdown.code_gutter);
@@ -143,6 +153,7 @@ pub(super) fn render_content_panel(f: &mut Frame, app: &mut App, area: Rect) {
             .wrap(Wrap { trim: false }),
         content_area,
     );
+    draw_comment_marks(f, app, &comment_marks, scroll, area.x, content_area.y);
 
     let (mouse_col, mouse_row) = app.mouse_position;
     let sb_x = area
@@ -294,4 +305,56 @@ pub(super) fn render_status_bar(f: &mut Frame, app: &mut App, area: Rect) {
         Paragraph::new(vec![app.status_line().clone()]).style(Style::default().bg(bar_bg)),
         area,
     );
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum CommentMark {
+    None,
+    Commented,
+    Selected,
+}
+
+fn comment_marks(app: &App, scroll: usize, visible_end: usize) -> Vec<CommentMark> {
+    let selection = app.comment_selection();
+    let file = (!app.comments().is_empty()).then(|| app.comment_file_label());
+    (scroll..visible_end)
+        .map(|idx| {
+            if selection.is_some_and(|(lo, hi)| (lo..=hi).contains(&idx)) {
+                CommentMark::Selected
+            } else if file
+                .as_deref()
+                .is_some_and(|file| app.is_line_commented(file, idx))
+            {
+                CommentMark::Commented
+            } else {
+                CommentMark::None
+            }
+        })
+        .collect()
+}
+
+// Markers go in the left padding column so they never shift content or wrapping.
+fn draw_comment_marks(
+    f: &mut Frame,
+    app: &App,
+    marks: &[CommentMark],
+    scroll: usize,
+    x: u16,
+    top: u16,
+) {
+    if marks.iter().all(|mark| *mark == CommentMark::None) {
+        return;
+    }
+    let theme = app_theme();
+    let buf = f.buffer_mut();
+    for (row, &line_idx) in app.screen_geometry.row_lines.iter().enumerate() {
+        let (symbol, fg) = match marks.get(line_idx.saturating_sub(scroll)) {
+            Some(CommentMark::Selected) => ("▌", theme.ui.toc_accent),
+            Some(CommentMark::Commented) => ("▎", theme.ui.status_warning_fg),
+            _ => continue,
+        };
+        if let Some(cell) = buf.cell_mut((x, top.saturating_add(row as u16))) {
+            cell.set_symbol(symbol).set_fg(fg);
+        }
+    }
 }

@@ -62,6 +62,16 @@ Use these keys while viewing the fixture:
 - `/` to search for `tokyo-signal`
 - `n` and `N` to move through search matches
 
+### Review Comments
+
+While viewing the fixture:
+
+- press `i`, move with `j`/`k`, press `Enter`, type a comment, press `Enter`
+- press `v`, extend the range with `j`, and add a range comment
+- confirm the margin markers and the status-bar preview of the comment
+- press `Shift+S` and paste: anchors use source line numbers
+- press `q` with uncopied comments: a second `q` is required
+
 ### File Path Copy
 
 While viewing a file in `leaf`, press `p` to open the File Path popup:

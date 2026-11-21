@@ -195,6 +195,37 @@ fzf --preview 'leaf --inline ansi {}'
 fzf --preview 'leaf --inline ansi:$FZF_PREVIEW_COLUMNS {}'
 ```
 
+## Review Comments
+
+Leave comments on parts of a document, then copy them all to the clipboard, for example to paste into an AI agent.
+
+Press `i` to enter comment mode. A cursor line appears on the first visible line.
+
+| Key | Action |
+|-----|--------|
+| `j` / `k`, `u` / `d`, `g` / `G` | Move the cursor |
+| `v` | Start / cancel a range selection |
+| `Enter` / `i` | Write a comment (edit it if the cursor is on one) |
+| `x` / `X` | Delete the comment under the cursor / all comments (press twice) |
+| `n` / `N` | Jump to the next / previous comment |
+| `y` / `Shift+S` | Copy all comments |
+| `Esc` | Cancel the range, then exit comment mode |
+
+In the comment box, `Enter` saves, `Ctrl+U` clears the text, and `Esc` cancels. Saving an empty comment deletes it.
+
+Commented lines are marked in the left margin. With the cursor on one, its text is shown in the status bar. `Shift+S` also copies outside comment mode. Comments reference **source** line numbers:
+
+```text
+I reviewed this document and have the following comments. Please address them.
+
+1. `notes.md:3` - Clarify this sentence
+   > The retry count is set to 7 for most clients.
+2. `notes.md:10-14` - This section could be merged with the one above
+   > ## Retry policy
+```
+
+Comments live in memory only. Quitting (`q` or `Ctrl+C`) with uncopied comments asks you to press the key again.
+
 ## Git Diff Viewer
 
 View Git diffs in a navigable TUI with syntax highlighting, side-by-side layout, and file previews.
@@ -407,7 +438,8 @@ leaf --theme rose-pine README.md
 | `r` | Force reload (watch mode) | `Shift+Drag` | Select text |
 | `t` | Toggle TOC sidebar | `Option+Drag` | Select text (iTerm2) |
 | `p` | Show file path | `Ctrl+Double-Click` | Copy line |
-| `q` | Quit | | |
+| `q` | Quit | `i` | Comment mode |
+| | | `Shift+S` | Copy comments |
 
 ## Features
 
@@ -430,6 +462,7 @@ leaf --theme rose-pine README.md
 - **Code block interactions** : *Focus and copy with `y/Y` / `c/C`, or double-click on a block*.
 - **Text copy** : *Double-click to copy a word, `Ctrl+Double-Click` to copy a line (or a code line in a block)*.
 - **Mouse capture** : *`Shift+M` to toggle mouse capture and let the terminal handle selection*.
+- **Review comments** : *Comment on lines or ranges with `i`, copy them as a numbered list with `Shift+S`*.
 - **Navigation** : *TOC sidebar, active section tracking, heading jumps, and search*.
 - **Terminal UX** : *Theme picker, help popup, file path popup, mouse and keyboard support*.
 - **Custom themes** : *TOML theme files inheriting from built-in presets with color overrides*.

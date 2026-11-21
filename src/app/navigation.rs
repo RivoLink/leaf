@@ -48,7 +48,7 @@ impl App {
         Some(pair.before_lines.len().max(pair.after_lines.len()))
     }
 
-    fn page_scroll_amount(&self) -> usize {
+    pub(super) fn page_scroll_amount(&self) -> usize {
         let viewport = self.page_scroll_viewport_height();
         match self.page_scroll_size {
             crate::config::PageScrollSize::Rows(rows) => rows,

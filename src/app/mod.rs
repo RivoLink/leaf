@@ -63,9 +63,14 @@ pub(crate) use diff_preview::{fetch_before, reconstruct_after_from_hunks};
 
 mod flash;
 pub(crate) use flash::{
-    CodeBlockFlash, DiffFlash, EditorFlash, HistoryFlash, LinkFlash, PathFlash, SoftBreakFlash,
-    WatchFlash, COPY_HIGHLIGHT_DURATION_MS, FLASH_DURATION_MS,
+    CodeBlockFlash, CommentFlash, DiffFlash, EditorFlash, HistoryFlash, LinkFlash, PathFlash,
+    SoftBreakFlash, WatchFlash, COPY_HIGHLIGHT_DURATION_MS, FLASH_DURATION_MS,
 };
+
+mod comments;
+pub(crate) use comments::CommentState;
+#[cfg(test)]
+pub(crate) use comments::{format_comments, source_excerpt, Comment, COMMENT_EXPORT_HEADER};
 
 mod text_copy;
 #[cfg(test)]
@@ -141,6 +146,8 @@ pub(crate) struct StatusCacheKey {
     toc_scroll_hint_visible: bool,
     diff_tree_scroll_hint_visible: bool,
     diff_sticky_file_idx: Option<usize>,
+    comment_revision: u64,
+    comment_flash: Option<CommentFlash>,
 }
 
 pub(crate) struct AppConfig {
@@ -234,6 +241,8 @@ pub(crate) struct App {
     path_flash: Option<(PathFlash, Instant)>,
     pub(crate) last_click: Option<(u16, u16, Instant)>,
     pub(super) copy_highlight: Option<(Vec<CopyRange>, Instant)>,
+    pub(super) comments: CommentState,
+    comment_flash: Option<(CommentFlash, Instant)>,
     pub(super) path_copy_flash: Option<(PathKind, bool, Instant)>,
     pub(super) path_popup_hover: Option<PathKind>,
     pub(crate) path_popup_rel_area: Option<Rect>,
@@ -429,6 +438,8 @@ impl App {
             path_flash: None,
             last_click: None,
             copy_highlight: None,
+            comments: CommentState::default(),
+            comment_flash: None,
             path_copy_flash: None,
             path_popup_hover: None,
             path_popup_rel_area: None,
@@ -950,6 +961,11 @@ impl App {
             toc_scroll_hint_visible: self.is_toc_scroll_hint_visible(),
             diff_tree_scroll_hint_visible: self.is_diff_tree_scroll_hint_visible(),
             diff_sticky_file_idx: self.diff_current_file_from_scroll(),
+            comment_revision: self.comment_revision(),
+            comment_flash: self
+                .comment_flash()
+                .filter(|(_, t)| t.elapsed() < Duration::from_millis(FLASH_DURATION_MS))
+                .map(|(flash, _)| *flash),
         };
 
         if self.status_cache_key.as_ref() == Some(&cache_key) {

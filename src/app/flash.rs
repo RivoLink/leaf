@@ -6,6 +6,18 @@ use std::time::Instant;
 pub(crate) const FLASH_DURATION_MS: u64 = 1500;
 pub(crate) const COPY_HIGHLIGHT_DURATION_MS: u64 = 1500;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CommentFlash {
+    Saved,
+    Deleted,
+    Cleared,
+    Copied(usize),
+    CopyFailed,
+    NothingToCopy,
+    ConfirmClear(usize),
+    ConfirmQuit(usize),
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum EditorFlash {
     Opened(String),
@@ -64,6 +76,33 @@ pub(crate) enum DiffFlash {
 }
 
 impl App {
+    pub(crate) fn set_comment_flash(&mut self, flash: CommentFlash) {
+        self.comment_flash = Some((flash, Instant::now()));
+    }
+
+    pub(crate) fn comment_flash(&self) -> Option<&(CommentFlash, Instant)> {
+        self.comment_flash.as_ref()
+    }
+
+    pub(crate) fn clear_comment_flash(&mut self) {
+        self.comment_flash = None;
+    }
+
+    pub(crate) fn is_comment_flash_active(&self, flash: CommentFlash) -> bool {
+        self.comment_flash.is_some_and(|(current, started)| {
+            current == flash && started.elapsed().as_millis() < u128::from(FLASH_DURATION_MS)
+        })
+    }
+
+    pub(crate) fn clear_comment_flash_if(&mut self, predicate: impl Fn(CommentFlash) -> bool) {
+        if self
+            .comment_flash
+            .is_some_and(|(flash, _)| predicate(flash))
+        {
+            self.comment_flash = None;
+        }
+    }
+
     pub(crate) fn set_editor_flash(&mut self, flash: EditorFlash) {
         self.editor_flash = Some((flash, Instant::now()));
     }
